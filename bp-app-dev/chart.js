@@ -1,17 +1,17 @@
 /* =================================================================
-   chart.js — Canvas 2D グラフ描画モジュール v1.2.0
+   chart.js — Canvas 2D グラフ描画モジュール v1.3.0
    8項目（受診SBP/DBP, 家庭平均/最小/最大SBP/DBP）の時系列折れ線
    ================================================================= */
 
 const BP_ITEMS = [
-  { key: 'systolic',  label: '受診SBP', color: '#c0392b' },
-  { key: 'avgSbp',    label: '家庭SBP平均', color: '#e67e22' },
-  { key: 'minSbp',    label: '家庭SBP最小', color: '#f39c12' },
-  { key: 'maxSbp',    label: '家庭SBP最大', color: '#e74c3c' },
-  { key: 'diastolic', label: '受診DBP', color: '#2980b9' },
-  { key: 'avgDbp',    label: '家庭DBP平均', color: '#27ae60' },
-  { key: 'minDbp',    label: '家庭DBP最小', color: '#1abc9c' },
-  { key: 'maxDbp',    label: '家庭DBP最大', color: '#8e44ad' },
+  { key: 'systolic',  label: '受診SBP', color: '#c0392b', lineWidth: 1.8 },
+  { key: 'avgSbp',    label: '家庭SBP平均', color: '#e67e22', lineWidth: 2.8 },
+  { key: 'minSbp',    label: '家庭SBP最小', color: '#f39c12', lineWidth: 1.0, opacity: 0.45 },
+  { key: 'maxSbp',    label: '家庭SBP最大', color: '#e74c3c', lineWidth: 1.0, opacity: 0.45 },
+  { key: 'diastolic', label: '受診DBP', color: '#2980b9', lineWidth: 1.8 },
+  { key: 'avgDbp',    label: '家庭DBP平均', color: '#27ae60', lineWidth: 2.8 },
+  { key: 'minDbp',    label: '家庭DBP最小', color: '#1abc9c', lineWidth: 1.0, opacity: 0.45 },
+  { key: 'maxDbp',    label: '家庭DBP最大', color: '#8e44ad', lineWidth: 1.0, opacity: 0.45 },
 ];
 
 const GRAPH = {
@@ -97,6 +97,23 @@ function drawAllPeriodGraph(canvas, readings) {
   ctx.fillText('mmHg', 0, 0);
   ctx.restore();
 
+  // ── 年区切り線（1月1日） ──
+  ctx.strokeStyle = '#d5d8dc';
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([3, 4]);
+  for (let y = firstDate.getFullYear() + 1; y <= lastDate.getFullYear(); y++) {
+    const jan1 = new Date(y, 0, 1);
+    if (jan1 >= firstDate && jan1 <= lastDate) {
+      const dOff = Math.round((jan1 - firstDate) / 86400000);
+      const x = dayToX(dOff);
+      ctx.beginPath();
+      ctx.moveTo(x, pad.top);
+      ctx.lineTo(x, H - pad.bottom);
+      ctx.stroke();
+    }
+  }
+  ctx.setLineDash([]);
+
   // ── 折れ線を描画（表示対象のみ） ──
   const seriesData = []; // ツールチップ用に各ポイントを保持
 
@@ -122,8 +139,9 @@ function drawAllPeriodGraph(canvas, readings) {
 
     // 折れ線（値が続いている区間ごとに描画）
     ctx.strokeStyle = item.color;
-    ctx.lineWidth = GRAPH.lineWidth;
+    ctx.lineWidth = item.lineWidth || GRAPH.lineWidth;
     ctx.lineJoin = 'round';
+    if (item.opacity != null) ctx.globalAlpha = item.opacity;
     ctx.beginPath();
     let started = false;
     for (let i = 0; i < pts.length; i++) {
@@ -135,8 +153,10 @@ function drawAllPeriodGraph(canvas, readings) {
       }
     }
     ctx.stroke();
+    if (item.opacity != null) ctx.globalAlpha = 1.0;
 
     // ドット
+    if (item.opacity != null) ctx.globalAlpha = item.opacity;
     pts.forEach(p => {
       ctx.beginPath();
       ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
@@ -146,6 +166,7 @@ function drawAllPeriodGraph(canvas, readings) {
       ctx.lineWidth = 1.2;
       ctx.stroke();
     });
+    if (item.opacity != null) ctx.globalAlpha = 1.0;
 
     seriesData.push({ key: item.key, label: item.label, color: item.color, pts: pts });
   });
