@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💊 血圧モニター（開発版）</title>
+<style>
+/* =================================================================
+   style.css — スタイルシート（共通）
+   ================================================================= */
+
+/* ===== Reset & Base ===== */
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body {
+  font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  line-height: 1.6; color: #2c3e50; background: #f0f2f5;
+}
+button { font-family: inherit; cursor: pointer }
+input, select { font-family: inherit }
+
+/* ===== Layout ===== */
+#app { max-width: 980px; margin: 0 auto; padding: 12px }
+.header {
+  background: #2c3e50; color: #fff; padding: 14px 20px;
+  border-radius: 10px 10px 0 0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.header h1 { font-size: 1.2em; font-weight: 700 }
+.header .info { font-size: .82em; opacity: .85 }
+.content {
+  background: #fff; border-radius: 0 0 10px 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 20px;
+}
+
+/* ===== ID Input Screen ===== */
+#screen-id { text-align: center; padding: 60px 20px 40px }
+#screen-id h2 { font-size: 1.1em; color: #34495e; margin-bottom: 30px; font-weight: 400 }
+.id-input-wrap { display: inline-block; text-align: left }
+.id-input-wrap label { display: block; font-size: .95em; margin-bottom: 6px; font-weight: 600 }
+.id-input-wrap input[type="text"] {
+  width: 220px; padding: 10px 14px; font-size: 1.2em;
+  border: 2px solid #3498db; border-radius: 6px;
+  text-align: center; letter-spacing: .1em;
+}
+.id-input-wrap input[type="text"]:focus {
+  outline: none; border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231,76,60,.15);
+}
+.id-input-wrap .hint { font-size: .78em; color: #95a5a6; margin-top: 6px }
+
+/* ===== Version Info ===== */
+.version-info { margin-top: 12px; text-align: center }
+.version-info small { color: #95a5a6; font-size: .78em }
+.version-footer { text-align: center; padding: 16px 0 8px; color: #95a5a6 }
+.version-footer small { font-size: .78em }
+
+/* ===== Buttons ===== */
+.btn {
+  padding: 10px 28px; border: none; border-radius: 6px;
+  font-size: .95em; font-weight: 600; transition: background .15s;
+}
+.btn:focus { outline: 2px solid #3498db; outline-offset: 2px }
+.btn-primary { background: #3498db; color: #fff }
+.btn-primary:hover { background: #2980b9 }
+.btn-secondary { background: #95a5a6; color: #fff }
+.btn-secondary:hover { background: #7f8c8d }
+.btn-danger { background: #e74c3c; color: #fff }
+.btn-danger:hover { background: #c0392b }
+.btn-sm { padding: 6px 14px; font-size: .82em }
+.btn-group { margin-top: 16px; display: flex; gap: 10px; justify-content: center }
+* { box-sizing: border-box }
+
+/* ===== Nav Bar ===== */
+.nav-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.nav-bar .patient-info { font-size: .9em; font-weight: 600 }
+.nav-bar select {
+  padding: 6px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .88em; background: #fff;
+}
+.nav-bar button {
+  padding: 6px 14px; border: 1px solid #bdc3c7;
+  border-radius: 4px; background: #ecf0f1; font-size: .85em;
+}
+.nav-bar button:hover { background: #d5dbdb }
+.nav-bar .nav-btn { background: #3498db; color: #fff; border-color: #3498db }
+.nav-bar .nav-btn:hover { background: #2980b9 }
+.nav-bar .active-period { font-weight: 700; min-width: 130px; text-align: center }
+
+/* ===== View Tabs ===== */
+.view-tabs { display: flex; gap: 2px }
+.view-btn {
+  padding: 6px 14px !important;
+  border-radius: 6px 6px 0 0 !important;
+  font-size: .8em !important;
+  background: #ecf0f1 !important;
+  color: #7f8c8d !important;
+  border: 1px solid #bdc3c7 !important;
+  border-bottom: none !important;
+  transition: all .15s;
+  position: relative; top: 1px;
+}
+.view-btn:hover { background: #d5dbdb !important }
+.view-btn.active {
+  background: #fff !important;
+  color: #2c3e50 !important;
+  border-color: #e0e4e8 !important;
+  font-weight: 700; z-index: 2;
+}
+
+/* ===== Toggle Bar ===== */
+.toggle-bar { text-align: center; margin: 4px 0 10px }
+.toggle-label { display: inline-flex; align-items: center; gap: 6px; font-size: .85em; color: #555; cursor: pointer }
+.toggle-label input { width: 16px; height: 16px; cursor: pointer }
+
+/* ===== Graph ===== */
+.graph-container { position: relative; margin-bottom: 20px }
+.graph-container canvas {
+  width: 100%; height: 380px; display: block;
+  background: #fafbfc; border: 1px solid #e0e4e8; border-radius: 6px;
+}
+.legend {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  margin-top: 8px; font-size: .82em; justify-content: center;
+}
+.legend-item { display: flex; align-items: center; gap: 5px }
+.legend-color { width: 18px; height: 4px; border-radius: 2px }
+.legend-line { width: 18px; height: 0; border-top: 2px dashed }
+
+/* ===== Form ===== */
+.form-section {
+  background: #f8f9fb; border: 1px solid #e0e4e8;
+  border-radius: 6px; padding: 16px; margin-bottom: 16px;
+}
+.form-section h3 { font-size: .95em; margin-bottom: 12px; color: #2c3e50 }
+.form-row {
+  display: flex; gap: 12px; align-items: center;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.form-row label { min-width: 90px; font-size: .88em; font-weight: 600 }
+.form-row input[type="number"],
+.form-row input[type="text"],
+.form-row input[type="date"] {
+  padding: 8px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .95em; flex: 1; min-width: 120px;
+}
+.form-row input:focus {
+  outline: none; border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+}
+.form-row input.short { width: 70px; flex: none }
+.form-row .unit { font-size: .82em; color: #7f8c8d }
+.form-row .memo-input { width: 200px }
+.form-row-compact { margin-bottom: 4px; gap: 8px; }
+.form-row-compact label { min-width: 80px; font-size: .82em; font-weight: 600; }
+.btn-register {
+  padding: 10px 24px; background: #27ae60; color: #fff;
+  border: none; border-radius: 6px; font-size: .95em; font-weight: 600;
+}
+.btn-register:focus { outline: 2px solid #27ae60; outline-offset: 2px }
+.btn-register:hover { background: #219a52 }
+
+/* ===== Summary Table ===== */
+.summary-table { width: 100%; border-collapse: collapse; margin: 12px 0 }
+.summary-table th, .summary-table td {
+  padding: 8px 12px; text-align: center; border: 1px solid #e0e4e8; font-size: .88em;
+}
+.summary-table th { background: #ecf0f1; font-weight: 600 }
+.summary-table td { background: #fff }
+.summary-table .high { color: #e74c3c; font-weight: 700 }
+.summary-table .low { color: #3498db; font-weight: 700 }
+
+/* ===== Daily List ===== */
+.daily-list { border: 1px solid #e0e4e8; border-radius: 6px; overflow-x: auto; margin-top: 12px }
+.daily-list table { width: 100%; border-collapse: collapse }
+.daily-list th, .daily-list td {
+  padding: 7px 10px; text-align: left;
+  border-bottom: 1px solid #eef0f2; font-size: .85em;
+}
+.daily-list th { background: #f4f6f7; font-weight: 600 }
+.daily-list tr:hover { background: #f8f9fb }
+.daily-list td:first-child { font-weight: 600; width: 80px }
+.daily-list td:last-child { width: 110px; text-align: right; white-space: nowrap }
+.bp-val { font-weight: 600 }
+.bp-normal { color: #27ae60 }
+.bp-warn1 { color: #f39c12 }
+.bp-warn2 { color: #e74c3c }
+
+/* ===== Data Bar ===== */
+.data-bar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 16px; padding: 10px;
+  background: #f8f9fb; border-radius: 6px; align-items: center;
+  font-size: .82em;
+}
+.data-bar button {
+  padding: 6px 12px; border: 1px solid #bdc3c7;
+  border-radius: 4px; background: #fff; font-size: .82em;
+}
+.data-bar button:hover { background: #ecf0f1 }
+.data-bar .stat { margin-left: auto; color: #7f8c8d }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: #fff; border-radius: 10px;
+  padding: 24px; min-width: 320px; max-width: 480px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.2);
+}
+.modal h3 { margin-bottom: 16px; font-size: 1em }
+.modal .form-row { margin-bottom: 12px }
+.modal .form-row label { min-width: 80px; font-size: .88em }
+.modal .btn-group { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px }
+.modal-close { background: #95a5a6; color: #fff }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: #2c3e50; color: #fff;
+  padding: 10px 24px; border-radius: 6px;
+  font-size: .9em; z-index: 2000;
+  opacity: 0; transition: opacity .25s;
+  pointer-events: none;
+}
+.toast.show { opacity: .92 }
+
+/* ===== Focus ===== */
+*:focus-visible { outline: 2px solid #3498db; outline-offset: 2px }
+
+/* ===== Print ===== */
+@media print {
+  .nav-bar .nav-btn, .data-bar button, .btn-group { display: none !important }
+  .graph-container canvas { page-break-inside: avoid }
+  body { background: #fff }
+  #app { padding: 0 }
+  .content { box-shadow: none; border: 1px solid #ccc }
+}
+
+/* ===== Paste View ===== */
+#section-paste textarea {
+  width: 100%; padding: 10px; font-size: .95em;
+  border: 1px solid #bdc3c7; border-radius: 4px;
+  font-family: "Consolas", "Courier New", monospace;
+  line-height: 1.5; resize: vertical;
+  background: #fafbfc;
+}
+#section-paste textarea:focus {
+  outline: none; border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+  background: #fff;
+}
+#section-paste .preview-row td {
+  vertical-align: middle;
+}
+#section-paste .preview-row .editable {
+  cursor: text;
+}
+#section-paste .preview-row .editable:hover {
+  background: #fef9e7;
+}
+#section-paste .preview-row input,
+#section-paste .preview-row select {
+  width: 100%; padding: 4px 6px; border: 1px solid transparent;
+  border-radius: 3px; font-size: .88em; background: transparent;
+  text-align: center;
+}
+#section-paste .preview-row input:hover,
+#section-paste .preview-row select:hover {
+  border-color: #bdc3c7; background: #fff;
+}
+#section-paste .preview-row input:focus,
+#section-paste .preview-row select:focus {
+  border-color: #3498db; background: #fff;
+  outline: none; box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+}
+#section-paste .preview-row .memo-input {
+  text-align: left; min-width: 120px;
+}
+
+
+/* ===== Version History ===== */
+.version-history details { cursor: pointer }
+.version-history summary { font-size: .9em; color: #2c3e50; padding: 4px 0 }
+.version-history summary::-webkit-details-marker { color: #95a5a6 }
+.version-history td:first-child { font-weight: 700; color: #2980b9; white-space: nowrap }
+.version-history td:nth-child(2) { white-space: nowrap; color: #7f8c8d; font-size: .85em }
+.version-history td:nth-child(3) { text-align: left; font-size: .85em; line-height: 1.5 }
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .form-row { flex-direction: column; align-items: flex-start; gap: 4px }
+  .form-row input[type="number"],
+  .form-row input[type="text"],
+  .form-row input[type="date"] { width: 100% !important; min-width: 0 }
+  .nav-bar { flex-direction: column; align-items: stretch }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ID Input Screen -->
+  <div id="screen-id">
+    <div id="app-header" class="header">
+      <h1>💊 血圧モニター</h1>
+      <span class="info" id="header-info"></span>
+    </div>
+    <div class="content">
+      <h2>患者IDを入力してください</h2>
+      <div class="id-input-wrap">
+        <label for="inp-patient-id">患者ID</label>
+        <input type="text" id="inp-patient-id" placeholder="例: 12345" autofocus>
+        <div class="hint">IDを入力して Enter キーで開始</div>
+      </div>
+<div class="btn-group">
+         <button class="btn btn-primary" id="btn-id-enter">開 始</button>
+       </div>
+       <div class="version-info">
+         <small>バージョン <span id="app-version">1.0.0</span> | <span id="app-build-date"></span></small>
+       </div>
+      <div style="margin-top:24px">
+        <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
+        <div id="recent-patients"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Screen -->
+  <div id="screen-patient" style="display:none">
+    <div class="header">
+      <h1>💊 血圧モニター</h1>
+      <span class="info" id="patient-header-info"></span>
+    </div>
+    <div class="content">
+      <div class="nav-bar">
+        <select id="sel-patient"></select>
+        <div class="view-tabs">
+          <button class="nav-btn view-btn active" id="view-all" title="全期間表示">📈 全期間</button>
+          <button class="nav-btn view-btn" id="view-paste" title="貼付">📋 貼付</button>
+        </div>
+        <button id="btn-back" title="トップに戻る">🏠</button>
+      </div>
+      <div class="graph-container" id="graph-container">
+        <canvas id="graph"></canvas>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="toggle-bar">
+        <label class="toggle-label">
+          <input type="checkbox" id="chk-show-visit" checked>
+          <span>受診時SBP/DBPを表示</span>
+        </label>
+      </div>
+<div class="form-section" id="section-bp-input">
+          <h3>📋 受診時血圧記録</h3>
+         <div class="form-row">
+           <label for="inp-date">日付</label>
+           <input type="date" id="inp-date">
+         </div>
+         <div class="form-row form-row-compact">
+           <label for="inp-sbp">受診SBP</label>
+           <input type="number" id="inp-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label for="inp-dbp">受診DBP</label>
+           <input type="number" id="inp-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row form-row-compact">
+           <label>家庭SBP平均</label>
+           <input type="number" id="inp-avg-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label>家庭DBP平均</label>
+           <input type="number" id="inp-avg-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row form-row-compact">
+           <label>家庭SBP最小</label>
+           <input type="number" id="inp-min-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label>家庭DBP最小</label>
+           <input type="number" id="inp-min-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row form-row-compact">
+           <label>家庭SBP最大</label>
+           <input type="number" id="inp-max-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label>家庭DBP最大</label>
+           <input type="number" id="inp-max-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row">
+           <label for="inp-memo">メモ</label>
+           <input type="text" id="inp-memo" class="memo-input" placeholder="任意">
+         </div>
+         <div class="form-row">
+           <button class="btn-register" id="btn-register">📋 登録（Enter）</button>
+           <span id="register-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+         </div>
+       </div>
+
+      <div class="form-section" id="section-daily-list">
+         <h3>📅 受診データ一覧</h3>
+         <div class="daily-list">
+           <table>
+             <thead><tr>
+               <th>日付</th>
+               <th>受診SBP</th><th>受診DBP</th>
+               <th>SBP平均</th><th>DBP平均</th>
+               <th>SBP最小</th><th>DBP最小</th>
+               <th>SBP最大</th><th>DBP最大</th>
+               <th>操作</th>
+             </tr></thead>
+             <tbody id="daily-body"></tbody>
+           </table>
+         </div>
+       </div>
+<div class="data-bar" id="data-bar">
+          <button id="btn-export-csv">📤 CSV出力</button>
+         <button id="btn-import-csv">📥 CSV入力</button>
+         <button id="btn-backup">💾 バックアップ</button>
+         <button id="btn-restore">📂 復元</button>
+         <button id="btn-delete-patient" class="btn-danger">🗑 患者削除</button>
+          <span class="stat" id="data-stat"></span>
+        </div>
+
+       <!-- バージョン履歴 -->
+       <div class="form-section version-history" id="section-version-history">
+         <details>
+           <summary><strong>📋 バージョン履歴</strong></summary>
+           <div style="margin-top:10px;overflow-x:auto">
+             <table class="summary-table">
+               <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
+               <tbody>
+                 <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
+                 <tr><td>v1.0.0</td><td>—</td><td>初版（日次血圧測定＋月間サマリー＋警戒ライン）</td></tr>
+               </tbody>
+             </table>
+           </div>
+         </details>
+       </div>
+
+       <!-- 📋 貼付ビュー -->
+        <div id="section-paste" style="display:none">
+         <div class="form-section">
+           <h3>📋 受診間血圧データ貼付</h3>
+           <div class="form-row">
+             <label>基準年</label>
+             <input type="number" id="inp-visit-year" min="2000" max="2100" value="2026">
+             <span style="font-size:.82em;color:#95a5a6">日付に年が無い場合に適用。各行で個別修正可。</span>
+           </div>
+           <div class="form-row" style="flex-direction:column;align-items:stretch">
+             <label for="inp-visit-data">電子カルテからコピーしたデータを貼り付け</label>
+             <textarea id="inp-visit-data" rows="8" placeholder="1/10	130/80 110/50-160/90　変わりない&#10;12/1	128/80 111/51-141/80　体重増えた&#10;1/9	140/90 120/80-170/80　少し増えた"></textarea>
+           </div>
+           <div class="form-row">
+             <button class="btn btn-primary" id="btn-parse-visit">🔍 解析する</button>
+           </div>
+         </div>
+
+         <!-- プレビュー -->
+         <div id="visit-preview" style="display:none">
+           <div class="form-section">
+             <h3>📊 解析結果プレビュー — 内容をご確認ください</h3>
+             <p style="font-size:.82em;color:#e74c3c;margin-bottom:8px">★ 日付・各数値をクリックして編集できます</p>
+             <div style="overflow-x:auto">
+               <table class="summary-table" id="visit-preview-table">
+                 <thead>
+                   <tr>
+                     <th>日付</th>
+                     <th>平均SBP</th>
+                     <th>平均DBP</th>
+                     <th>朝最低SBP</th>
+                     <th>朝最高SBP</th>
+                     <th>夕最低SBP</th>
+                     <th>夕最高SBP</th>
+                     <th>メモ</th>
+                   </tr>
+                 </thead>
+                 <tbody id="visit-preview-body"></tbody>
+               </table>
+             </div>
+             <div style="font-size:.82em;color:#7f8c8d;margin-top:8px" id="visit-preview-count"></div>
+             <div class="form-row" style="margin-top:12px">
+               <button class="btn-register" id="btn-save-visit">💾 データベースに保存</button>
+               <span id="visit-save-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- バージョン情報 -->
+       <div class="version-footer">
+           <small>📋 v<span id="app-version-footer">1.1.0</span> | 💊 Blood Pressure Monitor</small>
+        </div>
+     </div>
+   </div>
+ </div>
+
+<input type="file" id="file-import" accept=".csv,.json" style="display:none">
+<div class="toast" id="toast"></div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-new-patient" style="display:none">
+  <div class="modal">
+    <h3>🆕 新規患者登録</h3>
+    <p style="font-size:.88em;color:#7f8c8d;margin-bottom:12px">ID: <strong id="modal-pid"></strong> は登録されていません。</p>
+    <div class="form-row"><label>氏名</label><input type="text" id="modal-name" placeholder="山田太郎" autofocus></div>
+    <div class="form-row"><label>性別</label><select id="modal-gender"><option value="">--</option><option value="男">男</option><option value="女">女</option></select></div>
+    <div class="form-row"><label>生年月日</label><input type="date" id="modal-birth"></div>
+    <div class="form-row"><label>メモ</label><input type="text" id="modal-memo" placeholder="任意"></div>
+    <div class="btn-group"><button class="btn modal-close" id="modal-cancel">キャンセル</button><button class="btn btn-primary" id="modal-ok">登録</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-confirm" style="display:none">
+  <div class="modal">
+    <h3 id="confirm-title">確認</h3>
+    <p id="confirm-body" style="font-size:.9em;margin-bottom:16px"></p>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="btn modal-close" id="confirm-no">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-yes">実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts (single bundle placeholder) -->
+<script>
+/* =================================================================
+   db.js — IndexedDB 操作モジュール
+   ================================================================= */
+
+const DB_NAME = 'BloodPressureDB';
+const DB_VERSION = 2;
+let db = null;
+
+/** DB オープン */
+function openDB() {
+return new Promise((resolve, reject) => {
+     const req = indexedDB.open(DB_NAME, DB_VERSION);
+     req.onupgradeneeded = (e) => {
+       const d = e.target.result;
+       if (!d.objectStoreNames.contains('patients')) {
+         const ps = d.createObjectStore('patients', { keyPath: 'id' });
+         ps.createIndex('name', 'name', { unique: false });
+       }
+       if (!d.objectStoreNames.contains('readings')) {
+         const rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+         rs.createIndex('byPatient', 'patientId', { unique: false });
+         rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+         rs.createIndex('byDate', 'date', { unique: false });
+       }
+       if (!d.objectStoreNames.contains('monthly_summaries')) {
+         const ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
+         ms.createIndex('byPatient', 'patientId', { unique: false });
+       }
+     };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** トランザクション取得ショートカット */
+function tx(store, mode) {
+  return db.transaction(store, mode).objectStore(store);
+}
+
+/** IDBRequest を Promise 化 */
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---- 患者マスタ ---- */
+
+async function getPatient(id) {
+  return prom(tx('patients', 'readonly').get(id));
+}
+
+async function getAllPatients() {
+  return prom(tx('patients', 'readonly').getAll());
+}
+
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  return prom(tx('patients', 'readwrite').put(p));
+}
+
+async function deletePatient(id) {
+  await prom(tx('patients', 'readwrite').delete(id));
+  // cascade readings
+  const readings = await getReadingsByPatient(id);
+  for (const r of readings) await deleteReading(r.id);
+}
+
+/* ---- 測定データ ---- */
+
+async function getReadingsByPatient(patientId) {
+  return prom(tx('readings', 'readonly').index('byPatient').getAll(patientId));
+}
+
+async function getReadingsByPatientInMonth(patientId, year, month) {
+  const s = tx('readings', 'readonly').index('byPatientDate');
+  const pad = m => String(m).padStart(2, '0');
+  const start = [patientId, `${year}-${pad(month)}-01`];
+  const end   = [patientId, `${year}-${pad(month)}-32`];
+  return prom(s.getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+
+async function getReadingByDate(patientId, date) {
+  return prom(tx('readings', 'readonly').index('byPatientDate').get([patientId, date]));
+}
+
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  return prom(tx('readings', 'readwrite').put(r));
+}
+
+async function deleteReading(id) {
+  return prom(tx('readings', 'readwrite').delete(id));
+}
+
+async function getAllReadings() {
+   return prom(tx('readings', 'readonly').getAll());
+}
+
+/* ---- 月間サマリー ---- */
+
+async function getMonthlySummary(patientId, year, month) {
+   try {
+     return await prom(tx('monthly_summaries', 'readonly').get([patientId, year, month]));
+   } catch { return null; }
+}
+
+async function putMonthlySummary(s) {
+   s.updatedAt = new Date().toISOString();
+   return prom(tx('monthly_summaries', 'readwrite').put(s));
+}
+
+async function deleteMonthlySummary(patientId, year, month) {
+   return prom(tx('monthly_summaries', 'readwrite').delete([patientId, year, month]));
+}
+
+async function getMonthlySummariesByPatient(patientId) {
+   return prom(tx('monthly_summaries', 'readonly').index('byPatient').getAll(patientId));
+}
+/* =================================================================
+   chart.js — Canvas 2D グラフ描画モジュール v1.1.0
+   8項目（受診SBP/DBP, 家庭平均/最小/最大SBP/DBP）の時系列折れ線
+   ================================================================= */
+
+const BP_ITEMS = [
+  { key: 'systolic',  label: '受診SBP', color: '#c0392b' },
+  { key: 'avgSbp',    label: '家庭SBP平均', color: '#e67e22' },
+  { key: 'minSbp',    label: '家庭SBP最小', color: '#f39c12' },
+  { key: 'maxSbp',    label: '家庭SBP最大', color: '#e74c3c' },
+  { key: 'diastolic', label: '受診DBP', color: '#2980b9' },
+  { key: 'avgDbp',    label: '家庭DBP平均', color: '#27ae60' },
+  { key: 'minDbp',    label: '家庭DBP最小', color: '#1abc9c' },
+  { key: 'maxDbp',    label: '家庭DBP最大', color: '#8e44ad' },
+];
+
+const GRAPH = {
+  padding: { top: 30, right: 20, bottom: 45, left: 50 },
+  dotRadius: 3.5,
+  lineWidth: 1.8,
+};
+
+function bpToY(bp, pad, plotH) {
+  return pad.top + plotH - ((bp - 50) / (210 - 50)) * plotH;
+}
+
+/**
+ * 全期間ビュー：8項目の折れ線グラフを描画
+ * 警戒線・平均線・レンジ表示は一切なし
+ */
+function drawAllPeriodGraph(canvas, readings) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width, H = 380;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.height = H + 'px'; canvas.style.width = '100%';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = GRAPH.padding;
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // チェックボックス：受診時血圧の表示/非表示
+  const showVisit = !document.getElementById('chk-show-visit') || document.getElementById('chk-show-visit').checked;
+  const activeItems = showVisit
+    ? BP_ITEMS
+    : BP_ITEMS.filter(function(item) { return item.key !== 'systolic' && item.key !== 'diastolic'; });
+
+  // 有効なデータがあるレコードのみ抽出
+  const valid = readings.filter(function(r) {
+    return activeItems.some(function(item) { return r[item.key] && r[item.key] > 0; });
+  });
+  if (valid.length === 0) {
+    ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('データがありません', W / 2, H / 2);
+    canvas._graphData = { items: BP_ITEMS, readings: [] };
+    return;
+  }
+
+  valid.sort((a, b) => a.date.localeCompare(b.date));
+
+  // Y軸範囲：表示対象の全項目の値から自動計算
+  let allVals = [];
+  valid.forEach(function(r) {
+    activeItems.forEach(function(item) {
+      const v = r[item.key];
+      if (v && v > 0) allVals.push(v);
+    });
+  });
+  let yMin = Math.min(...allVals);
+  let yMax = Math.max(...allVals);
+  yMin = Math.max(50, Math.floor(yMin / 10) * 10 - 10);
+  yMax = Math.min(210, Math.ceil(yMax / 10) * 10 + 10);
+
+  // 日付→X座標のマッピング（日数ベース）
+  const firstDate = new Date(valid[0].date + 'T00:00:00');
+  const lastDate = new Date(valid[valid.length - 1].date + 'T00:00:00');
+  const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
+  const dayToX = (d) => pad.left + (d / totalDays) * pw;
+
+  // ── グリッド ──
+  ctx.strokeStyle = '#e8ecef'; ctx.lineWidth = 0.5;
+  for (let bp = yMin; bp <= yMax; bp += 20) {
+    const y = bpToY(bp, pad, ph);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bp, pad.left - 5, y + 4);
+  }
+
+  // Y軸ラベル
+  ctx.save();
+  ctx.translate(14, H / 2); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mmHg', 0, 0);
+  ctx.restore();
+
+  // ── 折れ線を描画（表示対象のみ） ──
+  const seriesData = []; // ツールチップ用に各ポイントを保持
+
+  activeItems.forEach(function(item) {
+    // この項目の値を持つポイントを収集
+    const pts = [];
+    valid.forEach(r => {
+      const v = r[item.key];
+      if (v && v > 0) {
+        const dt = new Date(r.date + 'T00:00:00');
+        const dOff = Math.round((dt - firstDate) / 86400000);
+        pts.push({
+          x: dayToX(dOff),
+          y: bpToY(v, pad, ph),
+          val: v,
+          date: r.date,
+          reading: r,
+        });
+      }
+    });
+
+    if (pts.length === 0) return;
+
+    // 折れ線（値が続いている区間ごとに描画）
+    ctx.strokeStyle = item.color;
+    ctx.lineWidth = GRAPH.lineWidth;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < pts.length; i++) {
+      if (!started) {
+        ctx.moveTo(pts[i].x, pts[i].y);
+        started = true;
+      } else {
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+    }
+    ctx.stroke();
+
+    // ドット
+    pts.forEach(p => {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
+      ctx.fillStyle = item.color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    });
+
+    seriesData.push({ key: item.key, label: item.label, color: item.color, pts: pts });
+  });
+
+  // ── X軸ラベル（年月日） ──
+  ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(totalDays / 12));
+  let lastMonth = '';
+  valid.forEach(r => {
+    const dt = new Date(r.date + 'T00:00:00');
+    const dOff = Math.round((dt - firstDate) / 86400000);
+    if (dOff % labelStep === 0 || dOff === 0 || dOff === totalDays) {
+      const m = r.date.slice(0, 7);
+      ctx.fillText(r.date.slice(5), dayToX(dOff), H - pad.bottom + 16);
+      if (m !== lastMonth) {
+        ctx.fillStyle = '#7f8c8d'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText(m.slice(0, 4) + '/' + m.slice(5, 7), dayToX(dOff), H - pad.bottom + 30);
+        ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif';
+        lastMonth = m;
+      }
+    }
+  });
+
+  // ツールチップ用データ（表示対象のみ）
+  canvas._graphData = { items: activeItems, readings: valid, seriesData, W, H, pad };
+}
+
+// ── メイン描画関数 ──
+function drawGraph(canvas, readings) {
+  drawAllPeriodGraph(canvas, readings);
+}
+
+// ── ツールチップ ──
+function setupTooltip(canvas) {
+  let tt = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const g = canvas._graphData;
+    if (!g || g.readings.length === 0) return;
+    if (tt) { tt.remove(); tt = null; }
+
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+
+    // マウスXに最も近い日付のレコードを探す
+    const pad = g.pad;
+    const pw = canvas.offsetWidth - pad.left - pad.right;
+    const firstDate = new Date(g.readings[0].date + 'T00:00:00');
+    const lastDate = new Date(g.readings[g.readings.length - 1].date + 'T00:00:00');
+    const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
+
+    // 最も近いレコードを探す（X座標ベース）
+    let closest = null;
+    let minDist = Infinity;
+    g.readings.forEach(r => {
+      const dt = new Date(r.date + 'T00:00:00');
+      const dOff = Math.round((dt - firstDate) / 86400000);
+      const x = pad.left + (dOff / totalDays) * pw;
+      const d = Math.abs(mx - x);
+      if (d < minDist) { minDist = d; closest = r; }
+    });
+
+    // 20px以上離れていたら非表示
+    if (!closest || minDist > 20) return;
+
+    // ツールチップ内容（そのレコードが持つ全項目を表示）
+    var allItems = window.BP_ITEMS || BP_ITEMS;
+    let html = `<strong>${closest.date}</strong>`;
+    allItems.forEach(function(item) {
+      const v = closest[item.key];
+      if (v && v > 0) {
+        html += `<br><span style="color:${item.color}">●</span> ${item.label}: ${v}`;
+      }
+    });
+
+    const dt = new Date(closest.date + 'T00:00:00');
+    const dOff = Math.round((dt - firstDate) / 86400000);
+    const tx = pad.left + (dOff / totalDays) * pw;
+
+    tt = document.createElement('div');
+    tt.style.cssText =
+      'position:absolute;background:rgba(44,62,80,.92);color:#fff;padding:8px 12px;' +
+      'border-radius:5px;font-size:12px;pointer-events:none;white-space:nowrap;' +
+      `left:${Math.min(tx + 14, canvas.parentElement.offsetWidth - 200)}px;` +
+      `top:${Math.max(e.clientY - rect.top - 10, 10)}px;` +
+      'z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.3);line-height:1.6';
+    tt.innerHTML = html;
+    canvas.parentElement.appendChild(tt);
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (tt) { tt.remove(); tt = null; }
+  });
+}
+
+/* =================================================================
+   csv.js — CSV入出力モジュール
+   ================================================================= */
+
+/** CSV パース（RFC 4180準拠、簡易版） */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuote = false;
+      } else {
+        current += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current.trim()); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+/**
+ * CSV文字列をパースしてレコード配列に変換
+ * @param {string} text - CSVテキスト
+ * @returns {{patientId, name, date, systolic, diastolic, note}[]}
+ */
+function parseCSV(text) {
+  // BOM除去
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    const patientId = cols[0];
+    const name = cols[1] || '';
+    const date = cols[2];
+    const systolic = Number(cols[3]);
+    const diastolic = Number(cols[4]);
+    const note = cols[5] || '';
+
+    if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
+    records.push({ patientId, name, date, systolic, diastolic, note });
+  }
+  return records;
+}
+
+/**
+ * 測定データ配列をCSV文字列に変換
+ * @param {{patientId, name?, date, systolic, diastolic, note?}[]} records
+ * @returns {string} BOM付きUTF-8 CSV
+ */
+function recordsToCSV(records) {
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  records.forEach(r => {
+    const name = r.name ? `"${r.name}"` : '';
+    const note = r.note ? `"${r.note}"` : '';
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+  });
+  return csv;
+}
+
+/**
+ * ファイルダウンロード
+ * @param {string} content
+ * @param {string} filename
+ * @param {string} [mime='text/csv']
+ */
+function downloadFile(content, filename, mime = 'text/csv') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * JSONバックアップ生成
+ * @param {object} data - { patients: [], readings: [] }
+ * @returns {string}
+ */
+function backupToJSON(data) {
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * JSONバックアップ解析
+ * @param {string} text
+ * @returns {{patients: [], readings: []}|null}
+ */
+function parseBackupJSON(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+/* =================================================================
+   app.js — メインアプリケーションロジック v1.1.0
+   ================================================================= */
+
+currentPatientId = null;
+var currentView = 'all';
+var editingId = null;
+var _confirmResolve = null;
+
+function tx(s, m) { return db.transaction(s, m).objectStore(s); }
+function prom(r) {
+  return new Promise(function(res, rej) {
+    r.onsuccess = function() { res(r.result); };
+    r.onerror = function() { rej(r.error); };
+  });
+}
+function $(id) { return document.getElementById(id); }
+function esc(s) { var d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function fmtDate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Toast
+var toastTimer = null;
+function toast(msg) {
+  var t = $('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.classList.remove('show'); }, 2500);
+}
+
+// Modal
+function showModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'flex'; }
+function hideModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'none'; }
+function showScreen(id) {
+  var a = $('screen-id'), b = $('screen-patient');
+  if (a) a.style.display = id === 'id' ? '' : 'none';
+  if (b) b.style.display = id === 'patient' ? '' : 'none';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+
+async function init() {
+   // Open DB
+   try { db = await openDBSync(); } catch (e) { alert('DB open failed: ' + e.message); return; }
+
+   // Event: ID input
+   var inpId = $('inp-patient-id');
+   if (inpId) inpId.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); handleIdEnter(); }
+   });
+   var btnStart = $('btn-id-enter');
+   if (btnStart) btnStart.addEventListener('click', handleIdEnter);
+
+   // Event: View tabs
+   var vAll = $('view-all'), vPaste = $('view-paste');
+   if (vAll) vAll.addEventListener('click', function() { currentView = 'all'; if (currentPatientId) renderView(); });
+   if (vPaste) vPaste.addEventListener('click', function() { currentView = 'paste'; if (currentPatientId) renderView(); });
+
+   // Event: Back to top
+   var bb = $('btn-back');
+   if (bb) bb.addEventListener('click', goBack);
+
+   // Event: Patient select
+   var sel = $('sel-patient');
+   if (sel) sel.addEventListener('change', function() {
+     currentPatientId = sel.value;
+     if (currentPatientId) renderPatientPage();
+   });
+
+   // Event: Registration
+   var btnReg = $('btn-register');
+   if (btnReg) btnReg.addEventListener('click', registerReading);
+
+   var inpDbp = $('inp-dbp');
+   if (inpDbp) inpDbp.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); registerReading(); }
+   });
+   var inpMemo = $('inp-memo');
+   if (inpMemo) inpMemo.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); registerReading(); }
+   });
+   var inpDate = $('inp-date');
+   if (inpDate) inpDate.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); var s = $('inp-sbp'); if (s) s.focus(); }
+   });
+   var inpSbp = $('inp-sbp');
+   if (inpSbp) inpSbp.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); var d = $('inp-dbp'); if (d) d.focus(); }
+   });
+
+   // Event: 受診時血圧表示トグル
+   var chkVisit = $('chk-show-visit');
+   if (chkVisit) chkVisit.addEventListener('change', function() {
+     if (currentPatientId && currentView === 'all') renderView();
+   });
+
+   // Event: Resize
+   window.addEventListener('resize', function() {
+     if (currentPatientId && currentView === 'all') renderView();
+   });
+
+   // Event: Paste view
+   var btnParse = $('btn-parse-visit');
+   if (btnParse) btnParse.addEventListener('click', handleParseVisit);
+   var btnSaveVisit = $('btn-save-visit');
+   if (btnSaveVisit) btnSaveVisit.addEventListener('click', handleSaveVisit);
+
+   // Event: Global Enter in memo field
+   document.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && e.target && e.target.id === 'inp-memo') {
+        e.preventDefault();
+        registerReading();
+      }
+});
+
+  // Event: Data management buttons
+  var btnExp = $('btn-export-csv'), btnImp = $('btn-import-csv');
+  var btnBak = $('btn-backup'), btnRes = $('btn-restore'), btnDel = $('btn-delete-patient');
+  if (btnExp) btnExp.addEventListener('click', exportCSV);
+  if (btnImp) btnImp.addEventListener('click', handleImportCSV);
+  if (btnBak) btnBak.addEventListener('click', handleBackup);
+  if (btnRes) btnRes.addEventListener('click', handleRestore);
+  if (btnDel) btnDel.addEventListener('click', handleDeletePatient);
+
+  // Event: Modals
+  var mOk = $('modal-ok'), mCancel = $('modal-cancel');
+  if (mOk) mOk.addEventListener('click', handleNewPatient);
+  if (mCancel) mCancel.addEventListener('click', function() { hideModal('new-patient'); });
+
+  var cYes = $('confirm-yes'), cNo = $('confirm-no');
+  if (cYes) cYes.addEventListener('click', function() { handleConfirm(true); });
+  if (cNo) cNo.addEventListener('click', function() { handleConfirm(false); });
+
+  // Init screen: check if patients exist and auto-navigate
+  try {
+    var patients = await getAllPatients();
+    if (patients && patients.length > 0) {
+      var first = patients[0];
+      currentPatientId = first.id;
+      await renderPatientPage();
+    } else {
+      initIdScreen();
+    }
+  } catch (e) {
+    console.error('init patient check error:', e);
+    initIdScreen();
+  }
+
+  $('header-info').textContent = 'v1.1.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '1.1.0';
+  $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
+  $('app-version-footer').textContent = '1.1.0';
+}
+
+// Synchronous DB open wrapper (runs inside async init)
+function openDBSync() {
+   var opened = null, error = null;
+   var req = indexedDB.open('BloodPressureDB', 2);
+req.onupgradeneeded = function(e) {
+      var d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        var ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name');
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        var rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId');
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date');
+      }
+      if (!d.objectStoreNames.contains('monthly_summaries')) {
+        var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
+        ms.createIndex('byPatient', 'patientId');
+      }
+    };
+    req.onsuccess = function(e) { opened = e.target.result; };
+    req.onerror = function(e) { error = e.target.error; };
+   return new Promise(function(resolve, reject) {
+     var r = indexedDB.open('BloodPressureDB', 2);
+r.onupgradeneeded = function(e) {
+      var d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        var ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name');
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        var rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId');
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date');
+      }
+      if (!d.objectStoreNames.contains('monthly_summaries')) {
+        var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
+        ms.createIndex('byPatient', 'patientId');
+      }
+    };
+     r.onsuccess = function(e) { resolve(e.target.result); };
+     r.onerror = function(e) { reject(e.target.error); };
+   });
+ }
+
+// Start
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DB FUNCTIONS (from db.js)
+// ═══════════════════════════════════════════════════════════
+
+async function getPatient(id) { return prom(tx('patients', 'readonly').get(id)); }
+async function getAllPatients() { return prom(tx('patients', 'readonly').getAll()); }
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  return prom(tx('patients', 'readwrite').put(p));
+}
+async function deletePatient(id) {
+  await prom(tx('patients', 'readwrite').delete(id));
+  var rs = await getReadingsByPatient(id);
+  for (var i = 0; i < rs.length; i++) await deleteReading(rs[i].id);
+}
+async function getReadingsByPatient(pid) { return prom(tx('readings', 'readonly').index('byPatient').getAll(pid)); }
+async function getReadingsByPatientInMonth(pid, y, m) {
+   var pad = function(n) { return String(n).padStart(2, '0'); };
+   var start = [pid, y + '-' + pad(m) + '-01'];
+   var end = [pid, y + '-' + pad(m) + '-32'];
+   return prom(tx('readings', 'readonly').index('byPatientDate').getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+async function getReadingByDate(pid, date) { return prom(tx('readings', 'readonly').index('byPatientDate').get([pid, date])); }
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  return prom(tx('readings', 'readwrite').put(r));
+}
+async function deleteReading(id) { return prom(tx('readings', 'readwrite').delete(id)); }
+async function getAllReadings() { return prom(tx('readings', 'readonly').getAll()); }
+
+// ═══════════════════════════════════════════════════════════
+//  ID INPUT
+// ═══════════════════════════════════════════════════════════
+
+async function initIdScreen() {
+  try {
+    var readings = await getAllReadings();
+    if (readings.length > 0) {
+      readings.sort(function(a, b) { return b.date.localeCompare(a.date); });
+      var last = readings[0];
+      var pat = await getPatient(last.patientId);
+      var hi = $('header-info');
+      if (hi) hi.textContent = '最終: ' + (pat ? pat.name : last.patientId) + ' / ' + last.date;
+    }
+  } catch (e) { console.error(e); }
+  await renderRecentPatients();
+}
+
+async function renderRecentPatients() {
+  var patients = await getAllPatients();
+  var entries = [];
+  for (var i = 0; i < patients.length; i++) {
+    var p = patients[i];
+    var readings = await getReadingsByPatient(p.id);
+    var latest = readings.reduce(function(a, b) { return a.date > b.date ? a : b; }, null);
+    entries.push({ patient: p, latest: latest ? latest.date : '' });
+  }
+  entries.sort(function(a, b) { return (b.latest || '').localeCompare(a.latest || ''); });
+
+  var div = $('recent-patients');
+  if (!div) return;
+if (entries.length === 0) {
+     div.innerHTML = '<span style="color:#bdc3c7">まだ患者が登録されていません</span>';
+     return;
+   }
+   div.innerHTML = entries.map(function(e) {
+     return '<div style="padding:5px 0;cursor:pointer;border-bottom:1px solid #f0f0f0" data-pid="' + e.patient.id + '">' +
+       '<strong>' + esc(e.patient.id) + '</strong> ' + esc(e.patient.name) +
+       '<span style="color:#95a5a6;margin-left:8px;font-size:.82em">' + (e.latest || 'データなし') + '</span></div>';
+   }).join('');
+
+   div.querySelectorAll('[data-pid]').forEach(function(el) {
+     el.addEventListener('click', function() { navigateToPatient(el.dataset.pid); });
+   });
+}
+
+async function handleIdEnter() {
+  var inp = $('inp-patient-id');
+  if (!inp) return;
+  var id = inp.value.trim();
+  if (!id) { toast('患者IDを入力してください'); return; }
+  await navigateToPatient(id);
+}
+
+async function navigateToPatient(id) {
+  try {
+    var patient = await getPatient(id);
+    if (!patient) {
+      currentPatientId = id;
+      var el;
+      el = $('modal-pid'); if (el) el.textContent = id;
+      el = $('modal-name'); if (el) el.value = '';
+      el = $('modal-gender'); if (el) el.value = '';
+      el = $('modal-birth'); if (el) el.value = '';
+      el = $('modal-memo'); if (el) el.value = '';
+      showModal('new-patient');
+      setTimeout(function() { el = $('modal-name'); if (el) el.focus(); }, 100);
+      return;
+    }
+    currentPatientId = id;
+    currentView = 'all';
+    showScreen('patient');
+    await renderPatientPage();
+  } catch (e) {
+    console.error('navigateToPatient error:', e);
+    toast('エラー: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NEW PATIENT MODAL
+// ═══════════════════════════════════════════════════════════
+
+async function handleNewPatient() {
+  var el = $('modal-name');
+  var name = el ? el.value.trim() : '';
+  if (!name) { toast('氏名を入力してください'); return; }
+  var g = $('modal-gender'), b = $('modal-birth'), m = $('modal-memo');
+  await putPatient({
+    id: currentPatientId, name: name,
+    gender: g ? g.value : '',
+    birthDate: b ? b.value : '',
+    memo: m ? m.value.trim() : '',
+    createdAt: new Date().toISOString()
+  });
+  hideModal('new-patient');
+  await renderPatientPage();
+  toast('患者 ' + name + ' を登録しました');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIRM MODAL
+// ═══════════════════════════════════════════════════════════
+
+function confirmAsync(title, body) {
+  return new Promise(function(resolve) {
+    _confirmResolve = resolve;
+    var el;
+    el = $('confirm-title'); if (el) el.textContent = title;
+    el = $('confirm-body'); if (el) el.textContent = body;
+    showModal('confirm');
+  });
+}
+
+function handleConfirm(yes) {
+  if (_confirmResolve) { _confirmResolve(yes); _confirmResolve = null; }
+  hideModal('confirm');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PATIENT PAGE
+// ═══════════════════════════════════════════════════════════
+
+async function renderPatientPage() {
+   showScreen('patient');
+   try {
+     var patient = await getPatient(currentPatientId);
+     var name = patient ? patient.name : currentPatientId;
+     var el = $('patient-header-info'); if (el) el.textContent = currentPatientId + ' ' + name;
+     renderNav();
+     renderView();
+   } catch (e) {
+     console.error('renderPatientPage error:', e);
+     toast('ページ表示エラー');
+   }
+ }
+
+function renderView() {
+  if (currentView === 'paste') { showPasteView(); renderPasteView(); }
+  else { hidePasteView(); renderAllPeriodView(); }
+}
+
+function showPasteView() {
+  showEl('graph-container', false);
+  showEl('legend', false);
+  showEl('section-bp-input', false);
+  showEl('section-daily-list', false);
+  showEl('data-bar', false);
+  showEl('section-paste', true);
+}
+
+function hidePasteView() {
+  showEl('graph-container', true);
+  showEl('legend', true);
+  showEl('section-bp-input', true);
+  showEl('section-daily-list', true);
+  showEl('data-bar', true);
+  showEl('section-paste', false);
+}
+
+function showEl(id, show) {
+  var el = $(id);
+  if (el) el.style.display = show ? '' : 'none';
+}
+
+function setViewTabs() {
+  var a = $('view-all'), p = $('view-paste');
+  if (a) a.classList.toggle('active', currentView === 'all');
+  if (p) p.classList.toggle('active', currentView === 'paste');
+}
+
+// ─── ALL PERIOD VIEW ───
+
+async function renderAllPeriodView() {
+   setViewTabs();
+
+   try {
+     var readings = await getReadingsByPatient(currentPatientId);
+     readings.sort(function(a, b) { return a.date.localeCompare(b.date); });
+     var canvas = $('graph');
+     if (canvas) { drawAllPeriodGraph(canvas, readings); setupTooltip(canvas); }
+   } catch (e) { console.error('renderAllPeriodView:', e); }
+
+   // 凡例（チェックボックス状態に応じて受診時血圧を表示/非表示）
+   var legendEl = $('legend');
+   if (legendEl) {
+     var showVisit = !$('chk-show-visit') || $('chk-show-visit').checked;
+     var items = [
+       { show: showVisit, color: '#c0392b', label: '受診SBP' },
+       { show: true,      color: '#e67e22', label: '家庭SBP平均' },
+       { show: true,      color: '#f39c12', label: '家庭SBP最小' },
+       { show: true,      color: '#e74c3c', label: '家庭SBP最大' },
+       { show: showVisit, color: '#2980b9', label: '受診DBP' },
+       { show: true,      color: '#27ae60', label: '家庭DBP平均' },
+       { show: true,      color: '#1abc9c', label: '家庭DBP最小' },
+       { show: true,      color: '#8e44ad', label: '家庭DBP最大' },
+     ];
+     legendEl.innerHTML = items.filter(function(i) { return i.show; }).map(function(i) {
+       return '<div class="legend-item"><div class="legend-color" style="background:' + i.color + '"></div>' + i.label + '</div>';
+     }).join('');
+   }
+
+   var readings2 = await getReadingsByPatient(currentPatientId);
+   renderDailyListFromData(readings2);
+   updateDataStat();
+ }
+
+
+
+function renderDailyListFromData(readings) {
+  var body = $('daily-body');
+  if (!body) return;
+  if (!readings || readings.length === 0) {
+    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    return;
+  }
+  readings.sort(function(a, b) { return b.date.localeCompare(a.date); });
+  var html = '';
+  for (var i = 0; i < readings.length; i++) {
+    var r = readings[i];
+    function n(v) { return v > 0 ? v : '-'; }
+    html += '<tr>' +
+      '<td>' + r.date + '</td>' +
+      '<td class="bp-val">' + n(r.systolic) + '</td>' +
+      '<td class="bp-val">' + n(r.diastolic) + '</td>' +
+      '<td class="bp-val">' + n(r.avgSbp) + '</td>' +
+      '<td class="bp-val">' + n(r.avgDbp) + '</td>' +
+      '<td class="bp-val">' + n(r.minSbp) + '</td>' +
+      '<td class="bp-val">' + n(r.minDbp) + '</td>' +
+      '<td class="bp-val">' + n(r.maxSbp) + '</td>' +
+      '<td class="bp-val">' + n(r.maxDbp) + '</td>' +
+      '<td style="text-align:right;white-space:nowrap">' +
+      '<button class="btn btn-sm btn-secondary" data-edit="' + r.id + '">編集</button> ' +
+      '<button class="btn btn-sm btn-danger" data-del="' + r.id + '">削除</button>' +
+      '</td></tr>';
+  }
+  body.innerHTML = html;
+
+  body.querySelectorAll('[data-edit]').forEach(function(btn) {
+    btn.addEventListener('click', function() { editReading(Number(this.dataset.edit)); });
+  });
+  body.querySelectorAll('[data-del]').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteReadingConfirm(Number(this.dataset.del)); });
+  });
+}
+
+
+
+// ── Nav ──
+async function renderNav() {
+  var sel = $('sel-patient'); if (!sel) return;
+  sel.innerHTML = '';
+  var patients = await getAllPatients();
+  var html = '';
+  for (var i = 0; i < patients.length; i++) {
+    var p = patients[i];
+    html += '<option value="' + esc(p.id) + '"' + (p.id === currentPatientId ? ' selected' : '') + '>' +
+      esc(p.id) + ' ' + esc(p.name || '') + '</option>';
+  }
+  sel.innerHTML = html;
+}
+
+function goBack() {
+   showScreen('id');
+   $('inp-patient-id').value = '';
+   renderRecentPatients();
+   $('inp-patient-id').focus();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  REGISTRATION
+// ═══════════════════════════════════════════════════════════
+
+async function registerReading() {
+   var d = $('inp-date'), sb = $('inp-sbp'), db = $('inp-dbp');
+   var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
+   var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
+   var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+   var m = $('inp-memo');
+   if (!d || !sb || !db) return;
+   var date = d.value, sbp = Number(sb.value), dbp = Number(db.value);
+   var memo = m ? m.value.trim() : '';
+   if (!date) { toast('日付は必須です'); return; }
+   if (sbp > 0 && (sbp < 50 || sbp > 300)) { toast('収縮期血圧の範囲が不正です'); return; }
+   if (dbp > 0 && (dbp < 30 || dbp > 200)) { toast('拡張期血圧の範囲が不正です'); return; }
+
+   var reading = {
+     patientId: currentPatientId, date: date,
+     systolic: sbp || 0, diastolic: dbp || 0,
+     meanArterial: sbp && dbp ? Math.round((sbp + dbp * 2) / 3) : 0,
+     note: memo,
+     avgSbp: Number(as ? as.value : 0) || 0,
+     avgDbp: Number(ad ? ad.value : 0) || 0,
+     minSbp: Number(ns ? ns.value : 0) || 0,
+     minDbp: Number(nd ? nd.value : 0) || 0,
+     maxSbp: Number(xs ? xs.value : 0) || 0,
+     maxDbp: Number(xd ? xd.value : 0) || 0
+   };
+
+   try {
+     var existing = await getReadingByDate(currentPatientId, date);
+     if (existing && existing.id !== editingId) {
+       var ok = await confirmAsync('上書き確認', date + ' のデータは既に存在します。上書きしますか？');
+       if (!ok) return;
+       reading.id = existing.id;
+       reading.createdAt = existing.createdAt;
+     } else if (existing) {
+       reading.id = existing.id;
+       reading.createdAt = existing.createdAt;
+     }
+     await putReading(reading);
+     toast(date + ' のデータを保存しました');
+
+     var ndate = new Date(date + 'T00:00:00');
+     ndate.setDate(ndate.getDate() + 1);
+     if (d) d.value = fmtDate(ndate);
+     if (sb) sb.value = '';
+     if (db) db.value = '';
+     if (as) as.value = ''; if (ad) ad.value = '';
+     if (ns) ns.value = ''; if (nd) nd.value = '';
+     if (xs) xs.value = ''; if (xd) xd.value = '';
+     if (m) m.value = '';
+     editingId = null;
+     var rs = $('register-status'); if (rs) rs.textContent = '';
+     if (sb) sb.focus();
+     renderView();
+   } catch (e) {
+     console.error('registerReading error:', e);
+     toast('登録エラー: ' + e.message);
+   }
+ }
+
+// ═══════════════════════════════════════════════════════════
+//  EDIT / DELETE
+// ═══════════════════════════════════════════════════════════
+
+async function editReading(id) {
+  try {
+    var readings = await getReadingsByPatient(currentPatientId);
+    var r = readings.find(function(x) { return x.id === id; });
+    if (!r) return;
+    editingId = id;
+    var d = $('inp-date'), sb = $('inp-sbp'), db = $('inp-dbp'), m = $('inp-memo');
+    var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
+    var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
+    var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+    if (d) d.value = r.date;
+    if (sb) sb.value = r.systolic || '';
+    if (db) db.value = r.diastolic || '';
+    if (as) as.value = r.avgSbp || '';
+    if (ad) ad.value = r.avgDbp || '';
+    if (ns) ns.value = r.minSbp || '';
+    if (nd) nd.value = r.minDbp || '';
+    if (xs) xs.value = r.maxSbp || '';
+    if (xd) xd.value = r.maxDbp || '';
+    if (m) m.value = r.note || '';
+    var rs = $('register-status'); if (rs) rs.textContent = '📝 編集中';
+    if (sb) { sb.focus(); sb.select(); sb.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  } catch (e) { console.error('editReading:', e); }
+}
+
+function deleteReadingConfirm(id) {
+  confirmAsync('削除確認', 'この測定データを削除しますか？').then(function(ok) {
+    if (!ok) return;
+    deleteReading(id).then(function() {
+      toast('データを削除しました');
+      renderView();
+    }).catch(function(e) { console.error(e); });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+async function exportCSV() {
+  var readings = await getReadingsByPatient(currentPatientId);
+  var patient = await getPatient(currentPatientId);
+  if (readings.length === 0) { toast('データがありません'); return; }
+  readings.sort(function(a, b) { return a.date.localeCompare(b.date); });
+  var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,メモ\n';
+  for (var i = 0; i < readings.length; i++) {
+    var r = readings[i];
+    var name = patient ? patient.name.replace(/"/g, '""') : '';
+    csv += currentPatientId + ',"' + name + '",' + r.date + ',' +
+      (r.systolic || 0) + ',' + (r.diastolic || 0) + ',' +
+      (r.avgSbp || 0) + ',' + (r.avgDbp || 0) + ',' +
+      (r.minSbp || 0) + ',' + (r.minDbp || 0) + ',' +
+      (r.maxSbp || 0) + ',' + (r.maxDbp || 0) + ',' +
+      '"' + (r.note || '').replace(/"/g, '""') + '"\n';
+  }
+  var today = fmtDate(new Date());
+  downloadFile(csv, 'bp_' + currentPatientId + '_' + today + '.csv');
+  toast('CSVエクスポート完了');
+}
+
+function handleImportCSV() {
+  var fi = $('file-import'); if (!fi) return;
+  fi.value = ''; fi.accept = '.csv';
+  fi.onchange = function(e) {
+    var file = e.target.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = async function(evt) {
+      var text = evt.target.result;
+      var records = parseCSV(text);
+      if (records.length === 0) { toast('CSVデータがありません'); return; }
+      var imported = 0, skipped = 0;
+      for (var idx = 0; idx < records.length; idx++) {
+        (function(rec, lastIdx) {
+          (async function() {
+            try {
+              var existing = await getReadingByDate(rec.patientId, rec.date);
+              if (existing) {
+                existing.systolic = rec.systolic; existing.diastolic = rec.diastolic;
+                existing.meanArterial = Math.round((rec.systolic + rec.diastolic * 2) / 3);
+                existing.note = rec.note; existing.updatedAt = new Date().toISOString();
+                await putReading(existing);
+              } else {
+                var pat = await getPatient(rec.patientId);
+                if (!pat) await putPatient({ id: rec.patientId, name: rec.name, createdAt: new Date().toISOString() });
+                await putReading({
+                  patientId: rec.patientId, date: rec.date,
+                  systolic: rec.systolic, diastolic: rec.diastolic,
+                  meanArterial: Math.round((rec.systolic + rec.diastolic * 2) / 3),
+                  note: rec.note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+                });
+              }
+              imported++;
+            } catch { skipped++; }
+            if (lastIdx === records.length - 1) {
+              toast('CSV取り込み完了: ' + imported + '件, ' + skipped + '件スキップ');
+              if (currentPatientId) renderView();
+            }
+          })();
+        })(records[idx], idx);
+      }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+  fi.click();
+}
+
+async function handleBackup() {
+  var patients = await getAllPatients();
+  var readings = await getAllReadings();
+  downloadFile(backupToJSON({ patients: patients, readings: readings }),
+    'bp_backup_' + fmtDate(new Date()) + '.json', 'application/json');
+  toast('バックアップ完了');
+}
+
+function handleRestore() {
+  var fi = $('file-import'); if (!fi) return;
+  fi.value = ''; fi.accept = '.json';
+  fi.onchange = function(e) {
+    var file = e.target.files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = async function(evt) {
+      try {
+        var data = parseBackupJSON(evt.target.result);
+        if (!data) { toast('無効なバックアップファイル'); return; }
+        var ok = await confirmAsync('復元確認', '全データをバックアップから復元します。既存データは上書きされます。');
+        if (!ok) return;
+        if (data.patients) for (var i = 0; i < data.patients.length; i++) await putPatient(data.patients[i]);
+        if (data.readings) for (var j = 0; j < data.readings.length; j++) await putReading(data.readings[j]);
+        toast('復元完了');
+        currentPatientId = null;
+        showScreen('id');
+        var inp = $('inp-patient-id'); if (inp) inp.value = '';
+        await renderRecentPatients();
+        if (inp) inp.focus();
+      } catch (e) { console.error(e); toast('復元失敗'); }
+    };
+    reader.readAsText(file, 'UTF-8');
+  };
+  fi.click();
+}
+
+async function handleDeletePatient() {
+  var ok = await confirmAsync('患者削除', '患者 ' + currentPatientId + ' の全データを削除します。本当によろしいですか？');
+  if (!ok) return;
+  try {
+    await deletePatient(currentPatientId);
+    toast('患者を削除しました');
+    currentPatientId = null;
+    showScreen('id');
+    var inp = $('inp-patient-id'); if (inp) inp.value = '';
+    await renderRecentPatients();
+    if (inp) inp.focus();
+  } catch (e) { console.error(e); }
+}
+
+function downloadFile(content, filename, mime) {
+  mime = mime || 'text/csv';
+  var blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+function updateDataStat() {
+   var stat = $('data-stat'); if (!stat) return;
+   getReadingsByPatient(currentPatientId).then(function(r) {
+     stat.textContent = 'データ: ' + r.length + '件 | 最終更新: ' + new Date().toLocaleString('ja-JP');
+   });
+}
+
+
+
+// ═══════════════════════════════════════════════════════════
+//  PASTE VIEW
+// ═══════════════════════════════════════════════════════════
+
+var _parsedVisitRecords = null;
+
+function renderPasteView() {
+  setViewTabs();
+
+  var yearInp = $('inp-visit-year');
+  if (yearInp && !yearInp.value) yearInp.value = new Date().getFullYear();
+
+  _parsedVisitRecords = null;
+  var preview = $('visit-preview');
+  if (preview) preview.style.display = 'none';
+  var body = $('visit-preview-body');
+  if (body) body.innerHTML = '';
+  var status = $('visit-save-status');
+  if (status) status.textContent = '';
+
+  var ta = $('inp-visit-data');
+  if (ta) ta.focus();
+}
+
+function handleParseVisit() {
+  var ta = $('inp-visit-data');
+  if (!ta) return;
+  var text = ta.value.trim();
+  if (!text) { toast('データを貼り付けてから解析してください'); return; }
+
+  var baseYear = Number($('inp-visit-year').value) || new Date().getFullYear();
+  var records = parseVisitData(text, baseYear);
+
+  if (records.length === 0) { toast('有効なデータが見つかりませんでした'); return; }
+
+  _parsedVisitRecords = records;
+  renderVisitPreview(records);
+  toast(records.length + '件のデータを解析しました');
+}
+
+function parseVisitData(text, baseYear) {
+  var lines = text.split(/\r?\n/);
+  var records = [];
+  var now = new Date();
+  var currentMonth = now.getMonth() + 1;
+  var currentYear = now.getFullYear();
+
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    if (!line.trim()) continue;
+
+    var dateMatch = line.match(/^(\d{1,2})\/(\d{1,2})(?:\s|　)/);
+    if (!dateMatch) continue;
+    var month = parseInt(dateMatch[1], 10);
+    var day = parseInt(dateMatch[2], 10);
+    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+
+    var rest = line.substring(dateMatch[0].length);
+    var avgSbp = 0, avgDbp = 0, minSbp = 0, minDbp = 0, maxSbp = 0, maxDbp = 0;
+    var minSbpPm = 0, maxSbpPm = 0;
+    var memo = '';
+    var bpEnd = 0;
+    var parsed = false;
+
+    // Format A: avgSBP/avgDBP [minSBP/minDBP-maxSBP/maxDBP] memo
+    // "130/80 110/50-160/90　変わりない"
+    var m = rest.match(/^(\d{1,3})\/(\d{1,3})\s+(\d{1,3})\/(\d{1,3})-(\d{1,3})\/(\d{1,3})(?:\s|　|$)/);
+    if (m) {
+      avgSbp = parseInt(m[1], 10);
+      avgDbp = parseInt(m[2], 10);
+      minSbp = parseInt(m[3], 10);
+      minDbp = parseInt(m[4], 10);
+      maxSbp = parseInt(m[5], 10);
+      maxDbp = parseInt(m[6], 10);
+      bpEnd = dateMatch[0].length + m[0].length;
+      parsed = true;
+    }
+
+    // Format B: avgSBP/avgDBP memo  (original variant, no range)
+    if (!parsed) {
+      m = rest.match(/^(\d{1,3})\/(\d{1,3})(?:\s|　|$)/);
+      if (m) {
+        avgSbp = parseInt(m[1], 10);
+        avgDbp = parseInt(m[2], 10);
+        bpEnd = dateMatch[0].length + m[0].length;
+        parsed = true;
+      }
+    }
+
+    // Format C: [朝]min-max  朝の最低-最高 (systolic only)
+    // "130-160" / "朝130-160"
+    if (!parsed) {
+      m = rest.match(/^(?:朝)?(\d{1,3})-(\d{1,3})/);
+      if (m) {
+        minSbp = parseInt(m[1], 10);
+        maxSbp = parseInt(m[2], 10);
+        bpEnd = dateMatch[0].length + m[0].length;
+
+        // Format D: 朝min-max [夕min-max]  朝に続けて夕方の最低-最高
+        // "130-160　100-150" / "朝130-160　夕100-150"
+        var afterFirst = rest.substring(m[0].length);
+        var m2 = afterFirst.match(/^[　\s]+(?:夕)?(\d{1,3})-(\d{1,3})/);
+        if (m2) {
+          minSbpPm = parseInt(m2[1], 10);
+          maxSbpPm = parseInt(m2[2], 10);
+          bpEnd = dateMatch[0].length + m[0].length + m2[0].length;
+        }
+        parsed = true;
+      }
+    }
+
+    if (!parsed) continue;
+
+    memo = line.substring(bpEnd).trim();
+
+    if (avgSbp === 0 && avgDbp === 0 && minSbp === 0 && maxSbp === 0 && minSbpPm === 0 && maxSbpPm === 0) continue;
+
+    var year = baseYear || currentYear;
+    if (month > currentMonth + 1 && year === currentYear) {
+      year = currentYear - 1;
+    }
+
+    var yyyy = String(year);
+    var mm = String(month).padStart(2, '0');
+    var dd = String(day).padStart(2, '0');
+    var fullDate = yyyy + '-' + mm + '-' + dd;
+
+    records.push({
+      date: fullDate,
+      year: year, month: month, day: day,
+      avgSbp: avgSbp, avgDbp: avgDbp,
+      minSbp: minSbp, minDbp: minDbp,
+      maxSbp: maxSbp, maxDbp: maxDbp,
+      minSbpPm: minSbpPm, maxSbpPm: maxSbpPm,
+      memo: memo
+    });
+  }
+
+  return records;
+}
+
+function renderVisitPreview(records) {
+  var body = $('visit-preview-body');
+  var preview = $('visit-preview');
+  var count = $('visit-preview-count');
+  if (!body || !preview) return;
+
+  var html = '';
+  for (var i = 0; i < records.length; i++) {
+    var r = records[i];
+    html += '<tr class="preview-row">' +
+      '<td><input type="date" class="preview-date" value="' + r.date + '" data-idx="' + i + '"></td>' +
+      '<td><input type="number" class="preview-avg-sbp" value="' + r.avgSbp + '" min="50" max="300" data-idx="' + i + '"></td>' +
+      '<td><input type="number" class="preview-avg-dbp" value="' + r.avgDbp + '" min="30" max="200" data-idx="' + i + '"></td>' +
+      '<td><input type="number" class="preview-min-sbp" value="' + (r.minSbp || '') + '" min="50" max="300" data-idx="' + i + '"></td>' +
+      '<td><input type="number" class="preview-max-sbp" value="' + (r.maxSbp || '') + '" min="50" max="300" data-idx="' + i + '"></td>' +
+      '<td><input type="number" class="preview-min-sbp-pm" value="' + (r.minSbpPm || '') + '" min="50" max="300" data-idx="' + i + '"></td>' +
+      '<td><input type="number" class="preview-max-sbp-pm" value="' + (r.maxSbpPm || '') + '" min="50" max="300" data-idx="' + i + '"></td>' +
+      '<td><input type="text" class="preview-memo memo-input" value="' + esc(r.memo) + '" data-idx="' + i + '"></td>' +
+      '</tr>';
+  }
+  body.innerHTML = html;
+  preview.style.display = '';
+  if (count) count.textContent = '全 ' + records.length + ' 件';
+
+  var inputs = preview.querySelectorAll('input, select');
+  for (var j = 0; j < inputs.length; j++) {
+    inputs[j].addEventListener('change', syncPreviewEdit);
+    inputs[j].addEventListener('input', syncPreviewEdit);
+  }
+}
+
+function syncPreviewEdit() {
+  if (!_parsedVisitRecords) return;
+  var idx = Number(this.dataset.idx);
+  if (isNaN(idx) || idx < 0 || idx >= _parsedVisitRecords.length) return;
+  var r = _parsedVisitRecords[idx];
+  var cls = this.className;
+
+  if (cls === 'preview-date' || cls.indexOf('preview-date') !== -1) {
+    r.date = this.value;
+    var parts = this.value.split('-');
+    if (parts.length === 3) {
+      r.year = parseInt(parts[0], 10);
+      r.month = parseInt(parts[1], 10);
+      r.day = parseInt(parts[2], 10);
+    }
+  } else if (cls.indexOf('preview-avg-sbp') !== -1) { r.avgSbp = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-avg-dbp') !== -1) { r.avgDbp = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-min-sbp') !== -1) { r.minSbp = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-min-dbp') !== -1) { r.minDbp = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-max-sbp') !== -1) { r.maxSbp = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-max-dbp') !== -1) { r.maxDbp = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-min-sbp-pm') !== -1) { r.minSbpPm = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-max-sbp-pm') !== -1) { r.maxSbpPm = Number(this.value) || 0;
+  } else if (cls.indexOf('preview-memo') !== -1) { r.memo = this.value; }
+}
+
+async function handleSaveVisit() {
+  if (!_parsedVisitRecords || _parsedVisitRecords.length === 0) {
+    toast('解析データがありません。先に「解析する」を実行してください');
+    return;
+  }
+
+  var saved = 0, skipped = 0, overwritten = 0;
+  var status = $('visit-save-status');
+
+  for (var i = 0; i < _parsedVisitRecords.length; i++) {
+    var r = _parsedVisitRecords[i];
+    try {
+      if (!r.date) { skipped++; continue; }
+      if (!r.avgSbp && !r.avgDbp && !r.minSbp && !r.maxSbp) { skipped++; continue; }
+
+      var existing = await getReadingByDate(currentPatientId, r.date);
+
+      var reading = {
+        patientId: currentPatientId,
+        date: r.date,
+        systolic: 0,
+        diastolic: 0,
+        meanArterial: 0,
+        note: r.memo || '',
+        avgSbp: r.avgSbp || 0,
+        avgDbp: r.avgDbp || 0,
+        minSbp: r.minSbp || 0,
+        minDbp: r.minDbp || 0,
+        maxSbp: r.maxSbp || 0,
+        maxDbp: r.maxDbp || 0,
+        minSbpPm: r.minSbpPm || 0,
+        maxSbpPm: r.maxSbpPm || 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      if (existing) {
+        if (existing.systolic && existing.systolic > 0) {
+          var ok = await confirmAsync(
+            '上書き確認',
+            r.date + ' には日次測定データが存在します。受診間サマリーで上書きしますか？'
+          );
+          if (!ok) { skipped++; continue; }
+        }
+        reading.id = existing.id;
+        reading.createdAt = existing.createdAt;
+        overwritten++;
+      }
+
+      await putReading(reading);
+      saved++;
+      if (status) status.textContent = '保存中… ' + saved + '/' + _parsedVisitRecords.length;
+    } catch (e) {
+      console.error('saveVisit error:', r.date, e);
+      skipped++;
+    }
+  }
+
+  var msg = '保存完了: ' + saved + '件';
+  if (overwritten > 0) msg += ' (' + overwritten + '件上書き)';
+  if (skipped > 0) msg += ', ' + skipped + '件スキップ';
+  toast(msg);
+  if (status) status.textContent = '✅ ' + msg;
+
+  _parsedVisitRecords = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CSV FUNCTIONS (from csv.js)
+// ═══════════════════════════════════════════════════════════
+
+function parseCSVLine(line) {
+  var result = [], current = '', inQuote = false;
+  for (var i = 0; i < line.length; i++) {
+    var c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuote = false;
+      } else { current += c; }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current.trim()); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+function parseCSV(text) {
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  var lines = text.split(/\r?\n/).filter(function(l) { return l.trim(); });
+  if (lines.length < 2) return [];
+  var records = [];
+  for (var i = 1; i < lines.length; i++) {
+    var cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    var patientId = cols[0], name = cols[1] || '', date = cols[2];
+    var systolic = Number(cols[3]), diastolic = Number(cols[4]);
+    var note = cols[5] || '';
+    if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
+    records.push({ patientId: patientId, name: name, date: date, systolic: systolic, diastolic: diastolic, note: note });
+  }
+  return records;
+}
+
+function backupToJSON(data) { return JSON.stringify(data, null, 2); }
+
+function parseBackupJSON(text) {
+  try {
+    var data = JSON.parse(text);
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) return data;
+    return null;
+  } catch { return null; }
+}</script>
+</body>
+</html>

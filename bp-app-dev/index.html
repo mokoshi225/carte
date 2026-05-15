@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💊 血圧モニター（開発版）</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- ID Input Screen -->
+  <div id="screen-id">
+    <div id="app-header" class="header">
+      <h1>💊 血圧モニター</h1>
+      <span class="info" id="header-info"></span>
+    </div>
+    <div class="content">
+      <h2>患者IDを入力してください</h2>
+      <div class="id-input-wrap">
+        <label for="inp-patient-id">患者ID</label>
+        <input type="text" id="inp-patient-id" placeholder="例: 12345" autofocus>
+        <div class="hint">IDを入力して Enter キーで開始</div>
+      </div>
+<div class="btn-group">
+         <button class="btn btn-primary" id="btn-id-enter">開 始</button>
+       </div>
+       <div class="version-info">
+         <small>バージョン <span id="app-version">1.0.0</span> | <span id="app-build-date"></span></small>
+       </div>
+      <div style="margin-top:24px">
+        <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
+        <div id="recent-patients"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Screen -->
+  <div id="screen-patient" style="display:none">
+    <div class="header">
+      <h1>💊 血圧モニター</h1>
+      <span class="info" id="patient-header-info"></span>
+    </div>
+    <div class="content">
+      <div class="nav-bar">
+        <select id="sel-patient"></select>
+        <div class="view-tabs">
+          <button class="nav-btn view-btn active" id="view-all" title="全期間表示">📈 全期間</button>
+          <button class="nav-btn view-btn" id="view-paste" title="貼付">📋 貼付</button>
+        </div>
+        <button id="btn-back" title="トップに戻る">🏠</button>
+      </div>
+      <div class="graph-container" id="graph-container">
+        <canvas id="graph"></canvas>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="toggle-bar">
+        <label class="toggle-label">
+          <input type="checkbox" id="chk-show-visit" checked>
+          <span>受診時SBP/DBPを表示</span>
+        </label>
+      </div>
+<div class="form-section" id="section-bp-input">
+          <h3>📋 受診時血圧記録</h3>
+         <div class="form-row">
+           <label for="inp-date">日付</label>
+           <input type="date" id="inp-date">
+         </div>
+         <div class="form-row form-row-compact">
+           <label for="inp-sbp">受診SBP</label>
+           <input type="number" id="inp-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label for="inp-dbp">受診DBP</label>
+           <input type="number" id="inp-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row form-row-compact">
+           <label>家庭SBP平均</label>
+           <input type="number" id="inp-avg-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label>家庭DBP平均</label>
+           <input type="number" id="inp-avg-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row form-row-compact">
+           <label>家庭SBP最小</label>
+           <input type="number" id="inp-min-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label>家庭DBP最小</label>
+           <input type="number" id="inp-min-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row form-row-compact">
+           <label>家庭SBP最大</label>
+           <input type="number" id="inp-max-sbp" class="short" min="50" max="300" placeholder="---">
+           <span class="unit">mmHg</span>
+           <label>家庭DBP最大</label>
+           <input type="number" id="inp-max-dbp" class="short" min="30" max="200" placeholder="---">
+           <span class="unit">mmHg</span>
+         </div>
+         <div class="form-row">
+           <label for="inp-memo">メモ</label>
+           <input type="text" id="inp-memo" class="memo-input" placeholder="任意">
+         </div>
+         <div class="form-row">
+           <button class="btn-register" id="btn-register">📋 登録（Enter）</button>
+           <span id="register-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+         </div>
+       </div>
+
+      <div class="form-section" id="section-daily-list">
+         <h3>📅 受診データ一覧</h3>
+         <div class="daily-list">
+           <table>
+             <thead><tr>
+               <th>日付</th>
+               <th>受診SBP</th><th>受診DBP</th>
+               <th>SBP平均</th><th>DBP平均</th>
+               <th>SBP最小</th><th>DBP最小</th>
+               <th>SBP最大</th><th>DBP最大</th>
+               <th>操作</th>
+             </tr></thead>
+             <tbody id="daily-body"></tbody>
+           </table>
+         </div>
+       </div>
+<div class="data-bar" id="data-bar">
+          <button id="btn-export-csv">📤 CSV出力</button>
+         <button id="btn-import-csv">📥 CSV入力</button>
+         <button id="btn-backup">💾 バックアップ</button>
+         <button id="btn-restore">📂 復元</button>
+         <button id="btn-delete-patient" class="btn-danger">🗑 患者削除</button>
+          <span class="stat" id="data-stat"></span>
+        </div>
+
+       <!-- バージョン履歴 -->
+       <div class="form-section version-history" id="section-version-history">
+         <details>
+           <summary><strong>📋 バージョン履歴</strong></summary>
+           <div style="margin-top:10px;overflow-x:auto">
+             <table class="summary-table">
+               <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
+               <tbody>
+                 <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
+                 <tr><td>v1.0.0</td><td>—</td><td>初版（日次血圧測定＋月間サマリー＋警戒ライン）</td></tr>
+               </tbody>
+             </table>
+           </div>
+         </details>
+       </div>
+
+       <!-- 📋 貼付ビュー -->
+        <div id="section-paste" style="display:none">
+         <div class="form-section">
+           <h3>📋 受診間血圧データ貼付</h3>
+           <div class="form-row">
+             <label>基準年</label>
+             <input type="number" id="inp-visit-year" min="2000" max="2100" value="2026">
+             <span style="font-size:.82em;color:#95a5a6">日付に年が無い場合に適用。各行で個別修正可。</span>
+           </div>
+           <div class="form-row" style="flex-direction:column;align-items:stretch">
+             <label for="inp-visit-data">電子カルテからコピーしたデータを貼り付け</label>
+             <textarea id="inp-visit-data" rows="8" placeholder="1/10	130/80 110/50-160/90　変わりない&#10;12/1	128/80 111/51-141/80　体重増えた&#10;1/9	140/90 120/80-170/80　少し増えた"></textarea>
+           </div>
+           <div class="form-row">
+             <button class="btn btn-primary" id="btn-parse-visit">🔍 解析する</button>
+           </div>
+         </div>
+
+         <!-- プレビュー -->
+         <div id="visit-preview" style="display:none">
+           <div class="form-section">
+             <h3>📊 解析結果プレビュー — 内容をご確認ください</h3>
+             <p style="font-size:.82em;color:#e74c3c;margin-bottom:8px">★ 日付・各数値をクリックして編集できます</p>
+             <div style="overflow-x:auto">
+               <table class="summary-table" id="visit-preview-table">
+                 <thead>
+                   <tr>
+                     <th>日付</th>
+                     <th>平均SBP</th>
+                     <th>平均DBP</th>
+                     <th>朝最低SBP</th>
+                     <th>朝最高SBP</th>
+                     <th>夕最低SBP</th>
+                     <th>夕最高SBP</th>
+                     <th>メモ</th>
+                   </tr>
+                 </thead>
+                 <tbody id="visit-preview-body"></tbody>
+               </table>
+             </div>
+             <div style="font-size:.82em;color:#7f8c8d;margin-top:8px" id="visit-preview-count"></div>
+             <div class="form-row" style="margin-top:12px">
+               <button class="btn-register" id="btn-save-visit">💾 データベースに保存</button>
+               <span id="visit-save-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+             </div>
+           </div>
+         </div>
+       </div>
+
+       <!-- バージョン情報 -->
+       <div class="version-footer">
+           <small>📋 v<span id="app-version-footer">1.1.0</span> | 💊 Blood Pressure Monitor</small>
+        </div>
+     </div>
+   </div>
+ </div>
+
+<input type="file" id="file-import" accept=".csv,.json" style="display:none">
+<div class="toast" id="toast"></div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-new-patient" style="display:none">
+  <div class="modal">
+    <h3>🆕 新規患者登録</h3>
+    <p style="font-size:.88em;color:#7f8c8d;margin-bottom:12px">ID: <strong id="modal-pid"></strong> は登録されていません。</p>
+    <div class="form-row"><label>氏名</label><input type="text" id="modal-name" placeholder="山田太郎" autofocus></div>
+    <div class="form-row"><label>性別</label><select id="modal-gender"><option value="">--</option><option value="男">男</option><option value="女">女</option></select></div>
+    <div class="form-row"><label>生年月日</label><input type="date" id="modal-birth"></div>
+    <div class="form-row"><label>メモ</label><input type="text" id="modal-memo" placeholder="任意"></div>
+    <div class="btn-group"><button class="btn modal-close" id="modal-cancel">キャンセル</button><button class="btn btn-primary" id="modal-ok">登録</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-confirm" style="display:none">
+  <div class="modal">
+    <h3 id="confirm-title">確認</h3>
+    <p id="confirm-body" style="font-size:.9em;margin-bottom:16px"></p>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="btn modal-close" id="confirm-no">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-yes">実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts (single bundle placeholder) -->
+<script id="app-bundle">
+// PLACEHOLDER — replaced by build.bat / rebuild.js
+</script>
+</body>
+</html>

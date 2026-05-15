@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💊 血圧モニター リシードツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body {
+  font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  line-height: 1.6; color: #2c3e50; background: #f0f2f5;
+  display: flex; justify-content: center; padding: 24px;
+}
+.container { max-width: 720px; width: 100%; }
+.header {
+  background: #2c3e50; color: #fff; padding: 14px 20px;
+  border-radius: 10px 10px 0 0; text-align: center;
+}
+.header h1 { font-size: 1.1em; font-weight: 700 }
+.content {
+  background: #fff; border-radius: 0 0 10px 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 24px;
+}
+.btn {
+  padding: 12px 32px; border: none; border-radius: 6px;
+  font-size: 1em; font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.btn-primary { background: #3498db; color: #fff }
+.btn-primary:hover { background: #2980b9 }
+.btn-danger { background: #e74c3c; color: #fff }
+.btn-danger:hover { background: #c0392b }
+.btn-group { margin-top: 20px; display: flex; gap: 12px; justify-content: center }
+.log {
+  margin-top: 20px; padding: 12px; background: #f8f9fb;
+  border: 1px solid #e0e4e8; border-radius: 6px;
+  font-size: .85em; line-height: 1.8; max-height: 400px; overflow-y: auto;
+  font-family: "Courier New", monospace;
+}
+.log p { margin: 2px 0 }
+.log .ok { color: #27ae60 }
+.log .warn { color: #f39c12 }
+.log .err { color: #e74c3c }
+.stat { margin-top: 12px; font-size: .9em; color: #7f8c8d; text-align: center }
+.config {
+  background: #f8f9fb; border: 1px solid #e0e4e8; border-radius: 6px;
+  padding: 16px; margin-bottom: 16px;
+}
+.config h3 { font-size: .95em; margin-bottom: 12px }
+.form-row {
+  display: flex; gap: 12px; align-items: center; margin-bottom: 8px; flex-wrap: wrap;
+}
+.form-row label { min-width: 120px; font-size: .88em; font-weight: 600 }
+.form-row input[type="number"],
+.form-row input[type="text"] {
+  padding: 6px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .95em; width: 100px;
+}
+.config .note { font-size: .82em; color: #7f8c8d; margin-top: 8px }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>💊 血圧モニター — ダミーデータ挿入ツール</h1>
+  </div>
+  <div class="content">
+    <div class="config">
+      <h3>⚙️ 設定</h3>
+      <div class="form-row">
+        <label>患者ID</label>
+        <input type="text" id="inp-pid" value="001">
+      </div>
+      <div class="form-row">
+        <label>患者氏名</label>
+        <input type="text" id="inp-name" value="テスト太郎">
+      </div>
+      <div class="form-row">
+        <label>開始年</label>
+        <input type="number" id="inp-year" value="2025">
+      </div>
+      <div class="form-row">
+        <label>SBP 基準値</label>
+        <input type="number" id="inp-sbp-base" value="130">
+        <span style="font-size:.82em;color:#7f8c8d">± 変動幅</span>
+        <input type="number" id="inp-sbp-range" value="25">
+      </div>
+      <div class="form-row">
+        <label>DBP 基準値</label>
+        <input type="number" id="inp-dbp-base" value="82">
+        <span style="font-size:.82em;color:#7f8c8d">± 変動幅</span>
+        <input type="number" id="inp-dbp-range" value="15">
+      </div>
+      <p class="note">※ 月1回測定（毎月15日）、ランダムなばらつきを加味。季節変動も反映（冬高め・夏低め）</p>
+    </div>
+
+    <div class="btn-group">
+      <button class="btn btn-danger" id="btn-clear">🗑 DB クリア（全削除）</button>
+      <button class="btn btn-primary" id="btn-run">▶ ダミーデータ挿入実行</button>
+    </div>
+
+    <div class="stat" id="stat"></div>
+    <div class="log" id="log"></div>
+  </div>
+</div>
+
+<script>
+/* =================================================================
+    reseed.html — ID 001 対象 月1回ダミーデータ挿入ツール
+    ================================================================= */
+
+var DB = null;
+var LOG_EL = null;
+var STAT_EL = null;
+
+function $(id) { return document.getElementById(id); }
+
+function log(msg, cls) {
+  if (!LOG_EL) return;
+  var p = document.createElement('p');
+  p.textContent = msg;
+  if (cls) p.className = cls;
+  LOG_EL.appendChild(p);
+  LOG_EL.scrollTop = LOG_EL.scrollHeight;
+}
+
+function setStat(msg) {
+  if (STAT_EL) STAT_EL.textContent = msg;
+}
+
+// --- Pseudo-random (seeded) for reproducibility ---
+var _seed = 42;
+function seededRandom() {
+  _seed = (_seed * 16807 + 0) % 2147483647;
+  return (_seed - 1) / 2147483646;
+}
+function randInt(min, max) {
+  return Math.floor(seededRandom() * (max - min + 1)) + min;
+}
+
+// --- IndexedDB ---
+function openDB() {
+  return new Promise(function(resolve, reject) {
+    var req = indexedDB.open('BloodPressureDB', 2);
+    req.onupgradeneeded = function(e) {
+      var d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        var ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        var rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId', { unique: false });
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('monthly_summaries')) {
+        var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
+        ms.createIndex('byPatient', 'patientId', { unique: false });
+      }
+    };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+
+function tx(store, mode) {
+  return DB.transaction(store, mode).objectStore(store);
+}
+
+function prom(req) {
+  return new Promise(function(resolve, reject) {
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  await prom(tx('patients', 'readwrite').put(p));
+}
+
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  await prom(tx('readings', 'readwrite').put(r));
+}
+
+async function putMonthlySummary(s) {
+  s.updatedAt = new Date().toISOString();
+  await prom(tx('monthly_summaries', 'readwrite').put(s));
+}
+
+async function clearAllData() {
+  var stores = ['readings', 'monthly_summaries', 'patients'];
+  for (var i = 0; i < stores.length; i++) {
+    var store = stores[i];
+    await prom(tx(store, 'readwrite').clear());
+    log('  [' + store + '] クリア完了', 'ok');
+  }
+}
+
+// --- Data generation --- 月1回 計12回
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+function seasonModifier(month) {
+  if (month <= 2 || month === 12) return 5;
+  if (month >= 3 && month <= 5) return 0;
+  if (month >= 6 && month <= 8) return -5;
+  return 2;
+}
+
+function spikeModifier() {
+  var r = seededRandom();
+  if (r < 0.05) return 20 + randInt(0, 20);
+  if (r > 0.95) return -15 - randInt(0, 10);
+  return 0;
+}
+
+async function generateDummyData() {
+  var pid = $('inp-pid').value.trim();
+  var name = $('inp-name').value.trim();
+  var year = parseInt($('inp-year').value);
+  var sbpBase = parseInt($('inp-sbp-base').value) || 130;
+  var dbpBase = parseInt($('inp-dbp-base').value) || 82;
+  var sbpRange = parseInt($('inp-sbp-range').value) || 25;
+  var dbpRange = parseInt($('inp-dbp-range').value) || 15;
+
+  if (!pid || !name) {
+    alert('患者IDと氏名を入力してください');
+    return;
+  }
+
+  log('=== ダミーデータ挿入開始 ===');
+  log('患者ID: ' + pid + ' / 氏名: ' + name + ' / 年: ' + year);
+  setStat('処理中…');
+
+  DB = await openDB();
+  log('DB オープン完了', 'ok');
+
+  // Register patient
+  await putPatient({
+    id: pid,
+    name: name,
+    gender: '男',
+    birthDate: '1960-01-01',
+    memo: 'ダミーデータ用テスト患者',
+    createdAt: new Date().toISOString()
+  });
+  log('患者登録完了: ' + pid + ' ' + name, 'ok');
+
+// Generate monthly readings (1 per month, on the 15th)
+   var totalInserted = 0;
+   var monthData = {};
+
+   for (var month = 1; month <= 12; month++) {
+     var seasonMod = seasonModifier(month);
+     var day = 15;
+     var dateStr = year + '-' + pad2(month) + '-' + pad2(day);
+
+     var hourMod = randInt(0, 8);
+     var sbpSpike = spikeModifier();
+     var dbpSpike = Math.round(sbpSpike * 0.6);
+
+     var sbp = sbpBase + seasonMod + hourMod + randInt(-sbpRange, sbpRange) + sbpSpike;
+     var dbp = dbpBase + Math.round(seasonMod * 0.7) + Math.round(hourMod * 0.6) + randInt(-dbpRange, dbpRange) + dbpSpike;
+
+     sbp = Math.max(85, Math.min(200, sbp));
+     dbp = Math.max(50, Math.min(130, dbp));
+
+     var meanArterial = Math.round((sbp + dbp * 2) / 3);
+
+     var memo = '';
+     var r = seededRandom();
+     if (r < 0.08) memo = '起床時';
+     else if (r < 0.16) memo = '就寝前';
+     else if (r < 0.22) memo = '食後';
+     else if (r < 0.26) memo = '運動後';
+     else if (r < 0.30) memo = '入浴後';
+
+     await putReading({
+       patientId: pid,
+       date: dateStr,
+       time: pad2(randInt(6, 21)) + ':' + pad2(randInt(0, 59)),
+       systolic: sbp,
+       diastolic: dbp,
+       meanArterial: meanArterial,
+       note: memo
+     });
+     totalInserted++;
+
+     var mk = year + '-' + pad2(month);
+     if (!monthData[mk]) monthData[mk] = { sbp: [], dbp: [] };
+     monthData[mk].sbp.push(sbp);
+     monthData[mk].dbp.push(dbp);
+   }
+
+   log('測定データ挿入完了: ' + totalInserted + ' 件', 'ok');
+
+   // Generate monthly summaries
+   var summaryCount = 0;
+   var months = Object.keys(monthData).sort();
+   for (var mi = 0; mi < months.length; mi++) {
+     var mk = months[mi];
+     var parts = mk.split('-');
+     var mYear = parseInt(parts[0]);
+     var mMonth = parseInt(parts[1]);
+
+     // avgSBP: 受診間平均 → ベース付近
+     // minSBP: 最低自宅血圧 → avgより低い
+     // maxSBP: 最高自宅血圧 → avgより高い
+     var avgSbp = sbpBase + seasonModifier(mMonth) + randInt(-Math.round(sbpRange * 0.3), Math.round(sbpRange * 0.3));
+     var minSbp = avgSbp - randInt(Math.round(sbpRange * 0.2), Math.round(sbpRange * 0.6));
+     var maxSbp = avgSbp + randInt(Math.round(sbpRange * 0.2), Math.round(sbpRange * 0.6));
+
+     avgSbp = Math.max(85, Math.min(200, avgSbp));
+     minSbp = Math.max(85, Math.min(avgSbp, minSbp));
+     maxSbp = Math.min(200, Math.max(avgSbp, maxSbp));
+
+     var avgDbp = dbpBase + Math.round(seasonModifier(mMonth) * 0.7) + randInt(-Math.round(dbpRange * 0.3), Math.round(dbpRange * 0.3));
+     var minDbp = avgDbp - randInt(Math.round(dbpRange * 0.2), Math.round(dbpRange * 0.6));
+     var maxDbp = avgDbp + randInt(Math.round(dbpRange * 0.2), Math.round(dbpRange * 0.6));
+
+     avgDbp = Math.max(50, Math.min(130, avgDbp));
+     minDbp = Math.max(50, Math.min(avgDbp, minDbp));
+     maxDbp = Math.min(130, Math.max(avgDbp, maxDbp));
+
+     await putMonthlySummary({
+       patientId: pid,
+       year: mYear,
+       month: mMonth,
+       avgSbp: avgSbp,
+       avgDbp: avgDbp,
+       minSbp: minSbp,
+       minDbp: minDbp,
+       maxSbp: maxSbp,
+       maxDbp: maxDbp
+     });
+     summaryCount++;
+     log('  月間サマリー: ' + mYear + '-' + pad2(mMonth) +
+       ' avgSBP=' + avgSbp + ' avgDBP=' + avgDbp +
+       ' minSBP=' + minSbp + ' maxSBP=' + maxSbp, 'ok');
+   }
+
+  log('月間サマリー挿入完了: ' + summaryCount + ' 件', 'ok');
+  log('=== 完了 ===');
+  setStat('完了: 測定データ ' + totalInserted + '件 / 月間サマリー ' + summaryCount + '件');
+}
+
+// --- Event handlers ---
+document.addEventListener('DOMContentLoaded', function() {
+  LOG_EL = document.getElementById('log');
+  STAT_EL = document.getElementById('stat');
+
+  document.getElementById('btn-run').addEventListener('click', async function() {
+    this.disabled = true;
+    LOG_EL.innerHTML = '';
+    try {
+      await generateDummyData();
+    } catch (e) {
+      log('エラー: ' + e.message, 'err');
+      console.error(e);
+    }
+    this.disabled = false;
+  });
+
+  document.getElementById('btn-clear').addEventListener('click', async function() {
+    if (!confirm('全データを削除します。本当によろしいですか？')) return;
+    this.disabled = true;
+    LOG_EL.innerHTML = '';
+    try {
+      DB = await openDB();
+      await clearAllData();
+      log('全データをクリアしました', 'ok');
+      setStat('DB クリア完了');
+    } catch (e) {
+      log('エラー: ' + e.message, 'err');
+      console.error(e);
+    }
+    this.disabled = false;
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,4152 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>💊 血圧モニター（開発版）</title>
+<link rel="stylesheet" href="style.css">
+<style>
+/* =================================================================
+   style.css — スタイルシート（共通）
+   ================================================================= */
+
+/* ===== Reset & Base ===== */
+* { box-sizing: border-box; margin: 0; padding: 0 }
+body {
+  font-family: "Meiryo", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  line-height: 1.6; color: #2c3e50; background: #f0f2f5;
+}
+button { font-family: inherit; cursor: pointer }
+input, select { font-family: inherit }
+
+/* ===== Layout ===== */
+#app { max-width: 980px; margin: 0 auto; padding: 12px }
+.header {
+  background: #2c3e50; color: #fff; padding: 14px 20px;
+  border-radius: 10px 10px 0 0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.header h1 { font-size: 1.2em; font-weight: 700 }
+.header .info { font-size: .82em; opacity: .85 }
+.content {
+  background: #fff; border-radius: 0 0 10px 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1); padding: 20px;
+}
+
+/* ===== ID Input Screen ===== */
+#screen-id { text-align: center; padding: 60px 20px 40px }
+#screen-id h2 { font-size: 1.1em; color: #34495e; margin-bottom: 30px; font-weight: 400 }
+.id-input-wrap { display: inline-block; text-align: left }
+.id-input-wrap label { display: block; font-size: .95em; margin-bottom: 6px; font-weight: 600 }
+.id-input-wrap input[type="text"] {
+  width: 220px; padding: 10px 14px; font-size: 1.2em;
+  border: 2px solid #3498db; border-radius: 6px;
+  text-align: center; letter-spacing: .1em;
+}
+.id-input-wrap input[type="text"]:focus {
+  outline: none; border-color: #e74c3c;
+  box-shadow: 0 0 0 3px rgba(231,76,60,.15);
+}
+.id-input-wrap .hint { font-size: .78em; color: #95a5a6; margin-top: 6px }
+
+/* ===== Buttons ===== */
+.btn {
+  padding: 10px 28px; border: none; border-radius: 6px;
+  font-size: .95em; font-weight: 600; transition: background .15s;
+}
+.btn:focus { outline: 2px solid #3498db; outline-offset: 2px }
+.btn-primary { background: #3498db; color: #fff }
+.btn-primary:hover { background: #2980b9 }
+.btn-secondary { background: #95a5a6; color: #fff }
+.btn-secondary:hover { background: #7f8c8d }
+.btn-danger { background: #e74c3c; color: #fff }
+.btn-danger:hover { background: #c0392b }
+.btn-sm { padding: 6px 14px; font-size: .82em }
+.btn-group { margin-top: 16px; display: flex; gap: 10px; justify-content: center }
+* { box-sizing: border-box }
+
+/* ===== Nav Bar ===== */
+.nav-bar {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 16px; flex-wrap: wrap;
+}
+.nav-bar .patient-info { font-size: .9em; font-weight: 600 }
+.nav-bar select {
+  padding: 6px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .88em; background: #fff;
+}
+.nav-bar button {
+  padding: 6px 14px; border: 1px solid #bdc3c7;
+  border-radius: 4px; background: #ecf0f1; font-size: .85em;
+}
+.nav-bar button:hover { background: #d5dbdb }
+.nav-bar .nav-btn { background: #3498db; color: #fff; border-color: #3498db }
+.nav-bar .nav-btn:hover { background: #2980b9 }
+.nav-bar .active-period { font-weight: 700; min-width: 130px; text-align: center }
+
+/* ===== Graph ===== */
+.graph-container { position: relative; margin-bottom: 20px }
+.graph-container canvas {
+  width: 100%; height: 380px; display: block;
+  background: #fafbfc; border: 1px solid #e0e4e8; border-radius: 6px;
+}
+.legend {
+  display: flex; gap: 16px; flex-wrap: wrap;
+  margin-top: 8px; font-size: .82em; justify-content: center;
+}
+.legend-item { display: flex; align-items: center; gap: 5px }
+.legend-color { width: 18px; height: 4px; border-radius: 2px }
+.legend-line { width: 18px; height: 0; border-top: 2px dashed }
+
+/* ===== Form ===== */
+.form-section {
+  background: #f8f9fb; border: 1px solid #e0e4e8;
+  border-radius: 6px; padding: 16px; margin-bottom: 16px;
+}
+.form-section h3 { font-size: .95em; margin-bottom: 12px; color: #2c3e50 }
+.form-row {
+  display: flex; gap: 12px; align-items: center;
+  margin-bottom: 10px; flex-wrap: wrap;
+}
+.form-row label { min-width: 90px; font-size: .88em; font-weight: 600 }
+.form-row input[type="number"],
+.form-row input[type="text"],
+.form-row input[type="date"] {
+  padding: 8px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .95em; flex: 1; min-width: 120px;
+}
+.form-row input:focus {
+  outline: none; border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+}
+.form-row input.short { width: 70px; flex: none }
+.form-row .unit { font-size: .82em; color: #7f8c8d }
+.form-row .memo-input { width: 200px }
+.btn-register {
+  padding: 10px 24px; background: #27ae60; color: #fff;
+  border: none; border-radius: 6px; font-size: .95em; font-weight: 600;
+}
+.btn-register:focus { outline: 2px solid #27ae60; outline-offset: 2px }
+.btn-register:hover { background: #219a52 }
+
+/* ===== Summary Table ===== */
+.summary-table { width: 100%; border-collapse: collapse; margin: 12px 0 }
+.summary-table th, .summary-table td {
+  padding: 8px 12px; text-align: center; border: 1px solid #e0e4e8; font-size: .88em;
+}
+.summary-table th { background: #ecf0f1; font-weight: 600 }
+.summary-table td { background: #fff }
+.summary-table .high { color: #e74c3c; font-weight: 700 }
+.summary-table .low { color: #3498db; font-weight: 700 }
+
+/* ===== Daily List ===== */
+.daily-list { border: 1px solid #e0e4e8; border-radius: 6px; overflow-x: auto; margin-top: 12px }
+.daily-list table { width: 100%; border-collapse: collapse }
+.daily-list th, .daily-list td {
+  padding: 7px 10px; text-align: left;
+  border-bottom: 1px solid #eef0f2; font-size: .85em;
+}
+.daily-list th { background: #f4f6f7; font-weight: 600 }
+.daily-list tr:hover { background: #f8f9fb }
+.daily-list td:first-child { font-weight: 600; width: 80px }
+.daily-list td:last-child { width: 110px; text-align: right; white-space: nowrap }
+.bp-val { font-weight: 600 }
+.bp-normal { color: #27ae60 }
+.bp-warn1 { color: #f39c12 }
+.bp-warn2 { color: #e74c3c }
+
+/* ===== Data Bar ===== */
+.data-bar {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  margin-top: 16px; padding: 10px;
+  background: #f8f9fb; border-radius: 6px; align-items: center;
+  font-size: .82em;
+}
+.data-bar button {
+  padding: 6px 12px; border: 1px solid #bdc3c7;
+  border-radius: 4px; background: #fff; font-size: .82em;
+}
+.data-bar button:hover { background: #ecf0f1 }
+.data-bar .stat { margin-left: auto; color: #7f8c8d }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed; top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+}
+.modal {
+  background: #fff; border-radius: 10px;
+  padding: 24px; min-width: 320px; max-width: 480px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.2);
+}
+.modal h3 { margin-bottom: 16px; font-size: 1em }
+.modal .form-row { margin-bottom: 12px }
+.modal .form-row label { min-width: 80px; font-size: .88em }
+.modal .btn-group { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px }
+.modal-close { background: #95a5a6; color: #fff }
+
+/* ===== Toast ===== */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%);
+  background: #2c3e50; color: #fff;
+  padding: 10px 24px; border-radius: 6px;
+  font-size: .9em; z-index: 2000;
+  opacity: 0; transition: opacity .25s;
+  pointer-events: none;
+}
+.toast.show { opacity: .92 }
+
+/* ===== Focus ===== */
+*:focus-visible { outline: 2px solid #3498db; outline-offset: 2px }
+
+/* ===== Print ===== */
+@media print {
+  .nav-bar .nav-btn, .data-bar button, .btn-group { display: none !important }
+  .graph-container canvas { page-break-inside: avoid }
+  body { background: #fff }
+  #app { padding: 0 }
+  .content { box-shadow: none; border: 1px solid #ccc }
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 640px) {
+  .form-row { flex-direction: column; align-items: flex-start; gap: 4px }
+  .form-row input[type="number"],
+  .form-row input[type="text"],
+  .form-row input[type="date"] { width: 100% !important; min-width: 0 }
+  .nav-bar { flex-direction: column; align-items: stretch }
+}
+</style></head>
+<body>
+<div id="app">
+
+  <!-- ID Input Screen -->
+  <div id="screen-id">
+    <div id="app-header" class="header">
+      <h1>💊 血圧モニター</h1>
+      <span class="info" id="header-info"></span>
+    </div>
+    <div class="content">
+      <h2>患者IDを入力してください</h2>
+      <div class="id-input-wrap">
+        <label for="inp-patient-id">患者ID</label>
+        <input type="text" id="inp-patient-id" placeholder="例: 12345" autofocus>
+        <div class="hint">IDを入力して Enter キーで開始</div>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary" id="btn-id-enter">開 始</button>
+      </div>
+      <div style="margin-top:24px">
+        <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
+        <div id="recent-patients"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Patient Screen -->
+  <div id="screen-patient" style="display:none">
+    <div class="header">
+      <h1>💊 血圧モニター</h1>
+      <span class="info" id="patient-header-info"></span>
+    </div>
+    <div class="content">
+      <div class="nav-bar">
+        <select id="sel-patient"></select>
+        <button class="nav-btn" id="btn-prev" title="前月">◀</button>
+        <span class="active-period" id="nav-period"></span>
+        <button class="nav-btn" id="btn-next" title="次月">▶</button>
+        <button id="btn-back" title="トップに戻る">🏠</button>
+      </div>
+      <div class="graph-container">
+        <canvas id="graph"></canvas>
+      </div>
+      <div class="legend" id="legend"></div>
+      <div class="form-section">
+        <h3>📋 血圧入力</h3>
+        <div class="form-row">
+          <label for="inp-date">測定日</label>
+          <input type="date" id="inp-date">
+          <label for="inp-sbp" style="min-width:80px">収縮期(上)</label>
+          <input type="number" id="inp-sbp" class="short" min="50" max="300" placeholder="---">
+          <span class="unit">mmHg</span>
+          <label for="inp-dbp" style="min-width:80px">拡張期(下)</label>
+          <input type="number" id="inp-dbp" class="short" min="30" max="200" placeholder="---">
+          <span class="unit">mmHg</span>
+        </div>
+        <div class="form-row">
+          <label for="inp-memo">メモ</label>
+          <input type="text" id="inp-memo" class="memo-input" placeholder="任意">
+        </div>
+        <div class="form-row">
+          <button class="btn-register" id="btn-register">📋 登録（Enter）</button>
+          <span id="register-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+        </div>
+      </div>
+      <div class="form-section">
+        <h3>📊 月間サマリー - <span id="summary-period"></span></h3>
+        <table class="summary-table">
+          <thead><tr><th>項目</th><th>平均</th><th>最高</th><th>最低</th></tr></thead>
+          <tbody id="summary-body">
+            <tr><td>収縮期 (SBP)</td><td>-</td><td>-</td><td>-</td></tr>
+            <tr><td>拡張期 (DBP)</td><td>-</td><td>-</td><td>-</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="form-section">
+        <h3>📅 日次データ一覧</h3>
+        <div class="daily-list">
+          <table>
+            <thead><tr><th>日付</th><th>収縮期</th><th>拡張期</th><th>平均</th><th>操作</th></tr></thead>
+            <tbody id="daily-body"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="data-bar">
+        <button id="btn-export-csv">📤 CSV出力</button>
+        <button id="btn-import-csv">📥 CSV入力</button>
+        <button id="btn-backup">💾 バックアップ</button>
+        <button id="btn-restore">📂 復元</button>
+        <button id="btn-delete-patient" class="btn-danger">🗑 患者削除</button>
+        <span class="stat" id="data-stat"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-import" accept=".csv,.json" style="display:none">
+<div class="toast" id="toast"></div>
+
+<!-- Modals -->
+<div class="modal-overlay" id="modal-new-patient" style="display:none">
+  <div class="modal">
+    <h3>🆕 新規患者登録</h3>
+    <p style="font-size:.88em;color:#7f8c8d;margin-bottom:12px">ID: <strong id="modal-pid"></strong> は登録されていません。</p>
+    <div class="form-row"><label>氏名</label><input type="text" id="modal-name" placeholder="山田太郎" autofocus></div>
+    <div class="form-row"><label>性別</label><select id="modal-gender"><option value="">--</option><option value="男">男</option><option value="女">女</option></select></div>
+    <div class="form-row"><label>生年月日</label><input type="date" id="modal-birth"></div>
+    <div class="form-row"><label>メモ</label><input type="text" id="modal-memo" placeholder="任意"></div>
+    <div class="btn-group"><button class="btn modal-close" id="modal-cancel">キャンセル</button><button class="btn btn-primary" id="modal-ok">登録</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-confirm" style="display:none">
+  <div class="modal">
+    <h3 id="confirm-title">確認</h3>
+    <p id="confirm-body" style="font-size:.9em;margin-bottom:16px"></p>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="btn modal-close" id="confirm-no">キャンセル</button>
+      <button class="btn btn-danger" id="confirm-yes">実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts (load order matters) -->
+<script>
+/* =================================================================
+   db.js — IndexedDB 操作モジュール
+   ================================================================= */
+
+const DB_NAME = 'BloodPressureDB';
+const DB_VERSION = 1;
+let db = null;
+
+/** DB オープン */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        const ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        const rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId', { unique: false });
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date', { unique: false });
+      }
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** トランザクション取得ショートカット */
+function tx(store, mode) {
+  return db.transaction(store, mode).objectStore(store);
+}
+
+/** IDBRequest を Promise 化 */
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---- 患者マスタ ---- */
+
+async function getPatient(id) {
+  return prom(tx('patients', 'readonly').get(id));
+}
+
+async function getAllPatients() {
+  return prom(tx('patients', 'readonly').getAll());
+}
+
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  return prom(tx('patients', 'readwrite').put(p));
+}
+
+async function deletePatient(id) {
+  await prom(tx('patients', 'readwrite').delete(id));
+  // cascade readings
+  const readings = await getReadingsByPatient(id);
+  for (const r of readings) await deleteReading(r.id);
+}
+
+/* ---- 測定データ ---- */
+
+async function getReadingsByPatient(patientId) {
+  return prom(tx('readings', 'readonly').index('byPatient').getAll(patientId));
+}
+
+async function getReadingsByPatientInMonth(patientId, year, month) {
+  const s = tx('readings', 'readonly').index('byPatientDate');
+  const pad = m => String(m).padStart(2, '0');
+  const start = [patientId, `${year}-${pad(month)}-01`];
+  const end   = [patientId, `${year}-${pad(month)}-32`];
+  return prom(s.getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+
+async function getReadingByDate(patientId, date) {
+  return prom(tx('readings', 'readonly').index('byPatientDate').get([patientId, date]));
+}
+
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  return prom(tx('readings', 'readwrite').put(r));
+}
+
+async function deleteReading(id) {
+  return prom(tx('readings', 'readwrite').delete(id));
+}
+
+async function getAllReadings() {
+  return prom(tx('readings', 'readonly').getAll());
+}
+/* =================================================================
+   chart.js — Canvas 2D グラフ描画モジュール
+   ================================================================= */
+
+const GRAPH = {
+  padding: { top: 30, right: 60, bottom: 40, left: 55 },
+  dotRadius: 5,
+  lineWidth: 2.5,
+  dashPattern: [8, 4],
+};
+
+/** Y座標: 血圧 → Canvas Y */
+function bpToY(bp, h, pad) {
+  return pad.bottom - ((bp - 60) / (200 - 60)) * (pad.bottom - pad.top);
+}
+
+/** 月の日数 */
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+/** メイン描画関数 */
+function drawGraph(canvas, readings, patientId, year, month) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = 380;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  canvas.style.width = '100%';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = GRAPH.padding;
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Normal zone background ──
+  const y120 = bpToY(120, H, pad);
+  ctx.fillStyle = 'rgba(39,174,96,0.08)';
+  ctx.fillRect(pad.left, y120, pw, H - pad.bottom - y120);
+
+  // ── Grid ──
+  ctx.strokeStyle = '#e8ecef';
+  ctx.lineWidth = 0.5;
+  for (let bp = 60; bp <= 200; bp += 20) {
+    const y = bpToY(bp, H, pad);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bp, pad.left - 4, y + 4);
+  }
+  // Y-axis label
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mmHg', 0, 0);
+  ctx.restore();
+
+  if (!readings || readings.length === 0) {
+    ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('この月のデータはありません', W / 2, H / 2);
+    return;
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const xStep = totalDays > 1 ? pw / (totalDays - 1) : pw / 2;
+  const dayToX = (d) => pad.left + (d - 1) * xStep;
+
+  // ── Season band ──
+  const seasons = [
+    { m: [3,4,5], c: 'rgba(39,174,96,0.06)' },
+    { m: [6,7,8], c: 'rgba(231,76,60,0.06)' },
+    { m: [9,10,11], c: 'rgba(243,156,18,0.06)' },
+    { m: [12,1,2], c: 'rgba(52,152,219,0.06)' },
+  ];
+  const s = seasons.find(x => x.m.includes(month));
+  if (s) { ctx.fillStyle = s.c; ctx.fillRect(pad.left, pad.top, pw, ph); }
+
+  // ── Warning lines ──
+  ctx.setLineDash(GRAPH.dashPattern);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(140, H, pad)); ctx.lineTo(W - pad.right, bpToY(140, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(90, H, pad)); ctx.lineTo(W - pad.right, bpToY(90, H, pad)); ctx.stroke();
+  ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('140', W - pad.right + 3, bpToY(140, H, pad) + 3);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('90', W - pad.right + 3, bpToY(90, H, pad) + 3);
+
+  // ── Aggregate by date ──
+  const byDate = {};
+  readings.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r);
+  });
+  const dates = Object.keys(byDate).sort();
+
+  // Stats
+  const allS = readings.map(r => r.systolic);
+  const allD = readings.map(r => r.diastolic);
+  const avgS = allS.reduce((a, b) => a + b, 0) / allS.length;
+  const avgD = allD.reduce((a, b) => a + b, 0) / allD.length;
+  const maxS = { v: Math.max(...allS), r: readings.find(r => r.systolic === Math.max(...allS)) };
+  const minS = { v: Math.min(...allS), r: readings.find(r => r.systolic === Math.min(...allS)) };
+  const maxD = { v: Math.max(...allD), r: readings.find(r => r.diastolic === Math.max(...allD)) };
+  const minD = { v: Math.min(...allD), r: readings.find(r => r.diastolic === Math.min(...allD)) };
+
+  // ── Average lines ──
+  ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = '#c0392b';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgS, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgS, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgD, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgD, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#c0392b'; ctx.textAlign = 'left';
+  ctx.fillText('平均SBP ' + Math.round(avgS), pad.left + 4, bpToY(avgS, H, pad) - 5);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('平均DBP ' + Math.round(avgD), pad.left + 4, bpToY(avgD, H, pad) + 13);
+
+  // ── High/Low lines ──
+  ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(maxS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(maxS.v, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#3498db';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(minS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(minS.v, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.setLineDash([]);
+  ctx.font = '9px sans-serif';
+  ctx.fillStyle = '#e74c3c'; ctx.textAlign = 'right';
+  ctx.fillText(maxS.v + '(' + maxS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(maxS.v, H, pad) - 4);
+  ctx.fillStyle = '#3498db';
+  ctx.fillText(minS.v + '(' + minS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(minS.v, H, pad) + 11);
+
+  // ── Date axis ──
+  ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(totalDays / 12));
+  for (let d = 1; d <= totalDays; d += step) {
+    const x = dayToX(d);
+    ctx.fillText(d, x, H - pad.bottom + 16);
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, H - pad.bottom); ctx.stroke();
+  }
+
+  // ── Data lines & dots ──
+  const sbpPts = [], dbpPts = [];
+  dates.forEach(date => {
+    const d = parseInt(date.slice(8, 10));
+    const x = dayToX(d);
+    const dr = byDate[date];
+    const as = dr.reduce((a, r) => a + r.systolic, 0) / dr.length;
+    const ad = dr.reduce((a, r) => a + r.diastolic, 0) / dr.length;
+    sbpPts.push({ x, y: bpToY(as, H, pad), raw: dr[0].systolic, date, avg: as });
+    dbpPts.push({ x, y: bpToY(ad, H, pad), raw: dr[0].diastolic, date, avg: ad });
+  });
+
+  function drawLine(pts, color, lw) {
+    if (pts.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  }
+
+  drawLine(sbpPts, '#c0392b', GRAPH.lineWidth);
+  drawLine(dbpPts, '#2980b9', GRAPH.lineWidth);
+
+  // Dots
+  sbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#c0392b');
+  });
+  dbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#2980b9');
+  });
+
+  // ── Tooltip tracking ──
+  canvas._graphData = { sbpPts, dbpPts, H, pad, W, readings, byDate };
+}
+
+function drawDot(ctx, p, warnLevel, baseColor) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
+  const fill = warnLevel === 2 ? '#e74c3c' : warnLevel === 1 ? '#f39c12' : baseColor;
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (warnLevel === 2) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+
+/** 単一血圧値のリスク判定 (1=1期, 2=2期, 0=正常) */
+function bpClassSolo(bp) {
+  if (bp >= 160) return 2;
+  if (bp >= 140) return 1;
+  return 0;
+}
+
+/** 二値のリスク判定 */
+function bpClass(sbp, dbp) {
+  const s = bpClassSolo(sbp);
+  const d = bpClassSolo(dbp);
+  return { sbp: s, dbp: d, max: Math.max(s, d) };
+}
+
+/** グラフ上のマウスオーバーでツールチップ表示 */
+function setupTooltip(canvas) {
+  let tt = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const g = canvas._graphData;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (tt) { tt.remove(); tt = null; }
+    let closest = null, minDist = 20;
+    g.sbpPts.forEach((p, i) => {
+      const d = Math.hypot(mx - p.x, my - p.y);
+      if (d < minDist) { minDist = d; closest = i; }
+    });
+    if (closest !== null) {
+      const p = g.sbpPts[closest];
+      const dp = g.dbpPts[closest];
+      tt = document.createElement('div');
+      tt.style.cssText = `position:absolute;background:rgba(44,62,80,.92);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;left:${p.x + 14}px;top:${my - 10}px;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.3)`;
+      tt.innerHTML = `<strong>${p.date}</strong><br>収縮期: ${p.raw} mmHg<br>拡張期: ${dp.raw} mmHg`;
+      canvas.parentElement.appendChild(tt);
+    }
+  });
+  canvas.addEventListener('mouseleave', () => { if (tt) { tt.remove(); tt = null; } });
+}
+/* =================================================================
+   csv.js — CSV入出力モジュール
+   ================================================================= */
+
+/** CSV パース（RFC 4180準拠、簡易版） */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuote = false;
+      } else {
+        current += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current.trim()); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+/**
+ * CSV文字列をパースしてレコード配列に変換
+ * @param {string} text - CSVテキスト
+ * @returns {{patientId, name, date, systolic, diastolic, note}[]}
+ */
+function parseCSV(text) {
+  // BOM除去
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    const patientId = cols[0];
+    const name = cols[1] || '';
+    const date = cols[2];
+    const systolic = Number(cols[3]);
+    const diastolic = Number(cols[4]);
+    const note = cols[5] || '';
+
+    if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
+    records.push({ patientId, name, date, systolic, diastolic, note });
+  }
+  return records;
+}
+
+/**
+ * 測定データ配列をCSV文字列に変換
+ * @param {{patientId, name?, date, systolic, diastolic, note?}[]} records
+ * @returns {string} BOM付きUTF-8 CSV
+ */
+function recordsToCSV(records) {
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  records.forEach(r => {
+    const name = r.name ? `"${r.name}"` : '';
+    const note = r.note ? `"${r.note}"` : '';
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+  });
+  return csv;
+}
+
+/**
+ * ファイルダウンロード
+ * @param {string} content
+ * @param {string} filename
+ * @param {string} [mime='text/csv']
+ */
+function downloadFile(content, filename, mime = 'text/csv') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * JSONバックアップ生成
+ * @param {object} data - { patients: [], readings: [] }
+ * @returns {string}
+ */
+function backupToJSON(data) {
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * JSONバックアップ解析
+ * @param {string} text
+ * @returns {{patients: [], readings: []}|null}
+ */
+function parseBackupJSON(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+/* =================================================================
+   app.js — メインアプリケーションロジック
+   ================================================================= */
+
+let db = null;
+let currentPatientId = null;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let editingId = null;
+
+// DB helpers are provided by db.js (loaded before this script)
+
+function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ── DOM refs ──
+const $ = id => document.getElementById(id);
+
+// ── Toast ──
+let toastTimer = null;
+function toast(msg, duration = 2000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Modal helpers ──
+function showModal(id) { $('modal-' + id).style.display = 'flex'; }
+function hideModal(id) { $('modal-' + id).style.display = 'none'; }
+
+// ── Screen management ──
+function showScreen(id) {
+  $('screen-id').style.display = id === 'id' ? '' : 'none';
+  $('screen-patient').style.display = id === 'patient' ? '' : 'none';
+}
+
+// ── Utilities ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function bpClass(sbp, dbp) {
+  const f = b => b >= 160 ? 2 : b >= 140 ? 1 : 0;
+  return { sbp: f(sbp), dbp: f(dbp) };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ID INPUT SCREEN
+// ═══════════════════════════════════════════════════════════
+
+async function initIdScreen() {
+  try {
+    const readings = await getAllReadings();
+    if (readings.length > 0) {
+      readings.sort((a, b) => b.date.localeCompare(a.date));
+      const last = readings[0];
+      const pat = await getPatient(last.patientId);
+      $('header-info').textContent = `最終: ${pat ? pat.name : last.patientId} / ${last.date}`;
+    }
+  } catch {}
+  await renderRecentPatients();
+
+  $('inp-patient-id').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleIdEnter(); }
+  });
+  $('btn-id-enter').addEventListener('click', handleIdEnter);
+}
+
+async function renderRecentPatients() {
+  const patients = await getAllPatients();
+  const entries = [];
+  for (const p of patients) {
+    const readings = await getReadingsByPatient(p.id);
+    const latest = readings.reduce((a, b) => a.date > b.date ? a : b, null);
+    entries.push({ patient: p, latest: latest ? latest.date : '' });
+  }
+  entries.sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
+
+  const div = $('recent-patients');
+  if (entries.length === 0) {
+    div.innerHTML = '<span style="color:#bdc3c7">まだ患者が登録されていません</span>';
+    return;
+  }
+  div.innerHTML = entries.map(e =>
+    `<div style="padding:5px 0;cursor:pointer;border-bottom:1px solid #f0f0f0" data-pid="${e.patient.id}">
+      <strong>${esc(e.patient.id)}</strong> ${esc(e.patient.name)}
+      <span style="color:#95a5a6;margin-left:8px;font-size:.82em">${e.latest || 'データなし'}</span>
+    </div>`
+  ).join('');
+
+  div.querySelectorAll('[data-pid]').forEach(el => {
+    el.addEventListener('click', () => navigateToPatient(el.dataset.pid));
+  });
+}
+
+async function handleIdEnter() {
+  const id = $('inp-patient-id').value.trim();
+  if (!id) { toast('患者IDを入力してください'); return; }
+  await navigateToPatient(id);
+}
+
+async function navigateToPatient(id) {
+  let patient = await getPatient(id);
+  if (!patient) {
+    currentPatientId = id;
+    $('modal-pid').textContent = id;
+    $('modal-name').value = '';
+    $('modal-gender').value = '';
+    $('modal-birth').value = '';
+    $('modal-memo').value = '';
+    showModal('new-patient');
+    setTimeout(() => $('modal-name').focus(), 100);
+    return;
+  }
+  currentPatientId = id;
+  currentYear = new Date().getFullYear();
+  currentMonth = new Date().getMonth() + 1;
+  showScreen('patient');
+  renderPatientPage();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NEW PATIENT MODAL
+// ═══════════════════════════════════════════════════════════
+
+$('modal-ok').addEventListener('click', async () => {
+  const name = $('modal-name').value.trim();
+  if (!name) { toast('氏名を入力してください'); return; }
+  await putPatient({
+    id: currentPatientId,
+    name,
+    gender: $('modal-gender').value,
+    birthDate: $('modal-birth').value,
+    memo: $('modal-memo').value.trim(),
+    createdAt: new Date().toISOString()
+  });
+  hideModal('new-patient');
+  renderPatientPage();
+  toast(`患者 ${name} を登録しました`);
+});
+$('modal-cancel').addEventListener('click', () => hideModal('new-patient'));
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIRM MODAL
+// ═══════════════════════════════════════════════════════════
+
+function confirm(title, body, onYes) {
+  $('confirm-title').textContent = title;
+  $('confirm-body').textContent = body;
+  showModal('confirm');
+  const yesHandler = () => { hideModal('confirm'); $('confirm-yes').removeEventListener('click', yesHandler); onYes(); };
+  $('confirm-yes').addEventListener('click', yesHandler);
+}
+$('confirm-no').addEventListener('click', () => hideModal('confirm'));
+
+// ═══════════════════════════════════════════════════════════
+//  PATIENT PAGE
+// ═══════════════════════════════════════════════════════════
+
+async function renderPatientPage() {
+  const patient = await getPatient(currentPatientId);
+  const name = patient ? patient.name : currentPatientId;
+  $('patient-header-info').textContent = `${currentPatientId} ${name} | ${currentYear}年${currentMonth}月`;
+
+  renderNav();
+  renderGraphAndLegend();
+  renderSummary();
+  renderDailyList();
+  updateDataStat();
+
+  // Reset form
+  const today = new Date();
+  $('inp-date').value = formatDate(today);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  $('register-status').textContent = '';
+  editingId = null;
+
+  setTimeout(() => $('inp-date').focus(), 50);
+}
+
+function renderNav() {
+  const sel = $('sel-patient');
+  sel.innerHTML = '';
+  getAllPatients().then(patients => {
+    sel.innerHTML = patients.map(p =>
+      `<option value="${esc(p.id)}" ${p.id === currentPatientId ? 'selected' : ''}>${esc(p.id)} ${esc(p.name || '')}</option>`
+    ).join('');
+  });
+
+  $('nav-period').textContent = `${currentYear}年${currentMonth}月`;
+  $('sel-patient').onchange = () => {
+    currentPatientId = $('sel-patient').value;
+    currentYear = new Date().getFullYear();
+    currentMonth = new Date().getMonth() + 1;
+    renderPatientPage();
+  };
+  $('btn-prev').onclick = () => { currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; } renderPatientPage(); };
+  $('btn-next').onclick = () => { currentMonth++; if (currentMonth > 12) { currentMonth = 1; currentYear++; } renderPatientPage(); };
+  $('btn-back').onclick = () => {
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    renderRecentPatients();
+    $('inp-patient-id').focus();
+  };
+}
+
+// ── Graph ──
+function renderGraphAndLegend() {
+  getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth).then(readings => {
+    drawGraph($('graph'), readings, currentPatientId, currentYear, currentMonth);
+    setupTooltip($('graph'));
+  });
+  $('legend').innerHTML = `
+    <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div>収縮期(SBP)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#2980b9"></div>拡張期(DBP)</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#c0392b"></div>平均SBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>平均DBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#e74c3c"></div>警戒 140</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>警戒 90</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f39c12"></div>1期高血圧</div>
+    <div class="legend-item"><div class="legend-color" style="background:#e74c3c"></div>2期高血圧</div>
+  `;
+}
+
+// ── Summary ──
+async function renderSummary() {
+  $('summary-period').textContent = `${currentYear}年${currentMonth}月`;
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  const body = $('summary-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td>収縮期 (SBP)</td><td>-</td><td>-</td><td>-</td></tr><tr><td>拡張期 (DBP)</td><td>-</td><td>-</td><td>-</td></tr>';
+    return;
+  }
+  const sVals = readings.map(r => r.systolic);
+  const dVals = readings.map(r => r.diastolic);
+  const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+  const maxS = Math.max(...sVals); const minS = Math.min(...sVals);
+  const maxD = Math.max(...dVals); const minD = Math.min(...dVals);
+  const f = (v, arr) => readings.find(r => r.systolic === v || r.diastolic === v);
+  const maxSO = readings.find(r => r.systolic === maxS);
+  const minSO = readings.find(r => r.systolic === minS);
+  const maxDO = readings.find(r => r.diastolic === maxD);
+  const minDO = readings.find(r => r.diastolic === minD);
+
+  body.innerHTML = `
+    <tr><td>収縮期 (SBP)</td><td>${avg(sVals)}</td><td class="high">${maxS} (${maxSO.date})</td><td class="low">${minS} (${minSO.date})</td></tr>
+    <tr><td>拡張期 (DBP)</td><td>${avg(dVals)}</td><td class="high">${maxD} (${maxDO.date})</td><td class="low">${minD} (${minDO.date})</td></tr>`;
+}
+
+// ── Daily list ──
+async function renderDailyList() {
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  readings.sort((a, b) => b.date.localeCompare(a.date));
+  const body = $('daily-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    return;
+  }
+  body.innerHTML = readings.map(r => {
+    const c = bpClass(r.systolic, r.diastolic);
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const sCls = c.sbp === 2 ? 'bp-warn2' : c.sbp === 1 ? 'bp-warn1' : 'bp-normal';
+    const dCls = c.dbp === 2 ? 'bp-warn2' : c.dbp === 1 ? 'bp-warn1' : 'bp-normal';
+    return `<tr>
+      <td>${r.date}</td>
+      <td class="bp-val ${sCls}">${r.systolic}</td>
+      <td class="bp-val ${dCls}">${r.diastolic}</td>
+      <td>${avg}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm btn-secondary" data-edit="${r.id}">編集</button>
+        <button class="btn btn-sm btn-danger" data-del="${r.id}">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editReading(Number(b.dataset.edit))));
+  body.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteReadingConfirm(Number(b.dataset.del))));
+}
+
+// ── Registration ──
+$('btn-register').addEventListener('click', registerReading);
+$('inp-dbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-memo').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-date').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-sbp').focus(); } });
+$('inp-sbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-dbp').focus(); } });
+
+async function registerReading() {
+  const date = $('inp-date').value;
+  const sbp = Number($('inp-sbp').value);
+  const dbp = Number($('inp-dbp').value);
+  const memo = $('inp-memo').value.trim();
+  if (!date || !sbp || !dbp) { toast('日付・収縮期・拡張期は必須です'); return; }
+  if (sbp < 50 || sbp > 300 || dbp < 30 || dbp > 200) { toast('血圧値の範囲が不正です'); return; }
+
+  const existing = await getReadingByDate(currentPatientId, date);
+  if (existing && existing.id !== editingId) {
+    if (!confirm('上書き確認', `${date} のデータは既に存在します。上書きしますか？`, async () => {
+      existing.systolic = sbp; existing.diastolic = dbp;
+      existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+      existing.memo = memo; existing.updatedAt = new Date().toISOString();
+      await putReading(existing);
+      toast(`${date} のデータを更新しました`);
+      renderPatientPage();
+      setTimeout(() => { $('inp-sbp').value = ''; $('inp-dbp').value = ''; $('inp-memo').value = ''; $('inp-sbp').focus(); }, 100);
+    })) return;
+    return;
+  }
+
+  // Merge with existing if same ID (edit mode)
+  if (editingId && existing) {
+    existing.systolic = sbp; existing.diastolic = dbp;
+    existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+    existing.memo = memo; existing.updatedAt = new Date().toISOString();
+    await putReading(existing);
+    toast(`${date} のデータを更新しました`);
+  } else {
+    await putReading({
+      patientId: currentPatientId, date, systolic: sbp, diastolic: dbp,
+      meanArterial: Math.round((sbp + dbp * 2) / 3),
+      note: memo, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    });
+    toast(`${date} のデータを登録しました`);
+  }
+
+  // Auto-advance to next day
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  $('inp-date').value = formatDate(d);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  editingId = null;
+  $('register-status').textContent = '';
+  $('inp-sbp').focus();
+  renderSummary();
+  renderDailyList();
+  renderGraphAndLegend();
+  updateDataStat();
+}
+
+// ── Edit ──
+async function editReading(id) {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const r = readings.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  $('inp-date').value = r.date;
+  $('inp-sbp').value = r.systolic;
+  $('inp-dbp').value = r.diastolic;
+  $('inp-memo').value = r.note || '';
+  $('register-status').textContent = '📝 編集中';
+  $('inp-sbp').focus();
+  $('inp-sbp').select();
+  $('inp-sbp').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteReadingConfirm(id) {
+  confirm('削除確認', 'この測定データを削除しますか？', async () => {
+    await deleteReading(id);
+    toast('データを削除しました');
+    renderPatientPage();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+// CSV Export
+$('btn-export-csv').addEventListener('click', async () => {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const patient = await getPatient(currentPatientId);
+  if (readings.length === 0) { toast('データがありません'); return; }
+  readings.sort((a, b) => a.date.localeCompare(b.date));
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,平均血圧,メモ\n';
+  readings.forEach(r => {
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const name = patient ? patient.name.replace(/"/g, '""') : '';
+    csv += `${currentPatientId},"${name}",${r.date},${r.systolic},${r.diastolic},${avg},"${(r.note || '').replace(/"/g, '""')}"\n`;
+  });
+  downloadFile(csv, `bp_${currentPatientId}_${currentYear}${String(currentMonth).padStart(2,'0')}.csv`);
+  toast('CSVエクスポート完了');
+});
+
+// CSV Import
+$('btn-import-csv').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.csv';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const text = await file.text();
+    const records = parseCSV(text);
+    if (records.length === 0) { toast('CSVデータがありません'); return; }
+    let imported = 0, skipped = 0;
+    for (const rec of records) {
+      try {
+        const existing = await getReadingByDate(rec.patientId, rec.date);
+        if (existing) {
+          existing.systolic = rec.systolic; existing.diastolic = rec.diastolic;
+          existing.meanArterial = Math.round((rec.systolic + rec.diastolic * 2) / 3);
+          existing.note = rec.note; existing.updatedAt = new Date().toISOString();
+          await putReading(existing);
+        } else {
+          let pat = await getPatient(rec.patientId);
+          if (!pat) await putPatient({ id: rec.patientId, name: rec.name, createdAt: new Date().toISOString() });
+          await putReading({
+            patientId: rec.patientId, date: rec.date,
+            systolic: rec.systolic, diastolic: rec.diastolic,
+            meanArterial: Math.round((rec.systolic + rec.diastolic * 2) / 3),
+            note: rec.note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+          });
+        }
+        imported++;
+      } catch { skipped++; }
+    }
+    toast(`CSV取り込み完了: ${imported}件, ${skipped}件スキップ`);
+    if (currentPatientId) renderPatientPage();
+  };
+  $('file-import').click();
+});
+
+// JSON Backup
+$('btn-backup').addEventListener('click', async () => {
+  const patients = await getAllPatients();
+  const readings = await getAllReadings();
+  const json = backupToJSON({ patients, readings });
+  downloadFile(json, `bp_backup_${formatDate(new Date())}.json`, 'application/json');
+  toast('バックアップ完了');
+});
+
+// JSON Restore
+$('btn-restore').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.json';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const text = await file.text();
+      const data = parseBackupJSON(text);
+      if (!data) { toast('無効なバックアップファイル'); return; }
+      confirm('復元確認', '全データをバックアップから復元します。既存データは上書きされます。', async () => {
+        if (data.patients) for (const p of data.patients) await putPatient(p);
+        if (data.readings) for (const r of data.readings) await putReading(r);
+        toast('復元完了');
+        currentPatientId = null;
+        showScreen('id');
+        $('inp-patient-id').value = '';
+        $('inp-patient-id').focus();
+        await renderRecentPatients();
+      });
+    } catch { toast('復元に失敗しました'); }
+  };
+  $('file-import').click();
+});
+
+// Delete Patient
+$('btn-delete-patient').addEventListener('click', () => {
+  confirm('患者削除', `患者 ${currentPatientId} の全データを削除します。本当によろしいですか？`, async () => {
+    await deletePatient(currentPatientId);
+    toast('患者を削除しました');
+    currentPatientId = null;
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    await renderRecentPatients();
+    $('inp-patient-id').focus();
+  });
+});
+
+// ── Global Enter for registration ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'inp-memo') { e.preventDefault(); registerReading(); }
+});
+
+// ── Window resize ──
+window.addEventListener('resize', () => {
+  if (currentPatientId) renderGraphAndLegend();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+
+(async () => {
+  try {
+    db = await openDB();
+  } catch (e) {
+    alert('IndexedDBのオープンに失敗しました: ' + e.message);
+    return;
+  }
+  await initIdScreen();
+  $('inp-patient-id').focus();
+})();
+</script>
+<script>
+/* =================================================================
+   db.js — IndexedDB 操作モジュール
+   ================================================================= */
+
+const DB_NAME = 'BloodPressureDB';
+const DB_VERSION = 1;
+let db = null;
+
+/** DB オープン */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        const ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        const rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId', { unique: false });
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date', { unique: false });
+      }
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** トランザクション取得ショートカット */
+function tx(store, mode) {
+  return db.transaction(store, mode).objectStore(store);
+}
+
+/** IDBRequest を Promise 化 */
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---- 患者マスタ ---- */
+
+async function getPatient(id) {
+  return prom(tx('patients', 'readonly').get(id));
+}
+
+async function getAllPatients() {
+  return prom(tx('patients', 'readonly').getAll());
+}
+
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  return prom(tx('patients', 'readwrite').put(p));
+}
+
+async function deletePatient(id) {
+  await prom(tx('patients', 'readwrite').delete(id));
+  // cascade readings
+  const readings = await getReadingsByPatient(id);
+  for (const r of readings) await deleteReading(r.id);
+}
+
+/* ---- 測定データ ---- */
+
+async function getReadingsByPatient(patientId) {
+  return prom(tx('readings', 'readonly').index('byPatient').getAll(patientId));
+}
+
+async function getReadingsByPatientInMonth(patientId, year, month) {
+  const s = tx('readings', 'readonly').index('byPatientDate');
+  const pad = m => String(m).padStart(2, '0');
+  const start = [patientId, `${year}-${pad(month)}-01`];
+  const end   = [patientId, `${year}-${pad(month)}-32`];
+  return prom(s.getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+
+async function getReadingByDate(patientId, date) {
+  return prom(tx('readings', 'readonly').index('byPatientDate').get([patientId, date]));
+}
+
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  return prom(tx('readings', 'readwrite').put(r));
+}
+
+async function deleteReading(id) {
+  return prom(tx('readings', 'readwrite').delete(id));
+}
+
+async function getAllReadings() {
+  return prom(tx('readings', 'readonly').getAll());
+}
+/* =================================================================
+   chart.js — Canvas 2D グラフ描画モジュール
+   ================================================================= */
+
+const GRAPH = {
+  padding: { top: 30, right: 60, bottom: 40, left: 55 },
+  dotRadius: 5,
+  lineWidth: 2.5,
+  dashPattern: [8, 4],
+};
+
+/** Y座標: 血圧 → Canvas Y */
+function bpToY(bp, h, pad) {
+  return pad.bottom - ((bp - 60) / (200 - 60)) * (pad.bottom - pad.top);
+}
+
+/** 月の日数 */
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+/** メイン描画関数 */
+function drawGraph(canvas, readings, patientId, year, month) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = 380;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  canvas.style.width = '100%';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = GRAPH.padding;
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Normal zone background ──
+  const y120 = bpToY(120, H, pad);
+  ctx.fillStyle = 'rgba(39,174,96,0.08)';
+  ctx.fillRect(pad.left, y120, pw, H - pad.bottom - y120);
+
+  // ── Grid ──
+  ctx.strokeStyle = '#e8ecef';
+  ctx.lineWidth = 0.5;
+  for (let bp = 60; bp <= 200; bp += 20) {
+    const y = bpToY(bp, H, pad);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bp, pad.left - 4, y + 4);
+  }
+  // Y-axis label
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mmHg', 0, 0);
+  ctx.restore();
+
+  if (!readings || readings.length === 0) {
+    ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('この月のデータはありません', W / 2, H / 2);
+    return;
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const xStep = totalDays > 1 ? pw / (totalDays - 1) : pw / 2;
+  const dayToX = (d) => pad.left + (d - 1) * xStep;
+
+  // ── Season band ──
+  const seasons = [
+    { m: [3,4,5], c: 'rgba(39,174,96,0.06)' },
+    { m: [6,7,8], c: 'rgba(231,76,60,0.06)' },
+    { m: [9,10,11], c: 'rgba(243,156,18,0.06)' },
+    { m: [12,1,2], c: 'rgba(52,152,219,0.06)' },
+  ];
+  const s = seasons.find(x => x.m.includes(month));
+  if (s) { ctx.fillStyle = s.c; ctx.fillRect(pad.left, pad.top, pw, ph); }
+
+  // ── Warning lines ──
+  ctx.setLineDash(GRAPH.dashPattern);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(140, H, pad)); ctx.lineTo(W - pad.right, bpToY(140, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(90, H, pad)); ctx.lineTo(W - pad.right, bpToY(90, H, pad)); ctx.stroke();
+  ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('140', W - pad.right + 3, bpToY(140, H, pad) + 3);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('90', W - pad.right + 3, bpToY(90, H, pad) + 3);
+
+  // ── Aggregate by date ──
+  const byDate = {};
+  readings.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r);
+  });
+  const dates = Object.keys(byDate).sort();
+
+  // Stats
+  const allS = readings.map(r => r.systolic);
+  const allD = readings.map(r => r.diastolic);
+  const avgS = allS.reduce((a, b) => a + b, 0) / allS.length;
+  const avgD = allD.reduce((a, b) => a + b, 0) / allD.length;
+  const maxS = { v: Math.max(...allS), r: readings.find(r => r.systolic === Math.max(...allS)) };
+  const minS = { v: Math.min(...allS), r: readings.find(r => r.systolic === Math.min(...allS)) };
+  const maxD = { v: Math.max(...allD), r: readings.find(r => r.diastolic === Math.max(...allD)) };
+  const minD = { v: Math.min(...allD), r: readings.find(r => r.diastolic === Math.min(...allD)) };
+
+  // ── Average lines ──
+  ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = '#c0392b';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgS, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgS, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgD, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgD, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#c0392b'; ctx.textAlign = 'left';
+  ctx.fillText('平均SBP ' + Math.round(avgS), pad.left + 4, bpToY(avgS, H, pad) - 5);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('平均DBP ' + Math.round(avgD), pad.left + 4, bpToY(avgD, H, pad) + 13);
+
+  // ── High/Low lines ──
+  ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(maxS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(maxS.v, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#3498db';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(minS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(minS.v, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.setLineDash([]);
+  ctx.font = '9px sans-serif';
+  ctx.fillStyle = '#e74c3c'; ctx.textAlign = 'right';
+  ctx.fillText(maxS.v + '(' + maxS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(maxS.v, H, pad) - 4);
+  ctx.fillStyle = '#3498db';
+  ctx.fillText(minS.v + '(' + minS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(minS.v, H, pad) + 11);
+
+  // ── Date axis ──
+  ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(totalDays / 12));
+  for (let d = 1; d <= totalDays; d += step) {
+    const x = dayToX(d);
+    ctx.fillText(d, x, H - pad.bottom + 16);
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, H - pad.bottom); ctx.stroke();
+  }
+
+  // ── Data lines & dots ──
+  const sbpPts = [], dbpPts = [];
+  dates.forEach(date => {
+    const d = parseInt(date.slice(8, 10));
+    const x = dayToX(d);
+    const dr = byDate[date];
+    const as = dr.reduce((a, r) => a + r.systolic, 0) / dr.length;
+    const ad = dr.reduce((a, r) => a + r.diastolic, 0) / dr.length;
+    sbpPts.push({ x, y: bpToY(as, H, pad), raw: dr[0].systolic, date, avg: as });
+    dbpPts.push({ x, y: bpToY(ad, H, pad), raw: dr[0].diastolic, date, avg: ad });
+  });
+
+  function drawLine(pts, color, lw) {
+    if (pts.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  }
+
+  drawLine(sbpPts, '#c0392b', GRAPH.lineWidth);
+  drawLine(dbpPts, '#2980b9', GRAPH.lineWidth);
+
+  // Dots
+  sbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#c0392b');
+  });
+  dbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#2980b9');
+  });
+
+  // ── Tooltip tracking ──
+  canvas._graphData = { sbpPts, dbpPts, H, pad, W, readings, byDate };
+}
+
+function drawDot(ctx, p, warnLevel, baseColor) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
+  const fill = warnLevel === 2 ? '#e74c3c' : warnLevel === 1 ? '#f39c12' : baseColor;
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (warnLevel === 2) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+
+/** 単一血圧値のリスク判定 (1=1期, 2=2期, 0=正常) */
+function bpClassSolo(bp) {
+  if (bp >= 160) return 2;
+  if (bp >= 140) return 1;
+  return 0;
+}
+
+/** 二値のリスク判定 */
+function bpClass(sbp, dbp) {
+  const s = bpClassSolo(sbp);
+  const d = bpClassSolo(dbp);
+  return { sbp: s, dbp: d, max: Math.max(s, d) };
+}
+
+/** グラフ上のマウスオーバーでツールチップ表示 */
+function setupTooltip(canvas) {
+  let tt = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const g = canvas._graphData;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (tt) { tt.remove(); tt = null; }
+    let closest = null, minDist = 20;
+    g.sbpPts.forEach((p, i) => {
+      const d = Math.hypot(mx - p.x, my - p.y);
+      if (d < minDist) { minDist = d; closest = i; }
+    });
+    if (closest !== null) {
+      const p = g.sbpPts[closest];
+      const dp = g.dbpPts[closest];
+      tt = document.createElement('div');
+      tt.style.cssText = `position:absolute;background:rgba(44,62,80,.92);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;left:${p.x + 14}px;top:${my - 10}px;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.3)`;
+      tt.innerHTML = `<strong>${p.date}</strong><br>収縮期: ${p.raw} mmHg<br>拡張期: ${dp.raw} mmHg`;
+      canvas.parentElement.appendChild(tt);
+    }
+  });
+  canvas.addEventListener('mouseleave', () => { if (tt) { tt.remove(); tt = null; } });
+}
+/* =================================================================
+   csv.js — CSV入出力モジュール
+   ================================================================= */
+
+/** CSV パース（RFC 4180準拠、簡易版） */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuote = false;
+      } else {
+        current += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current.trim()); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+/**
+ * CSV文字列をパースしてレコード配列に変換
+ * @param {string} text - CSVテキスト
+ * @returns {{patientId, name, date, systolic, diastolic, note}[]}
+ */
+function parseCSV(text) {
+  // BOM除去
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    const patientId = cols[0];
+    const name = cols[1] || '';
+    const date = cols[2];
+    const systolic = Number(cols[3]);
+    const diastolic = Number(cols[4]);
+    const note = cols[5] || '';
+
+    if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
+    records.push({ patientId, name, date, systolic, diastolic, note });
+  }
+  return records;
+}
+
+/**
+ * 測定データ配列をCSV文字列に変換
+ * @param {{patientId, name?, date, systolic, diastolic, note?}[]} records
+ * @returns {string} BOM付きUTF-8 CSV
+ */
+function recordsToCSV(records) {
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  records.forEach(r => {
+    const name = r.name ? `"${r.name}"` : '';
+    const note = r.note ? `"${r.note}"` : '';
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+  });
+  return csv;
+}
+
+/**
+ * ファイルダウンロード
+ * @param {string} content
+ * @param {string} filename
+ * @param {string} [mime='text/csv']
+ */
+function downloadFile(content, filename, mime = 'text/csv') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * JSONバックアップ生成
+ * @param {object} data - { patients: [], readings: [] }
+ * @returns {string}
+ */
+function backupToJSON(data) {
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * JSONバックアップ解析
+ * @param {string} text
+ * @returns {{patients: [], readings: []}|null}
+ */
+function parseBackupJSON(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+/* =================================================================
+   app.js — メインアプリケーションロジック
+   ================================================================= */
+
+let db = null;
+let currentPatientId = null;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let editingId = null;
+
+// DB helpers are provided by db.js (loaded before this script)
+
+function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ── DOM refs ──
+const $ = id => document.getElementById(id);
+
+// ── Toast ──
+let toastTimer = null;
+function toast(msg, duration = 2000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Modal helpers ──
+function showModal(id) { $('modal-' + id).style.display = 'flex'; }
+function hideModal(id) { $('modal-' + id).style.display = 'none'; }
+
+// ── Screen management ──
+function showScreen(id) {
+  $('screen-id').style.display = id === 'id' ? '' : 'none';
+  $('screen-patient').style.display = id === 'patient' ? '' : 'none';
+}
+
+// ── Utilities ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function bpClass(sbp, dbp) {
+  const f = b => b >= 160 ? 2 : b >= 140 ? 1 : 0;
+  return { sbp: f(sbp), dbp: f(dbp) };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ID INPUT SCREEN
+// ═══════════════════════════════════════════════════════════
+
+async function initIdScreen() {
+  try {
+    const readings = await getAllReadings();
+    if (readings.length > 0) {
+      readings.sort((a, b) => b.date.localeCompare(a.date));
+      const last = readings[0];
+      const pat = await getPatient(last.patientId);
+      $('header-info').textContent = `最終: ${pat ? pat.name : last.patientId} / ${last.date}`;
+    }
+  } catch {}
+  await renderRecentPatients();
+
+  $('inp-patient-id').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleIdEnter(); }
+  });
+  $('btn-id-enter').addEventListener('click', handleIdEnter);
+}
+
+async function renderRecentPatients() {
+  const patients = await getAllPatients();
+  const entries = [];
+  for (const p of patients) {
+    const readings = await getReadingsByPatient(p.id);
+    const latest = readings.reduce((a, b) => a.date > b.date ? a : b, null);
+    entries.push({ patient: p, latest: latest ? latest.date : '' });
+  }
+  entries.sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
+
+  const div = $('recent-patients');
+  if (entries.length === 0) {
+    div.innerHTML = '<span style="color:#bdc3c7">まだ患者が登録されていません</span>';
+    return;
+  }
+  div.innerHTML = entries.map(e =>
+    `<div style="padding:5px 0;cursor:pointer;border-bottom:1px solid #f0f0f0" data-pid="${e.patient.id}">
+      <strong>${esc(e.patient.id)}</strong> ${esc(e.patient.name)}
+      <span style="color:#95a5a6;margin-left:8px;font-size:.82em">${e.latest || 'データなし'}</span>
+    </div>`
+  ).join('');
+
+  div.querySelectorAll('[data-pid]').forEach(el => {
+    el.addEventListener('click', () => navigateToPatient(el.dataset.pid));
+  });
+}
+
+async function handleIdEnter() {
+  const id = $('inp-patient-id').value.trim();
+  if (!id) { toast('患者IDを入力してください'); return; }
+  await navigateToPatient(id);
+}
+
+async function navigateToPatient(id) {
+  let patient = await getPatient(id);
+  if (!patient) {
+    currentPatientId = id;
+    $('modal-pid').textContent = id;
+    $('modal-name').value = '';
+    $('modal-gender').value = '';
+    $('modal-birth').value = '';
+    $('modal-memo').value = '';
+    showModal('new-patient');
+    setTimeout(() => $('modal-name').focus(), 100);
+    return;
+  }
+  currentPatientId = id;
+  currentYear = new Date().getFullYear();
+  currentMonth = new Date().getMonth() + 1;
+  showScreen('patient');
+  renderPatientPage();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NEW PATIENT MODAL
+// ═══════════════════════════════════════════════════════════
+
+$('modal-ok').addEventListener('click', async () => {
+  const name = $('modal-name').value.trim();
+  if (!name) { toast('氏名を入力してください'); return; }
+  await putPatient({
+    id: currentPatientId,
+    name,
+    gender: $('modal-gender').value,
+    birthDate: $('modal-birth').value,
+    memo: $('modal-memo').value.trim(),
+    createdAt: new Date().toISOString()
+  });
+  hideModal('new-patient');
+  renderPatientPage();
+  toast(`患者 ${name} を登録しました`);
+});
+$('modal-cancel').addEventListener('click', () => hideModal('new-patient'));
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIRM MODAL
+// ═══════════════════════════════════════════════════════════
+
+function confirm(title, body, onYes) {
+  $('confirm-title').textContent = title;
+  $('confirm-body').textContent = body;
+  showModal('confirm');
+  const yesHandler = () => { hideModal('confirm'); $('confirm-yes').removeEventListener('click', yesHandler); onYes(); };
+  $('confirm-yes').addEventListener('click', yesHandler);
+}
+$('confirm-no').addEventListener('click', () => hideModal('confirm'));
+
+// ═══════════════════════════════════════════════════════════
+//  PATIENT PAGE
+// ═══════════════════════════════════════════════════════════
+
+async function renderPatientPage() {
+  const patient = await getPatient(currentPatientId);
+  const name = patient ? patient.name : currentPatientId;
+  $('patient-header-info').textContent = `${currentPatientId} ${name} | ${currentYear}年${currentMonth}月`;
+
+  renderNav();
+  renderGraphAndLegend();
+  renderSummary();
+  renderDailyList();
+  updateDataStat();
+
+  // Reset form
+  const today = new Date();
+  $('inp-date').value = formatDate(today);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  $('register-status').textContent = '';
+  editingId = null;
+
+  setTimeout(() => $('inp-date').focus(), 50);
+}
+
+function renderNav() {
+  const sel = $('sel-patient');
+  sel.innerHTML = '';
+  getAllPatients().then(patients => {
+    sel.innerHTML = patients.map(p =>
+      `<option value="${esc(p.id)}" ${p.id === currentPatientId ? 'selected' : ''}>${esc(p.id)} ${esc(p.name || '')}</option>`
+    ).join('');
+  });
+
+  $('nav-period').textContent = `${currentYear}年${currentMonth}月`;
+  $('sel-patient').onchange = () => {
+    currentPatientId = $('sel-patient').value;
+    currentYear = new Date().getFullYear();
+    currentMonth = new Date().getMonth() + 1;
+    renderPatientPage();
+  };
+  $('btn-prev').onclick = () => { currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; } renderPatientPage(); };
+  $('btn-next').onclick = () => { currentMonth++; if (currentMonth > 12) { currentMonth = 1; currentYear++; } renderPatientPage(); };
+  $('btn-back').onclick = () => {
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    renderRecentPatients();
+    $('inp-patient-id').focus();
+  };
+}
+
+// ── Graph ──
+function renderGraphAndLegend() {
+  getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth).then(readings => {
+    drawGraph($('graph'), readings, currentPatientId, currentYear, currentMonth);
+    setupTooltip($('graph'));
+  });
+  $('legend').innerHTML = `
+    <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div>収縮期(SBP)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#2980b9"></div>拡張期(DBP)</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#c0392b"></div>平均SBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>平均DBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#e74c3c"></div>警戒 140</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>警戒 90</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f39c12"></div>1期高血圧</div>
+    <div class="legend-item"><div class="legend-color" style="background:#e74c3c"></div>2期高血圧</div>
+  `;
+}
+
+// ── Summary ──
+async function renderSummary() {
+  $('summary-period').textContent = `${currentYear}年${currentMonth}月`;
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  const body = $('summary-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td>収縮期 (SBP)</td><td>-</td><td>-</td><td>-</td></tr><tr><td>拡張期 (DBP)</td><td>-</td><td>-</td><td>-</td></tr>';
+    return;
+  }
+  const sVals = readings.map(r => r.systolic);
+  const dVals = readings.map(r => r.diastolic);
+  const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+  const maxS = Math.max(...sVals); const minS = Math.min(...sVals);
+  const maxD = Math.max(...dVals); const minD = Math.min(...dVals);
+  const f = (v, arr) => readings.find(r => r.systolic === v || r.diastolic === v);
+  const maxSO = readings.find(r => r.systolic === maxS);
+  const minSO = readings.find(r => r.systolic === minS);
+  const maxDO = readings.find(r => r.diastolic === maxD);
+  const minDO = readings.find(r => r.diastolic === minD);
+
+  body.innerHTML = `
+    <tr><td>収縮期 (SBP)</td><td>${avg(sVals)}</td><td class="high">${maxS} (${maxSO.date})</td><td class="low">${minS} (${minSO.date})</td></tr>
+    <tr><td>拡張期 (DBP)</td><td>${avg(dVals)}</td><td class="high">${maxD} (${maxDO.date})</td><td class="low">${minD} (${minDO.date})</td></tr>`;
+}
+
+// ── Daily list ──
+async function renderDailyList() {
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  readings.sort((a, b) => b.date.localeCompare(a.date));
+  const body = $('daily-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    return;
+  }
+  body.innerHTML = readings.map(r => {
+    const c = bpClass(r.systolic, r.diastolic);
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const sCls = c.sbp === 2 ? 'bp-warn2' : c.sbp === 1 ? 'bp-warn1' : 'bp-normal';
+    const dCls = c.dbp === 2 ? 'bp-warn2' : c.dbp === 1 ? 'bp-warn1' : 'bp-normal';
+    return `<tr>
+      <td>${r.date}</td>
+      <td class="bp-val ${sCls}">${r.systolic}</td>
+      <td class="bp-val ${dCls}">${r.diastolic}</td>
+      <td>${avg}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm btn-secondary" data-edit="${r.id}">編集</button>
+        <button class="btn btn-sm btn-danger" data-del="${r.id}">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editReading(Number(b.dataset.edit))));
+  body.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteReadingConfirm(Number(b.dataset.del))));
+}
+
+// ── Registration ──
+$('btn-register').addEventListener('click', registerReading);
+$('inp-dbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-memo').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-date').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-sbp').focus(); } });
+$('inp-sbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-dbp').focus(); } });
+
+async function registerReading() {
+  const date = $('inp-date').value;
+  const sbp = Number($('inp-sbp').value);
+  const dbp = Number($('inp-dbp').value);
+  const memo = $('inp-memo').value.trim();
+  if (!date || !sbp || !dbp) { toast('日付・収縮期・拡張期は必須です'); return; }
+  if (sbp < 50 || sbp > 300 || dbp < 30 || dbp > 200) { toast('血圧値の範囲が不正です'); return; }
+
+  const existing = await getReadingByDate(currentPatientId, date);
+  if (existing && existing.id !== editingId) {
+    if (!confirm('上書き確認', `${date} のデータは既に存在します。上書きしますか？`, async () => {
+      existing.systolic = sbp; existing.diastolic = dbp;
+      existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+      existing.memo = memo; existing.updatedAt = new Date().toISOString();
+      await putReading(existing);
+      toast(`${date} のデータを更新しました`);
+      renderPatientPage();
+      setTimeout(() => { $('inp-sbp').value = ''; $('inp-dbp').value = ''; $('inp-memo').value = ''; $('inp-sbp').focus(); }, 100);
+    })) return;
+    return;
+  }
+
+  // Merge with existing if same ID (edit mode)
+  if (editingId && existing) {
+    existing.systolic = sbp; existing.diastolic = dbp;
+    existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+    existing.memo = memo; existing.updatedAt = new Date().toISOString();
+    await putReading(existing);
+    toast(`${date} のデータを更新しました`);
+  } else {
+    await putReading({
+      patientId: currentPatientId, date, systolic: sbp, diastolic: dbp,
+      meanArterial: Math.round((sbp + dbp * 2) / 3),
+      note: memo, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    });
+    toast(`${date} のデータを登録しました`);
+  }
+
+  // Auto-advance to next day
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  $('inp-date').value = formatDate(d);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  editingId = null;
+  $('register-status').textContent = '';
+  $('inp-sbp').focus();
+  renderSummary();
+  renderDailyList();
+  renderGraphAndLegend();
+  updateDataStat();
+}
+
+// ── Edit ──
+async function editReading(id) {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const r = readings.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  $('inp-date').value = r.date;
+  $('inp-sbp').value = r.systolic;
+  $('inp-dbp').value = r.diastolic;
+  $('inp-memo').value = r.note || '';
+  $('register-status').textContent = '📝 編集中';
+  $('inp-sbp').focus();
+  $('inp-sbp').select();
+  $('inp-sbp').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteReadingConfirm(id) {
+  confirm('削除確認', 'この測定データを削除しますか？', async () => {
+    await deleteReading(id);
+    toast('データを削除しました');
+    renderPatientPage();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+// CSV Export
+$('btn-export-csv').addEventListener('click', async () => {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const patient = await getPatient(currentPatientId);
+  if (readings.length === 0) { toast('データがありません'); return; }
+  readings.sort((a, b) => a.date.localeCompare(b.date));
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,平均血圧,メモ\n';
+  readings.forEach(r => {
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const name = patient ? patient.name.replace(/"/g, '""') : '';
+    csv += `${currentPatientId},"${name}",${r.date},${r.systolic},${r.diastolic},${avg},"${(r.note || '').replace(/"/g, '""')}"\n`;
+  });
+  downloadFile(csv, `bp_${currentPatientId}_${currentYear}${String(currentMonth).padStart(2,'0')}.csv`);
+  toast('CSVエクスポート完了');
+});
+
+// CSV Import
+$('btn-import-csv').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.csv';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const text = await file.text();
+    const records = parseCSV(text);
+    if (records.length === 0) { toast('CSVデータがありません'); return; }
+    let imported = 0, skipped = 0;
+    for (const rec of records) {
+      try {
+        const existing = await getReadingByDate(rec.patientId, rec.date);
+        if (existing) {
+          existing.systolic = rec.systolic; existing.diastolic = rec.diastolic;
+          existing.meanArterial = Math.round((rec.systolic + rec.diastolic * 2) / 3);
+          existing.note = rec.note; existing.updatedAt = new Date().toISOString();
+          await putReading(existing);
+        } else {
+          let pat = await getPatient(rec.patientId);
+          if (!pat) await putPatient({ id: rec.patientId, name: rec.name, createdAt: new Date().toISOString() });
+          await putReading({
+            patientId: rec.patientId, date: rec.date,
+            systolic: rec.systolic, diastolic: rec.diastolic,
+            meanArterial: Math.round((rec.systolic + rec.diastolic * 2) / 3),
+            note: rec.note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+          });
+        }
+        imported++;
+      } catch { skipped++; }
+    }
+    toast(`CSV取り込み完了: ${imported}件, ${skipped}件スキップ`);
+    if (currentPatientId) renderPatientPage();
+  };
+  $('file-import').click();
+});
+
+// JSON Backup
+$('btn-backup').addEventListener('click', async () => {
+  const patients = await getAllPatients();
+  const readings = await getAllReadings();
+  const json = backupToJSON({ patients, readings });
+  downloadFile(json, `bp_backup_${formatDate(new Date())}.json`, 'application/json');
+  toast('バックアップ完了');
+});
+
+// JSON Restore
+$('btn-restore').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.json';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const text = await file.text();
+      const data = parseBackupJSON(text);
+      if (!data) { toast('無効なバックアップファイル'); return; }
+      confirm('復元確認', '全データをバックアップから復元します。既存データは上書きされます。', async () => {
+        if (data.patients) for (const p of data.patients) await putPatient(p);
+        if (data.readings) for (const r of data.readings) await putReading(r);
+        toast('復元完了');
+        currentPatientId = null;
+        showScreen('id');
+        $('inp-patient-id').value = '';
+        $('inp-patient-id').focus();
+        await renderRecentPatients();
+      });
+    } catch { toast('復元に失敗しました'); }
+  };
+  $('file-import').click();
+});
+
+// Delete Patient
+$('btn-delete-patient').addEventListener('click', () => {
+  confirm('患者削除', `患者 ${currentPatientId} の全データを削除します。本当によろしいですか？`, async () => {
+    await deletePatient(currentPatientId);
+    toast('患者を削除しました');
+    currentPatientId = null;
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    await renderRecentPatients();
+    $('inp-patient-id').focus();
+  });
+});
+
+// ── Global Enter for registration ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'inp-memo') { e.preventDefault(); registerReading(); }
+});
+
+// ── Window resize ──
+window.addEventListener('resize', () => {
+  if (currentPatientId) renderGraphAndLegend();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+
+(async () => {
+  try {
+    db = await openDB();
+  } catch (e) {
+    alert('IndexedDBのオープンに失敗しました: ' + e.message);
+    return;
+  }
+  await initIdScreen();
+  $('inp-patient-id').focus();
+})();
+</script>
+<script>
+/* =================================================================
+   db.js — IndexedDB 操作モジュール
+   ================================================================= */
+
+const DB_NAME = 'BloodPressureDB';
+const DB_VERSION = 1;
+let db = null;
+
+/** DB オープン */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        const ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        const rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId', { unique: false });
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date', { unique: false });
+      }
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** トランザクション取得ショートカット */
+function tx(store, mode) {
+  return db.transaction(store, mode).objectStore(store);
+}
+
+/** IDBRequest を Promise 化 */
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---- 患者マスタ ---- */
+
+async function getPatient(id) {
+  return prom(tx('patients', 'readonly').get(id));
+}
+
+async function getAllPatients() {
+  return prom(tx('patients', 'readonly').getAll());
+}
+
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  return prom(tx('patients', 'readwrite').put(p));
+}
+
+async function deletePatient(id) {
+  await prom(tx('patients', 'readwrite').delete(id));
+  // cascade readings
+  const readings = await getReadingsByPatient(id);
+  for (const r of readings) await deleteReading(r.id);
+}
+
+/* ---- 測定データ ---- */
+
+async function getReadingsByPatient(patientId) {
+  return prom(tx('readings', 'readonly').index('byPatient').getAll(patientId));
+}
+
+async function getReadingsByPatientInMonth(patientId, year, month) {
+  const s = tx('readings', 'readonly').index('byPatientDate');
+  const pad = m => String(m).padStart(2, '0');
+  const start = [patientId, `${year}-${pad(month)}-01`];
+  const end   = [patientId, `${year}-${pad(month)}-32`];
+  return prom(s.getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+
+async function getReadingByDate(patientId, date) {
+  return prom(tx('readings', 'readonly').index('byPatientDate').get([patientId, date]));
+}
+
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  return prom(tx('readings', 'readwrite').put(r));
+}
+
+async function deleteReading(id) {
+  return prom(tx('readings', 'readwrite').delete(id));
+}
+
+async function getAllReadings() {
+  return prom(tx('readings', 'readonly').getAll());
+}
+/* =================================================================
+   chart.js — Canvas 2D グラフ描画モジュール
+   ================================================================= */
+
+const GRAPH = {
+  padding: { top: 30, right: 60, bottom: 40, left: 55 },
+  dotRadius: 5,
+  lineWidth: 2.5,
+  dashPattern: [8, 4],
+};
+
+/** Y座標: 血圧 → Canvas Y */
+function bpToY(bp, h, pad) {
+  return pad.bottom - ((bp - 60) / (200 - 60)) * (pad.bottom - pad.top);
+}
+
+/** 月の日数 */
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+/** メイン描画関数 */
+function drawGraph(canvas, readings, patientId, year, month) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = 380;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  canvas.style.width = '100%';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = GRAPH.padding;
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Normal zone background ──
+  const y120 = bpToY(120, H, pad);
+  ctx.fillStyle = 'rgba(39,174,96,0.08)';
+  ctx.fillRect(pad.left, y120, pw, H - pad.bottom - y120);
+
+  // ── Grid ──
+  ctx.strokeStyle = '#e8ecef';
+  ctx.lineWidth = 0.5;
+  for (let bp = 60; bp <= 200; bp += 20) {
+    const y = bpToY(bp, H, pad);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bp, pad.left - 4, y + 4);
+  }
+  // Y-axis label
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mmHg', 0, 0);
+  ctx.restore();
+
+  if (!readings || readings.length === 0) {
+    ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('この月のデータはありません', W / 2, H / 2);
+    return;
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const xStep = totalDays > 1 ? pw / (totalDays - 1) : pw / 2;
+  const dayToX = (d) => pad.left + (d - 1) * xStep;
+
+  // ── Season band ──
+  const seasons = [
+    { m: [3,4,5], c: 'rgba(39,174,96,0.06)' },
+    { m: [6,7,8], c: 'rgba(231,76,60,0.06)' },
+    { m: [9,10,11], c: 'rgba(243,156,18,0.06)' },
+    { m: [12,1,2], c: 'rgba(52,152,219,0.06)' },
+  ];
+  const s = seasons.find(x => x.m.includes(month));
+  if (s) { ctx.fillStyle = s.c; ctx.fillRect(pad.left, pad.top, pw, ph); }
+
+  // ── Warning lines ──
+  ctx.setLineDash(GRAPH.dashPattern);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(140, H, pad)); ctx.lineTo(W - pad.right, bpToY(140, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(90, H, pad)); ctx.lineTo(W - pad.right, bpToY(90, H, pad)); ctx.stroke();
+  ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('140', W - pad.right + 3, bpToY(140, H, pad) + 3);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('90', W - pad.right + 3, bpToY(90, H, pad) + 3);
+
+  // ── Aggregate by date ──
+  const byDate = {};
+  readings.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r);
+  });
+  const dates = Object.keys(byDate).sort();
+
+  // Stats
+  const allS = readings.map(r => r.systolic);
+  const allD = readings.map(r => r.diastolic);
+  const avgS = allS.reduce((a, b) => a + b, 0) / allS.length;
+  const avgD = allD.reduce((a, b) => a + b, 0) / allD.length;
+  const maxS = { v: Math.max(...allS), r: readings.find(r => r.systolic === Math.max(...allS)) };
+  const minS = { v: Math.min(...allS), r: readings.find(r => r.systolic === Math.min(...allS)) };
+  const maxD = { v: Math.max(...allD), r: readings.find(r => r.diastolic === Math.max(...allD)) };
+  const minD = { v: Math.min(...allD), r: readings.find(r => r.diastolic === Math.min(...allD)) };
+
+  // ── Average lines ──
+  ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = '#c0392b';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgS, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgS, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgD, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgD, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#c0392b'; ctx.textAlign = 'left';
+  ctx.fillText('平均SBP ' + Math.round(avgS), pad.left + 4, bpToY(avgS, H, pad) - 5);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('平均DBP ' + Math.round(avgD), pad.left + 4, bpToY(avgD, H, pad) + 13);
+
+  // ── High/Low lines ──
+  ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(maxS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(maxS.v, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#3498db';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(minS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(minS.v, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.setLineDash([]);
+  ctx.font = '9px sans-serif';
+  ctx.fillStyle = '#e74c3c'; ctx.textAlign = 'right';
+  ctx.fillText(maxS.v + '(' + maxS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(maxS.v, H, pad) - 4);
+  ctx.fillStyle = '#3498db';
+  ctx.fillText(minS.v + '(' + minS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(minS.v, H, pad) + 11);
+
+  // ── Date axis ──
+  ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(totalDays / 12));
+  for (let d = 1; d <= totalDays; d += step) {
+    const x = dayToX(d);
+    ctx.fillText(d, x, H - pad.bottom + 16);
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, H - pad.bottom); ctx.stroke();
+  }
+
+  // ── Data lines & dots ──
+  const sbpPts = [], dbpPts = [];
+  dates.forEach(date => {
+    const d = parseInt(date.slice(8, 10));
+    const x = dayToX(d);
+    const dr = byDate[date];
+    const as = dr.reduce((a, r) => a + r.systolic, 0) / dr.length;
+    const ad = dr.reduce((a, r) => a + r.diastolic, 0) / dr.length;
+    sbpPts.push({ x, y: bpToY(as, H, pad), raw: dr[0].systolic, date, avg: as });
+    dbpPts.push({ x, y: bpToY(ad, H, pad), raw: dr[0].diastolic, date, avg: ad });
+  });
+
+  function drawLine(pts, color, lw) {
+    if (pts.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  }
+
+  drawLine(sbpPts, '#c0392b', GRAPH.lineWidth);
+  drawLine(dbpPts, '#2980b9', GRAPH.lineWidth);
+
+  // Dots
+  sbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#c0392b');
+  });
+  dbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#2980b9');
+  });
+
+  // ── Tooltip tracking ──
+  canvas._graphData = { sbpPts, dbpPts, H, pad, W, readings, byDate };
+}
+
+function drawDot(ctx, p, warnLevel, baseColor) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
+  const fill = warnLevel === 2 ? '#e74c3c' : warnLevel === 1 ? '#f39c12' : baseColor;
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (warnLevel === 2) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+
+/** 単一血圧値のリスク判定 (1=1期, 2=2期, 0=正常) */
+function bpClassSolo(bp) {
+  if (bp >= 160) return 2;
+  if (bp >= 140) return 1;
+  return 0;
+}
+
+/** 二値のリスク判定 */
+function bpClass(sbp, dbp) {
+  const s = bpClassSolo(sbp);
+  const d = bpClassSolo(dbp);
+  return { sbp: s, dbp: d, max: Math.max(s, d) };
+}
+
+/** グラフ上のマウスオーバーでツールチップ表示 */
+function setupTooltip(canvas) {
+  let tt = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const g = canvas._graphData;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (tt) { tt.remove(); tt = null; }
+    let closest = null, minDist = 20;
+    g.sbpPts.forEach((p, i) => {
+      const d = Math.hypot(mx - p.x, my - p.y);
+      if (d < minDist) { minDist = d; closest = i; }
+    });
+    if (closest !== null) {
+      const p = g.sbpPts[closest];
+      const dp = g.dbpPts[closest];
+      tt = document.createElement('div');
+      tt.style.cssText = `position:absolute;background:rgba(44,62,80,.92);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;left:${p.x + 14}px;top:${my - 10}px;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.3)`;
+      tt.innerHTML = `<strong>${p.date}</strong><br>収縮期: ${p.raw} mmHg<br>拡張期: ${dp.raw} mmHg`;
+      canvas.parentElement.appendChild(tt);
+    }
+  });
+  canvas.addEventListener('mouseleave', () => { if (tt) { tt.remove(); tt = null; } });
+}
+/* =================================================================
+   csv.js — CSV入出力モジュール
+   ================================================================= */
+
+/** CSV パース（RFC 4180準拠、簡易版） */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuote = false;
+      } else {
+        current += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current.trim()); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+/**
+ * CSV文字列をパースしてレコード配列に変換
+ * @param {string} text - CSVテキスト
+ * @returns {{patientId, name, date, systolic, diastolic, note}[]}
+ */
+function parseCSV(text) {
+  // BOM除去
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    const patientId = cols[0];
+    const name = cols[1] || '';
+    const date = cols[2];
+    const systolic = Number(cols[3]);
+    const diastolic = Number(cols[4]);
+    const note = cols[5] || '';
+
+    if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
+    records.push({ patientId, name, date, systolic, diastolic, note });
+  }
+  return records;
+}
+
+/**
+ * 測定データ配列をCSV文字列に変換
+ * @param {{patientId, name?, date, systolic, diastolic, note?}[]} records
+ * @returns {string} BOM付きUTF-8 CSV
+ */
+function recordsToCSV(records) {
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  records.forEach(r => {
+    const name = r.name ? `"${r.name}"` : '';
+    const note = r.note ? `"${r.note}"` : '';
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+  });
+  return csv;
+}
+
+/**
+ * ファイルダウンロード
+ * @param {string} content
+ * @param {string} filename
+ * @param {string} [mime='text/csv']
+ */
+function downloadFile(content, filename, mime = 'text/csv') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * JSONバックアップ生成
+ * @param {object} data - { patients: [], readings: [] }
+ * @returns {string}
+ */
+function backupToJSON(data) {
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * JSONバックアップ解析
+ * @param {string} text
+ * @returns {{patients: [], readings: []}|null}
+ */
+function parseBackupJSON(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+/* =================================================================
+   app.js — メインアプリケーションロジック
+   ================================================================= */
+
+let db = null;
+let currentPatientId = null;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let editingId = null;
+
+// DB helpers are provided by db.js (loaded before this script)
+
+function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ── DOM refs ──
+const $ = id => document.getElementById(id);
+
+// ── Toast ──
+let toastTimer = null;
+function toast(msg, duration = 2000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Modal helpers ──
+function showModal(id) { $('modal-' + id).style.display = 'flex'; }
+function hideModal(id) { $('modal-' + id).style.display = 'none'; }
+
+// ── Screen management ──
+function showScreen(id) {
+  $('screen-id').style.display = id === 'id' ? '' : 'none';
+  $('screen-patient').style.display = id === 'patient' ? '' : 'none';
+}
+
+// ── Utilities ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function bpClass(sbp, dbp) {
+  const f = b => b >= 160 ? 2 : b >= 140 ? 1 : 0;
+  return { sbp: f(sbp), dbp: f(dbp) };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ID INPUT SCREEN
+// ═══════════════════════════════════════════════════════════
+
+async function initIdScreen() {
+  try {
+    const readings = await getAllReadings();
+    if (readings.length > 0) {
+      readings.sort((a, b) => b.date.localeCompare(a.date));
+      const last = readings[0];
+      const pat = await getPatient(last.patientId);
+      $('header-info').textContent = `最終: ${pat ? pat.name : last.patientId} / ${last.date}`;
+    }
+  } catch {}
+  await renderRecentPatients();
+
+  $('inp-patient-id').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleIdEnter(); }
+  });
+  $('btn-id-enter').addEventListener('click', handleIdEnter);
+}
+
+async function renderRecentPatients() {
+  const patients = await getAllPatients();
+  const entries = [];
+  for (const p of patients) {
+    const readings = await getReadingsByPatient(p.id);
+    const latest = readings.reduce((a, b) => a.date > b.date ? a : b, null);
+    entries.push({ patient: p, latest: latest ? latest.date : '' });
+  }
+  entries.sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
+
+  const div = $('recent-patients');
+  if (entries.length === 0) {
+    div.innerHTML = '<span style="color:#bdc3c7">まだ患者が登録されていません</span>';
+    return;
+  }
+  div.innerHTML = entries.map(e =>
+    `<div style="padding:5px 0;cursor:pointer;border-bottom:1px solid #f0f0f0" data-pid="${e.patient.id}">
+      <strong>${esc(e.patient.id)}</strong> ${esc(e.patient.name)}
+      <span style="color:#95a5a6;margin-left:8px;font-size:.82em">${e.latest || 'データなし'}</span>
+    </div>`
+  ).join('');
+
+  div.querySelectorAll('[data-pid]').forEach(el => {
+    el.addEventListener('click', () => navigateToPatient(el.dataset.pid));
+  });
+}
+
+async function handleIdEnter() {
+  const id = $('inp-patient-id').value.trim();
+  if (!id) { toast('患者IDを入力してください'); return; }
+  await navigateToPatient(id);
+}
+
+async function navigateToPatient(id) {
+  let patient = await getPatient(id);
+  if (!patient) {
+    currentPatientId = id;
+    $('modal-pid').textContent = id;
+    $('modal-name').value = '';
+    $('modal-gender').value = '';
+    $('modal-birth').value = '';
+    $('modal-memo').value = '';
+    showModal('new-patient');
+    setTimeout(() => $('modal-name').focus(), 100);
+    return;
+  }
+  currentPatientId = id;
+  currentYear = new Date().getFullYear();
+  currentMonth = new Date().getMonth() + 1;
+  showScreen('patient');
+  renderPatientPage();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NEW PATIENT MODAL
+// ═══════════════════════════════════════════════════════════
+
+$('modal-ok').addEventListener('click', async () => {
+  const name = $('modal-name').value.trim();
+  if (!name) { toast('氏名を入力してください'); return; }
+  await putPatient({
+    id: currentPatientId,
+    name,
+    gender: $('modal-gender').value,
+    birthDate: $('modal-birth').value,
+    memo: $('modal-memo').value.trim(),
+    createdAt: new Date().toISOString()
+  });
+  hideModal('new-patient');
+  renderPatientPage();
+  toast(`患者 ${name} を登録しました`);
+});
+$('modal-cancel').addEventListener('click', () => hideModal('new-patient'));
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIRM MODAL
+// ═══════════════════════════════════════════════════════════
+
+function confirm(title, body, onYes) {
+  $('confirm-title').textContent = title;
+  $('confirm-body').textContent = body;
+  showModal('confirm');
+  const yesHandler = () => { hideModal('confirm'); $('confirm-yes').removeEventListener('click', yesHandler); onYes(); };
+  $('confirm-yes').addEventListener('click', yesHandler);
+}
+$('confirm-no').addEventListener('click', () => hideModal('confirm'));
+
+// ═══════════════════════════════════════════════════════════
+//  PATIENT PAGE
+// ═══════════════════════════════════════════════════════════
+
+async function renderPatientPage() {
+  const patient = await getPatient(currentPatientId);
+  const name = patient ? patient.name : currentPatientId;
+  $('patient-header-info').textContent = `${currentPatientId} ${name} | ${currentYear}年${currentMonth}月`;
+
+  renderNav();
+  renderGraphAndLegend();
+  renderSummary();
+  renderDailyList();
+  updateDataStat();
+
+  // Reset form
+  const today = new Date();
+  $('inp-date').value = formatDate(today);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  $('register-status').textContent = '';
+  editingId = null;
+
+  setTimeout(() => $('inp-date').focus(), 50);
+}
+
+function renderNav() {
+  const sel = $('sel-patient');
+  sel.innerHTML = '';
+  getAllPatients().then(patients => {
+    sel.innerHTML = patients.map(p =>
+      `<option value="${esc(p.id)}" ${p.id === currentPatientId ? 'selected' : ''}>${esc(p.id)} ${esc(p.name || '')}</option>`
+    ).join('');
+  });
+
+  $('nav-period').textContent = `${currentYear}年${currentMonth}月`;
+  $('sel-patient').onchange = () => {
+    currentPatientId = $('sel-patient').value;
+    currentYear = new Date().getFullYear();
+    currentMonth = new Date().getMonth() + 1;
+    renderPatientPage();
+  };
+  $('btn-prev').onclick = () => { currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; } renderPatientPage(); };
+  $('btn-next').onclick = () => { currentMonth++; if (currentMonth > 12) { currentMonth = 1; currentYear++; } renderPatientPage(); };
+  $('btn-back').onclick = () => {
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    renderRecentPatients();
+    $('inp-patient-id').focus();
+  };
+}
+
+// ── Graph ──
+function renderGraphAndLegend() {
+  getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth).then(readings => {
+    drawGraph($('graph'), readings, currentPatientId, currentYear, currentMonth);
+    setupTooltip($('graph'));
+  });
+  $('legend').innerHTML = `
+    <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div>収縮期(SBP)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#2980b9"></div>拡張期(DBP)</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#c0392b"></div>平均SBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>平均DBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#e74c3c"></div>警戒 140</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>警戒 90</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f39c12"></div>1期高血圧</div>
+    <div class="legend-item"><div class="legend-color" style="background:#e74c3c"></div>2期高血圧</div>
+  `;
+}
+
+// ── Summary ──
+async function renderSummary() {
+  $('summary-period').textContent = `${currentYear}年${currentMonth}月`;
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  const body = $('summary-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td>収縮期 (SBP)</td><td>-</td><td>-</td><td>-</td></tr><tr><td>拡張期 (DBP)</td><td>-</td><td>-</td><td>-</td></tr>';
+    return;
+  }
+  const sVals = readings.map(r => r.systolic);
+  const dVals = readings.map(r => r.diastolic);
+  const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+  const maxS = Math.max(...sVals); const minS = Math.min(...sVals);
+  const maxD = Math.max(...dVals); const minD = Math.min(...dVals);
+  const f = (v, arr) => readings.find(r => r.systolic === v || r.diastolic === v);
+  const maxSO = readings.find(r => r.systolic === maxS);
+  const minSO = readings.find(r => r.systolic === minS);
+  const maxDO = readings.find(r => r.diastolic === maxD);
+  const minDO = readings.find(r => r.diastolic === minD);
+
+  body.innerHTML = `
+    <tr><td>収縮期 (SBP)</td><td>${avg(sVals)}</td><td class="high">${maxS} (${maxSO.date})</td><td class="low">${minS} (${minSO.date})</td></tr>
+    <tr><td>拡張期 (DBP)</td><td>${avg(dVals)}</td><td class="high">${maxD} (${maxDO.date})</td><td class="low">${minD} (${minDO.date})</td></tr>`;
+}
+
+// ── Daily list ──
+async function renderDailyList() {
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  readings.sort((a, b) => b.date.localeCompare(a.date));
+  const body = $('daily-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    return;
+  }
+  body.innerHTML = readings.map(r => {
+    const c = bpClass(r.systolic, r.diastolic);
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const sCls = c.sbp === 2 ? 'bp-warn2' : c.sbp === 1 ? 'bp-warn1' : 'bp-normal';
+    const dCls = c.dbp === 2 ? 'bp-warn2' : c.dbp === 1 ? 'bp-warn1' : 'bp-normal';
+    return `<tr>
+      <td>${r.date}</td>
+      <td class="bp-val ${sCls}">${r.systolic}</td>
+      <td class="bp-val ${dCls}">${r.diastolic}</td>
+      <td>${avg}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm btn-secondary" data-edit="${r.id}">編集</button>
+        <button class="btn btn-sm btn-danger" data-del="${r.id}">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editReading(Number(b.dataset.edit))));
+  body.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteReadingConfirm(Number(b.dataset.del))));
+}
+
+// ── Registration ──
+$('btn-register').addEventListener('click', registerReading);
+$('inp-dbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-memo').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-date').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-sbp').focus(); } });
+$('inp-sbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-dbp').focus(); } });
+
+async function registerReading() {
+  const date = $('inp-date').value;
+  const sbp = Number($('inp-sbp').value);
+  const dbp = Number($('inp-dbp').value);
+  const memo = $('inp-memo').value.trim();
+  if (!date || !sbp || !dbp) { toast('日付・収縮期・拡張期は必須です'); return; }
+  if (sbp < 50 || sbp > 300 || dbp < 30 || dbp > 200) { toast('血圧値の範囲が不正です'); return; }
+
+  const existing = await getReadingByDate(currentPatientId, date);
+  if (existing && existing.id !== editingId) {
+    if (!confirm('上書き確認', `${date} のデータは既に存在します。上書きしますか？`, async () => {
+      existing.systolic = sbp; existing.diastolic = dbp;
+      existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+      existing.memo = memo; existing.updatedAt = new Date().toISOString();
+      await putReading(existing);
+      toast(`${date} のデータを更新しました`);
+      renderPatientPage();
+      setTimeout(() => { $('inp-sbp').value = ''; $('inp-dbp').value = ''; $('inp-memo').value = ''; $('inp-sbp').focus(); }, 100);
+    })) return;
+    return;
+  }
+
+  // Merge with existing if same ID (edit mode)
+  if (editingId && existing) {
+    existing.systolic = sbp; existing.diastolic = dbp;
+    existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+    existing.memo = memo; existing.updatedAt = new Date().toISOString();
+    await putReading(existing);
+    toast(`${date} のデータを更新しました`);
+  } else {
+    await putReading({
+      patientId: currentPatientId, date, systolic: sbp, diastolic: dbp,
+      meanArterial: Math.round((sbp + dbp * 2) / 3),
+      note: memo, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    });
+    toast(`${date} のデータを登録しました`);
+  }
+
+  // Auto-advance to next day
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  $('inp-date').value = formatDate(d);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  editingId = null;
+  $('register-status').textContent = '';
+  $('inp-sbp').focus();
+  renderSummary();
+  renderDailyList();
+  renderGraphAndLegend();
+  updateDataStat();
+}
+
+// ── Edit ──
+async function editReading(id) {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const r = readings.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  $('inp-date').value = r.date;
+  $('inp-sbp').value = r.systolic;
+  $('inp-dbp').value = r.diastolic;
+  $('inp-memo').value = r.note || '';
+  $('register-status').textContent = '📝 編集中';
+  $('inp-sbp').focus();
+  $('inp-sbp').select();
+  $('inp-sbp').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteReadingConfirm(id) {
+  confirm('削除確認', 'この測定データを削除しますか？', async () => {
+    await deleteReading(id);
+    toast('データを削除しました');
+    renderPatientPage();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+// CSV Export
+$('btn-export-csv').addEventListener('click', async () => {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const patient = await getPatient(currentPatientId);
+  if (readings.length === 0) { toast('データがありません'); return; }
+  readings.sort((a, b) => a.date.localeCompare(b.date));
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,平均血圧,メモ\n';
+  readings.forEach(r => {
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const name = patient ? patient.name.replace(/"/g, '""') : '';
+    csv += `${currentPatientId},"${name}",${r.date},${r.systolic},${r.diastolic},${avg},"${(r.note || '').replace(/"/g, '""')}"\n`;
+  });
+  downloadFile(csv, `bp_${currentPatientId}_${currentYear}${String(currentMonth).padStart(2,'0')}.csv`);
+  toast('CSVエクスポート完了');
+});
+
+// CSV Import
+$('btn-import-csv').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.csv';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const text = await file.text();
+    const records = parseCSV(text);
+    if (records.length === 0) { toast('CSVデータがありません'); return; }
+    let imported = 0, skipped = 0;
+    for (const rec of records) {
+      try {
+        const existing = await getReadingByDate(rec.patientId, rec.date);
+        if (existing) {
+          existing.systolic = rec.systolic; existing.diastolic = rec.diastolic;
+          existing.meanArterial = Math.round((rec.systolic + rec.diastolic * 2) / 3);
+          existing.note = rec.note; existing.updatedAt = new Date().toISOString();
+          await putReading(existing);
+        } else {
+          let pat = await getPatient(rec.patientId);
+          if (!pat) await putPatient({ id: rec.patientId, name: rec.name, createdAt: new Date().toISOString() });
+          await putReading({
+            patientId: rec.patientId, date: rec.date,
+            systolic: rec.systolic, diastolic: rec.diastolic,
+            meanArterial: Math.round((rec.systolic + rec.diastolic * 2) / 3),
+            note: rec.note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+          });
+        }
+        imported++;
+      } catch { skipped++; }
+    }
+    toast(`CSV取り込み完了: ${imported}件, ${skipped}件スキップ`);
+    if (currentPatientId) renderPatientPage();
+  };
+  $('file-import').click();
+});
+
+// JSON Backup
+$('btn-backup').addEventListener('click', async () => {
+  const patients = await getAllPatients();
+  const readings = await getAllReadings();
+  const json = backupToJSON({ patients, readings });
+  downloadFile(json, `bp_backup_${formatDate(new Date())}.json`, 'application/json');
+  toast('バックアップ完了');
+});
+
+// JSON Restore
+$('btn-restore').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.json';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const text = await file.text();
+      const data = parseBackupJSON(text);
+      if (!data) { toast('無効なバックアップファイル'); return; }
+      confirm('復元確認', '全データをバックアップから復元します。既存データは上書きされます。', async () => {
+        if (data.patients) for (const p of data.patients) await putPatient(p);
+        if (data.readings) for (const r of data.readings) await putReading(r);
+        toast('復元完了');
+        currentPatientId = null;
+        showScreen('id');
+        $('inp-patient-id').value = '';
+        $('inp-patient-id').focus();
+        await renderRecentPatients();
+      });
+    } catch { toast('復元に失敗しました'); }
+  };
+  $('file-import').click();
+});
+
+// Delete Patient
+$('btn-delete-patient').addEventListener('click', () => {
+  confirm('患者削除', `患者 ${currentPatientId} の全データを削除します。本当によろしいですか？`, async () => {
+    await deletePatient(currentPatientId);
+    toast('患者を削除しました');
+    currentPatientId = null;
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    await renderRecentPatients();
+    $('inp-patient-id').focus();
+  });
+});
+
+// ── Global Enter for registration ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'inp-memo') { e.preventDefault(); registerReading(); }
+});
+
+// ── Window resize ──
+window.addEventListener('resize', () => {
+  if (currentPatientId) renderGraphAndLegend();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+
+(async () => {
+  try {
+    db = await openDB();
+  } catch (e) {
+    alert('IndexedDBのオープンに失敗しました: ' + e.message);
+    return;
+  }
+  await initIdScreen();
+  $('inp-patient-id').focus();
+})();
+</script>
+<script>
+/* =================================================================
+   db.js — IndexedDB 操作モジュール
+   ================================================================= */
+
+const DB_NAME = 'BloodPressureDB';
+const DB_VERSION = 1;
+let db = null;
+
+/** DB オープン */
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('patients')) {
+        const ps = d.createObjectStore('patients', { keyPath: 'id' });
+        ps.createIndex('name', 'name', { unique: false });
+      }
+      if (!d.objectStoreNames.contains('readings')) {
+        const rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+        rs.createIndex('byPatient', 'patientId', { unique: false });
+        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+        rs.createIndex('byDate', 'date', { unique: false });
+      }
+    };
+    req.onsuccess = () => { db = req.result; resolve(db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/** トランザクション取得ショートカット */
+function tx(store, mode) {
+  return db.transaction(store, mode).objectStore(store);
+}
+
+/** IDBRequest を Promise 化 */
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+/* ---- 患者マスタ ---- */
+
+async function getPatient(id) {
+  return prom(tx('patients', 'readonly').get(id));
+}
+
+async function getAllPatients() {
+  return prom(tx('patients', 'readonly').getAll());
+}
+
+async function putPatient(p) {
+  p.updatedAt = new Date().toISOString();
+  if (!p.createdAt) p.createdAt = p.updatedAt;
+  return prom(tx('patients', 'readwrite').put(p));
+}
+
+async function deletePatient(id) {
+  await prom(tx('patients', 'readwrite').delete(id));
+  // cascade readings
+  const readings = await getReadingsByPatient(id);
+  for (const r of readings) await deleteReading(r.id);
+}
+
+/* ---- 測定データ ---- */
+
+async function getReadingsByPatient(patientId) {
+  return prom(tx('readings', 'readonly').index('byPatient').getAll(patientId));
+}
+
+async function getReadingsByPatientInMonth(patientId, year, month) {
+  const s = tx('readings', 'readonly').index('byPatientDate');
+  const pad = m => String(m).padStart(2, '0');
+  const start = [patientId, `${year}-${pad(month)}-01`];
+  const end   = [patientId, `${year}-${pad(month)}-32`];
+  return prom(s.getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+
+async function getReadingByDate(patientId, date) {
+  return prom(tx('readings', 'readonly').index('byPatientDate').get([patientId, date]));
+}
+
+async function putReading(r) {
+  r.updatedAt = new Date().toISOString();
+  if (!r.createdAt) r.createdAt = r.updatedAt;
+  return prom(tx('readings', 'readwrite').put(r));
+}
+
+async function deleteReading(id) {
+  return prom(tx('readings', 'readwrite').delete(id));
+}
+
+async function getAllReadings() {
+  return prom(tx('readings', 'readonly').getAll());
+}
+/* =================================================================
+   chart.js — Canvas 2D グラフ描画モジュール
+   ================================================================= */
+
+const GRAPH = {
+  padding: { top: 30, right: 60, bottom: 40, left: 55 },
+  dotRadius: 5,
+  lineWidth: 2.5,
+  dashPattern: [8, 4],
+};
+
+/** Y座標: 血圧 → Canvas Y */
+function bpToY(bp, h, pad) {
+  return pad.bottom - ((bp - 60) / (200 - 60)) * (pad.bottom - pad.top);
+}
+
+/** 月の日数 */
+function daysInMonth(year, month) {
+  return new Date(year, month, 0).getDate();
+}
+
+/** メイン描画関数 */
+function drawGraph(canvas, readings, patientId, year, month) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const W = rect.width;
+  const H = 380;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.height = H + 'px';
+  canvas.style.width = '100%';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  const pad = GRAPH.padding;
+  const pw = W - pad.left - pad.right;
+  const ph = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // ── Normal zone background ──
+  const y120 = bpToY(120, H, pad);
+  ctx.fillStyle = 'rgba(39,174,96,0.08)';
+  ctx.fillRect(pad.left, y120, pw, H - pad.bottom - y120);
+
+  // ── Grid ──
+  ctx.strokeStyle = '#e8ecef';
+  ctx.lineWidth = 0.5;
+  for (let bp = 60; bp <= 200; bp += 20) {
+    const y = bpToY(bp, H, pad);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(bp, pad.left - 4, y + 4);
+  }
+  // Y-axis label
+  ctx.save();
+  ctx.translate(12, H / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('mmHg', 0, 0);
+  ctx.restore();
+
+  if (!readings || readings.length === 0) {
+    ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('この月のデータはありません', W / 2, H / 2);
+    return;
+  }
+
+  const totalDays = daysInMonth(year, month);
+  const xStep = totalDays > 1 ? pw / (totalDays - 1) : pw / 2;
+  const dayToX = (d) => pad.left + (d - 1) * xStep;
+
+  // ── Season band ──
+  const seasons = [
+    { m: [3,4,5], c: 'rgba(39,174,96,0.06)' },
+    { m: [6,7,8], c: 'rgba(231,76,60,0.06)' },
+    { m: [9,10,11], c: 'rgba(243,156,18,0.06)' },
+    { m: [12,1,2], c: 'rgba(52,152,219,0.06)' },
+  ];
+  const s = seasons.find(x => x.m.includes(month));
+  if (s) { ctx.fillStyle = s.c; ctx.fillRect(pad.left, pad.top, pw, ph); }
+
+  // ── Warning lines ──
+  ctx.setLineDash(GRAPH.dashPattern);
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(140, H, pad)); ctx.lineTo(W - pad.right, bpToY(140, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(90, H, pad)); ctx.lineTo(W - pad.right, bpToY(90, H, pad)); ctx.stroke();
+  ctx.setLineDash([]);
+  // Labels
+  ctx.fillStyle = '#e74c3c'; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'left';
+  ctx.fillText('140', W - pad.right + 3, bpToY(140, H, pad) + 3);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('90', W - pad.right + 3, bpToY(90, H, pad) + 3);
+
+  // ── Aggregate by date ──
+  const byDate = {};
+  readings.forEach(r => {
+    if (!byDate[r.date]) byDate[r.date] = [];
+    byDate[r.date].push(r);
+  });
+  const dates = Object.keys(byDate).sort();
+
+  // Stats
+  const allS = readings.map(r => r.systolic);
+  const allD = readings.map(r => r.diastolic);
+  const avgS = allS.reduce((a, b) => a + b, 0) / allS.length;
+  const avgD = allD.reduce((a, b) => a + b, 0) / allD.length;
+  const maxS = { v: Math.max(...allS), r: readings.find(r => r.systolic === Math.max(...allS)) };
+  const minS = { v: Math.min(...allS), r: readings.find(r => r.systolic === Math.min(...allS)) };
+  const maxD = { v: Math.max(...allD), r: readings.find(r => r.diastolic === Math.max(...allD)) };
+  const minD = { v: Math.min(...allD), r: readings.find(r => r.diastolic === Math.min(...allD)) };
+
+  // ── Average lines ──
+  ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5;
+  ctx.globalAlpha = 0.55;
+  ctx.strokeStyle = '#c0392b';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgS, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgS, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#2980b9';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(avgD, H, pad)); ctx.lineTo(W - pad.right, bpToY(avgD, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.setLineDash([]);
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = '#c0392b'; ctx.textAlign = 'left';
+  ctx.fillText('平均SBP ' + Math.round(avgS), pad.left + 4, bpToY(avgS, H, pad) - 5);
+  ctx.fillStyle = '#2980b9';
+  ctx.fillText('平均DBP ' + Math.round(avgD), pad.left + 4, bpToY(avgD, H, pad) + 13);
+
+  // ── High/Low lines ──
+  ctx.setLineDash([2, 4]); ctx.lineWidth = 1;
+  ctx.globalAlpha = 0.45;
+  ctx.strokeStyle = '#e74c3c';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(maxS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(maxS.v, H, pad)); ctx.stroke();
+  ctx.strokeStyle = '#3498db';
+  ctx.beginPath(); ctx.moveTo(pad.left, bpToY(minS.v, H, pad)); ctx.lineTo(W - pad.right, bpToY(minS.v, H, pad)); ctx.stroke();
+  ctx.globalAlpha = 1; ctx.setLineDash([]);
+  ctx.font = '9px sans-serif';
+  ctx.fillStyle = '#e74c3c'; ctx.textAlign = 'right';
+  ctx.fillText(maxS.v + '(' + maxS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(maxS.v, H, pad) - 4);
+  ctx.fillStyle = '#3498db';
+  ctx.fillText(minS.v + '(' + minS.r.date.slice(5) + ')', W - pad.right - 2, bpToY(minS.v, H, pad) + 11);
+
+  // ── Date axis ──
+  ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+  const step = Math.max(1, Math.floor(totalDays / 12));
+  for (let d = 1; d <= totalDays; d += step) {
+    const x = dayToX(d);
+    ctx.fillText(d, x, H - pad.bottom + 16);
+    ctx.strokeStyle = '#f0f0f0'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(x, pad.top); ctx.lineTo(x, H - pad.bottom); ctx.stroke();
+  }
+
+  // ── Data lines & dots ──
+  const sbpPts = [], dbpPts = [];
+  dates.forEach(date => {
+    const d = parseInt(date.slice(8, 10));
+    const x = dayToX(d);
+    const dr = byDate[date];
+    const as = dr.reduce((a, r) => a + r.systolic, 0) / dr.length;
+    const ad = dr.reduce((a, r) => a + r.diastolic, 0) / dr.length;
+    sbpPts.push({ x, y: bpToY(as, H, pad), raw: dr[0].systolic, date, avg: as });
+    dbpPts.push({ x, y: bpToY(ad, H, pad), raw: dr[0].diastolic, date, avg: ad });
+  });
+
+  function drawLine(pts, color, lw) {
+    if (pts.length < 2) return;
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+    ctx.stroke();
+  }
+
+  drawLine(sbpPts, '#c0392b', GRAPH.lineWidth);
+  drawLine(dbpPts, '#2980b9', GRAPH.lineWidth);
+
+  // Dots
+  sbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#c0392b');
+  });
+  dbpPts.forEach((p, i) => {
+    drawDot(ctx, p, bpClassSolo(p.raw), '#2980b9');
+  });
+
+  // ── Tooltip tracking ──
+  canvas._graphData = { sbpPts, dbpPts, H, pad, W, readings, byDate };
+}
+
+function drawDot(ctx, p, warnLevel, baseColor) {
+  ctx.beginPath(); ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
+  const fill = warnLevel === 2 ? '#e74c3c' : warnLevel === 1 ? '#f39c12' : baseColor;
+  ctx.fillStyle = fill; ctx.fill();
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.stroke();
+  if (warnLevel === 2) {
+    ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+    ctx.strokeStyle = '#e74c3c'; ctx.lineWidth = 2; ctx.stroke();
+  }
+}
+
+/** 単一血圧値のリスク判定 (1=1期, 2=2期, 0=正常) */
+function bpClassSolo(bp) {
+  if (bp >= 160) return 2;
+  if (bp >= 140) return 1;
+  return 0;
+}
+
+/** 二値のリスク判定 */
+function bpClass(sbp, dbp) {
+  const s = bpClassSolo(sbp);
+  const d = bpClassSolo(dbp);
+  return { sbp: s, dbp: d, max: Math.max(s, d) };
+}
+
+/** グラフ上のマウスオーバーでツールチップ表示 */
+function setupTooltip(canvas) {
+  let tt = null;
+  canvas.addEventListener('mousemove', (e) => {
+    const g = canvas._graphData;
+    if (!g) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    if (tt) { tt.remove(); tt = null; }
+    let closest = null, minDist = 20;
+    g.sbpPts.forEach((p, i) => {
+      const d = Math.hypot(mx - p.x, my - p.y);
+      if (d < minDist) { minDist = d; closest = i; }
+    });
+    if (closest !== null) {
+      const p = g.sbpPts[closest];
+      const dp = g.dbpPts[closest];
+      tt = document.createElement('div');
+      tt.style.cssText = `position:absolute;background:rgba(44,62,80,.92);color:#fff;padding:6px 10px;border-radius:4px;font-size:12px;pointer-events:none;white-space:nowrap;left:${p.x + 14}px;top:${my - 10}px;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.3)`;
+      tt.innerHTML = `<strong>${p.date}</strong><br>収縮期: ${p.raw} mmHg<br>拡張期: ${dp.raw} mmHg`;
+      canvas.parentElement.appendChild(tt);
+    }
+  });
+  canvas.addEventListener('mouseleave', () => { if (tt) { tt.remove(); tt = null; } });
+}
+/* =================================================================
+   csv.js — CSV入出力モジュール
+   ================================================================= */
+
+/** CSV パース（RFC 4180準拠、簡易版） */
+function parseCSVLine(line) {
+  const result = [];
+  let current = '', inQuote = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (inQuote) {
+      if (c === '"') {
+        if (i + 1 < line.length && line[i + 1] === '"') { current += '"'; i++; }
+        else inQuote = false;
+      } else {
+        current += c;
+      }
+    } else {
+      if (c === '"') { inQuote = true; }
+      else if (c === ',') { result.push(current.trim()); current = ''; }
+      else { current += c; }
+    }
+  }
+  result.push(current.trim());
+  return result;
+}
+
+/**
+ * CSV文字列をパースしてレコード配列に変換
+ * @param {string} text - CSVテキスト
+ * @returns {{patientId, name, date, systolic, diastolic, note}[]}
+ */
+function parseCSV(text) {
+  // BOM除去
+  if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+  const lines = text.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return [];
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = parseCSVLine(lines[i]);
+    if (cols.length < 5) continue;
+    const patientId = cols[0];
+    const name = cols[1] || '';
+    const date = cols[2];
+    const systolic = Number(cols[3]);
+    const diastolic = Number(cols[4]);
+    const note = cols[5] || '';
+
+    if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
+    records.push({ patientId, name, date, systolic, diastolic, note });
+  }
+  return records;
+}
+
+/**
+ * 測定データ配列をCSV文字列に変換
+ * @param {{patientId, name?, date, systolic, diastolic, note?}[]} records
+ * @returns {string} BOM付きUTF-8 CSV
+ */
+function recordsToCSV(records) {
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  records.forEach(r => {
+    const name = r.name ? `"${r.name}"` : '';
+    const note = r.note ? `"${r.note}"` : '';
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+  });
+  return csv;
+}
+
+/**
+ * ファイルダウンロード
+ * @param {string} content
+ * @param {string} filename
+ * @param {string} [mime='text/csv']
+ */
+function downloadFile(content, filename, mime = 'text/csv') {
+  const blob = new Blob([content], { type: mime + ';charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+
+/**
+ * JSONバックアップ生成
+ * @param {object} data - { patients: [], readings: [] }
+ * @returns {string}
+ */
+function backupToJSON(data) {
+  return JSON.stringify(data, null, 2);
+}
+
+/**
+ * JSONバックアップ解析
+ * @param {string} text
+ * @returns {{patients: [], readings: []}|null}
+ */
+function parseBackupJSON(text) {
+  try {
+    const data = JSON.parse(text);
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) {
+      return data;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+/* =================================================================
+   app.js — メインアプリケーションロジック
+   ================================================================= */
+
+let db = null;
+let currentPatientId = null;
+let currentYear = new Date().getFullYear();
+let currentMonth = new Date().getMonth() + 1;
+let editingId = null;
+
+// DB helpers are provided by db.js (loaded before this script)
+
+function tx(store, mode) { return db.transaction(store, mode).objectStore(store); }
+function prom(req) {
+  return new Promise((resolve, reject) => {
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// ── DOM refs ──
+const $ = id => document.getElementById(id);
+
+// ── Toast ──
+let toastTimer = null;
+function toast(msg, duration = 2000) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Modal helpers ──
+function showModal(id) { $('modal-' + id).style.display = 'flex'; }
+function hideModal(id) { $('modal-' + id).style.display = 'none'; }
+
+// ── Screen management ──
+function showScreen(id) {
+  $('screen-id').style.display = id === 'id' ? '' : 'none';
+  $('screen-patient').style.display = id === 'patient' ? '' : 'none';
+}
+
+// ── Utilities ──
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+function formatDate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function bpClass(sbp, dbp) {
+  const f = b => b >= 160 ? 2 : b >= 140 ? 1 : 0;
+  return { sbp: f(sbp), dbp: f(dbp) };
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ID INPUT SCREEN
+// ═══════════════════════════════════════════════════════════
+
+async function initIdScreen() {
+  try {
+    const readings = await getAllReadings();
+    if (readings.length > 0) {
+      readings.sort((a, b) => b.date.localeCompare(a.date));
+      const last = readings[0];
+      const pat = await getPatient(last.patientId);
+      $('header-info').textContent = `最終: ${pat ? pat.name : last.patientId} / ${last.date}`;
+    }
+  } catch {}
+  await renderRecentPatients();
+
+  $('inp-patient-id').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleIdEnter(); }
+  });
+  $('btn-id-enter').addEventListener('click', handleIdEnter);
+}
+
+async function renderRecentPatients() {
+  const patients = await getAllPatients();
+  const entries = [];
+  for (const p of patients) {
+    const readings = await getReadingsByPatient(p.id);
+    const latest = readings.reduce((a, b) => a.date > b.date ? a : b, null);
+    entries.push({ patient: p, latest: latest ? latest.date : '' });
+  }
+  entries.sort((a, b) => (b.latest || '').localeCompare(a.latest || ''));
+
+  const div = $('recent-patients');
+  if (entries.length === 0) {
+    div.innerHTML = '<span style="color:#bdc3c7">まだ患者が登録されていません</span>';
+    return;
+  }
+  div.innerHTML = entries.map(e =>
+    `<div style="padding:5px 0;cursor:pointer;border-bottom:1px solid #f0f0f0" data-pid="${e.patient.id}">
+      <strong>${esc(e.patient.id)}</strong> ${esc(e.patient.name)}
+      <span style="color:#95a5a6;margin-left:8px;font-size:.82em">${e.latest || 'データなし'}</span>
+    </div>`
+  ).join('');
+
+  div.querySelectorAll('[data-pid]').forEach(el => {
+    el.addEventListener('click', () => navigateToPatient(el.dataset.pid));
+  });
+}
+
+async function handleIdEnter() {
+  const id = $('inp-patient-id').value.trim();
+  if (!id) { toast('患者IDを入力してください'); return; }
+  await navigateToPatient(id);
+}
+
+async function navigateToPatient(id) {
+  let patient = await getPatient(id);
+  if (!patient) {
+    currentPatientId = id;
+    $('modal-pid').textContent = id;
+    $('modal-name').value = '';
+    $('modal-gender').value = '';
+    $('modal-birth').value = '';
+    $('modal-memo').value = '';
+    showModal('new-patient');
+    setTimeout(() => $('modal-name').focus(), 100);
+    return;
+  }
+  currentPatientId = id;
+  currentYear = new Date().getFullYear();
+  currentMonth = new Date().getMonth() + 1;
+  showScreen('patient');
+  renderPatientPage();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  NEW PATIENT MODAL
+// ═══════════════════════════════════════════════════════════
+
+$('modal-ok').addEventListener('click', async () => {
+  const name = $('modal-name').value.trim();
+  if (!name) { toast('氏名を入力してください'); return; }
+  await putPatient({
+    id: currentPatientId,
+    name,
+    gender: $('modal-gender').value,
+    birthDate: $('modal-birth').value,
+    memo: $('modal-memo').value.trim(),
+    createdAt: new Date().toISOString()
+  });
+  hideModal('new-patient');
+  renderPatientPage();
+  toast(`患者 ${name} を登録しました`);
+});
+$('modal-cancel').addEventListener('click', () => hideModal('new-patient'));
+
+// ═══════════════════════════════════════════════════════════
+//  CONFIRM MODAL
+// ═══════════════════════════════════════════════════════════
+
+function confirm(title, body, onYes) {
+  $('confirm-title').textContent = title;
+  $('confirm-body').textContent = body;
+  showModal('confirm');
+  const yesHandler = () => { hideModal('confirm'); $('confirm-yes').removeEventListener('click', yesHandler); onYes(); };
+  $('confirm-yes').addEventListener('click', yesHandler);
+}
+$('confirm-no').addEventListener('click', () => hideModal('confirm'));
+
+// ═══════════════════════════════════════════════════════════
+//  PATIENT PAGE
+// ═══════════════════════════════════════════════════════════
+
+async function renderPatientPage() {
+  const patient = await getPatient(currentPatientId);
+  const name = patient ? patient.name : currentPatientId;
+  $('patient-header-info').textContent = `${currentPatientId} ${name} | ${currentYear}年${currentMonth}月`;
+
+  renderNav();
+  renderGraphAndLegend();
+  renderSummary();
+  renderDailyList();
+  updateDataStat();
+
+  // Reset form
+  const today = new Date();
+  $('inp-date').value = formatDate(today);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  $('register-status').textContent = '';
+  editingId = null;
+
+  setTimeout(() => $('inp-date').focus(), 50);
+}
+
+function renderNav() {
+  const sel = $('sel-patient');
+  sel.innerHTML = '';
+  getAllPatients().then(patients => {
+    sel.innerHTML = patients.map(p =>
+      `<option value="${esc(p.id)}" ${p.id === currentPatientId ? 'selected' : ''}>${esc(p.id)} ${esc(p.name || '')}</option>`
+    ).join('');
+  });
+
+  $('nav-period').textContent = `${currentYear}年${currentMonth}月`;
+  $('sel-patient').onchange = () => {
+    currentPatientId = $('sel-patient').value;
+    currentYear = new Date().getFullYear();
+    currentMonth = new Date().getMonth() + 1;
+    renderPatientPage();
+  };
+  $('btn-prev').onclick = () => { currentMonth--; if (currentMonth < 1) { currentMonth = 12; currentYear--; } renderPatientPage(); };
+  $('btn-next').onclick = () => { currentMonth++; if (currentMonth > 12) { currentMonth = 1; currentYear++; } renderPatientPage(); };
+  $('btn-back').onclick = () => {
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    renderRecentPatients();
+    $('inp-patient-id').focus();
+  };
+}
+
+// ── Graph ──
+function renderGraphAndLegend() {
+  getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth).then(readings => {
+    drawGraph($('graph'), readings, currentPatientId, currentYear, currentMonth);
+    setupTooltip($('graph'));
+  });
+  $('legend').innerHTML = `
+    <div class="legend-item"><div class="legend-color" style="background:#c0392b"></div>収縮期(SBP)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#2980b9"></div>拡張期(DBP)</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#c0392b"></div>平均SBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>平均DBP</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#e74c3c"></div>警戒 140</div>
+    <div class="legend-item"><div class="legend-line" style="border-color:#2980b9"></div>警戒 90</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f39c12"></div>1期高血圧</div>
+    <div class="legend-item"><div class="legend-color" style="background:#e74c3c"></div>2期高血圧</div>
+  `;
+}
+
+// ── Summary ──
+async function renderSummary() {
+  $('summary-period').textContent = `${currentYear}年${currentMonth}月`;
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  const body = $('summary-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td>収縮期 (SBP)</td><td>-</td><td>-</td><td>-</td></tr><tr><td>拡張期 (DBP)</td><td>-</td><td>-</td><td>-</td></tr>';
+    return;
+  }
+  const sVals = readings.map(r => r.systolic);
+  const dVals = readings.map(r => r.diastolic);
+  const avg = a => Math.round(a.reduce((x, y) => x + y, 0) / a.length);
+  const maxS = Math.max(...sVals); const minS = Math.min(...sVals);
+  const maxD = Math.max(...dVals); const minD = Math.min(...dVals);
+  const f = (v, arr) => readings.find(r => r.systolic === v || r.diastolic === v);
+  const maxSO = readings.find(r => r.systolic === maxS);
+  const minSO = readings.find(r => r.systolic === minS);
+  const maxDO = readings.find(r => r.diastolic === maxD);
+  const minDO = readings.find(r => r.diastolic === minD);
+
+  body.innerHTML = `
+    <tr><td>収縮期 (SBP)</td><td>${avg(sVals)}</td><td class="high">${maxS} (${maxSO.date})</td><td class="low">${minS} (${minSO.date})</td></tr>
+    <tr><td>拡張期 (DBP)</td><td>${avg(dVals)}</td><td class="high">${maxD} (${maxDO.date})</td><td class="low">${minD} (${minDO.date})</td></tr>`;
+}
+
+// ── Daily list ──
+async function renderDailyList() {
+  const readings = await getReadingsByPatientInMonth(currentPatientId, currentYear, currentMonth);
+  readings.sort((a, b) => b.date.localeCompare(a.date));
+  const body = $('daily-body');
+  if (readings.length === 0) {
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    return;
+  }
+  body.innerHTML = readings.map(r => {
+    const c = bpClass(r.systolic, r.diastolic);
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const sCls = c.sbp === 2 ? 'bp-warn2' : c.sbp === 1 ? 'bp-warn1' : 'bp-normal';
+    const dCls = c.dbp === 2 ? 'bp-warn2' : c.dbp === 1 ? 'bp-warn1' : 'bp-normal';
+    return `<tr>
+      <td>${r.date}</td>
+      <td class="bp-val ${sCls}">${r.systolic}</td>
+      <td class="bp-val ${dCls}">${r.diastolic}</td>
+      <td>${avg}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn btn-sm btn-secondary" data-edit="${r.id}">編集</button>
+        <button class="btn btn-sm btn-danger" data-del="${r.id}">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+
+  body.querySelectorAll('[data-edit]').forEach(b => b.addEventListener('click', () => editReading(Number(b.dataset.edit))));
+  body.querySelectorAll('[data-del]').forEach(b => b.addEventListener('click', () => deleteReadingConfirm(Number(b.dataset.del))));
+}
+
+// ── Registration ──
+$('btn-register').addEventListener('click', registerReading);
+$('inp-dbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-memo').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); registerReading(); } });
+$('inp-date').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-sbp').focus(); } });
+$('inp-sbp').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('inp-dbp').focus(); } });
+
+async function registerReading() {
+  const date = $('inp-date').value;
+  const sbp = Number($('inp-sbp').value);
+  const dbp = Number($('inp-dbp').value);
+  const memo = $('inp-memo').value.trim();
+  if (!date || !sbp || !dbp) { toast('日付・収縮期・拡張期は必須です'); return; }
+  if (sbp < 50 || sbp > 300 || dbp < 30 || dbp > 200) { toast('血圧値の範囲が不正です'); return; }
+
+  const existing = await getReadingByDate(currentPatientId, date);
+  if (existing && existing.id !== editingId) {
+    if (!confirm('上書き確認', `${date} のデータは既に存在します。上書きしますか？`, async () => {
+      existing.systolic = sbp; existing.diastolic = dbp;
+      existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+      existing.memo = memo; existing.updatedAt = new Date().toISOString();
+      await putReading(existing);
+      toast(`${date} のデータを更新しました`);
+      renderPatientPage();
+      setTimeout(() => { $('inp-sbp').value = ''; $('inp-dbp').value = ''; $('inp-memo').value = ''; $('inp-sbp').focus(); }, 100);
+    })) return;
+    return;
+  }
+
+  // Merge with existing if same ID (edit mode)
+  if (editingId && existing) {
+    existing.systolic = sbp; existing.diastolic = dbp;
+    existing.meanArterial = Math.round((sbp + dbp * 2) / 3);
+    existing.memo = memo; existing.updatedAt = new Date().toISOString();
+    await putReading(existing);
+    toast(`${date} のデータを更新しました`);
+  } else {
+    await putReading({
+      patientId: currentPatientId, date, systolic: sbp, diastolic: dbp,
+      meanArterial: Math.round((sbp + dbp * 2) / 3),
+      note: memo, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+    });
+    toast(`${date} のデータを登録しました`);
+  }
+
+  // Auto-advance to next day
+  const d = new Date(date + 'T00:00:00');
+  d.setDate(d.getDate() + 1);
+  $('inp-date').value = formatDate(d);
+  $('inp-sbp').value = '';
+  $('inp-dbp').value = '';
+  $('inp-memo').value = '';
+  editingId = null;
+  $('register-status').textContent = '';
+  $('inp-sbp').focus();
+  renderSummary();
+  renderDailyList();
+  renderGraphAndLegend();
+  updateDataStat();
+}
+
+// ── Edit ──
+async function editReading(id) {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const r = readings.find(x => x.id === id);
+  if (!r) return;
+  editingId = id;
+  $('inp-date').value = r.date;
+  $('inp-sbp').value = r.systolic;
+  $('inp-dbp').value = r.diastolic;
+  $('inp-memo').value = r.note || '';
+  $('register-status').textContent = '📝 編集中';
+  $('inp-sbp').focus();
+  $('inp-sbp').select();
+  $('inp-sbp').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function deleteReadingConfirm(id) {
+  confirm('削除確認', 'この測定データを削除しますか？', async () => {
+    await deleteReading(id);
+    toast('データを削除しました');
+    renderPatientPage();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DATA MANAGEMENT
+// ═══════════════════════════════════════════════════════════
+
+// CSV Export
+$('btn-export-csv').addEventListener('click', async () => {
+  const readings = await getReadingsByPatient(currentPatientId);
+  const patient = await getPatient(currentPatientId);
+  if (readings.length === 0) { toast('データがありません'); return; }
+  readings.sort((a, b) => a.date.localeCompare(b.date));
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,平均血圧,メモ\n';
+  readings.forEach(r => {
+    const avg = Math.round((r.systolic + r.diastolic * 2) / 3);
+    const name = patient ? patient.name.replace(/"/g, '""') : '';
+    csv += `${currentPatientId},"${name}",${r.date},${r.systolic},${r.diastolic},${avg},"${(r.note || '').replace(/"/g, '""')}"\n`;
+  });
+  downloadFile(csv, `bp_${currentPatientId}_${currentYear}${String(currentMonth).padStart(2,'0')}.csv`);
+  toast('CSVエクスポート完了');
+});
+
+// CSV Import
+$('btn-import-csv').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.csv';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const text = await file.text();
+    const records = parseCSV(text);
+    if (records.length === 0) { toast('CSVデータがありません'); return; }
+    let imported = 0, skipped = 0;
+    for (const rec of records) {
+      try {
+        const existing = await getReadingByDate(rec.patientId, rec.date);
+        if (existing) {
+          existing.systolic = rec.systolic; existing.diastolic = rec.diastolic;
+          existing.meanArterial = Math.round((rec.systolic + rec.diastolic * 2) / 3);
+          existing.note = rec.note; existing.updatedAt = new Date().toISOString();
+          await putReading(existing);
+        } else {
+          let pat = await getPatient(rec.patientId);
+          if (!pat) await putPatient({ id: rec.patientId, name: rec.name, createdAt: new Date().toISOString() });
+          await putReading({
+            patientId: rec.patientId, date: rec.date,
+            systolic: rec.systolic, diastolic: rec.diastolic,
+            meanArterial: Math.round((rec.systolic + rec.diastolic * 2) / 3),
+            note: rec.note, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
+          });
+        }
+        imported++;
+      } catch { skipped++; }
+    }
+    toast(`CSV取り込み完了: ${imported}件, ${skipped}件スキップ`);
+    if (currentPatientId) renderPatientPage();
+  };
+  $('file-import').click();
+});
+
+// JSON Backup
+$('btn-backup').addEventListener('click', async () => {
+  const patients = await getAllPatients();
+  const readings = await getAllReadings();
+  const json = backupToJSON({ patients, readings });
+  downloadFile(json, `bp_backup_${formatDate(new Date())}.json`, 'application/json');
+  toast('バックアップ完了');
+});
+
+// JSON Restore
+$('btn-restore').addEventListener('click', () => {
+  $('file-import').value = '';
+  $('file-import').accept = '.json';
+  $('file-import').onchange = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    try {
+      const text = await file.text();
+      const data = parseBackupJSON(text);
+      if (!data) { toast('無効なバックアップファイル'); return; }
+      confirm('復元確認', '全データをバックアップから復元します。既存データは上書きされます。', async () => {
+        if (data.patients) for (const p of data.patients) await putPatient(p);
+        if (data.readings) for (const r of data.readings) await putReading(r);
+        toast('復元完了');
+        currentPatientId = null;
+        showScreen('id');
+        $('inp-patient-id').value = '';
+        $('inp-patient-id').focus();
+        await renderRecentPatients();
+      });
+    } catch { toast('復元に失敗しました'); }
+  };
+  $('file-import').click();
+});
+
+// Delete Patient
+$('btn-delete-patient').addEventListener('click', () => {
+  confirm('患者削除', `患者 ${currentPatientId} の全データを削除します。本当によろしいですか？`, async () => {
+    await deletePatient(currentPatientId);
+    toast('患者を削除しました');
+    currentPatientId = null;
+    showScreen('id');
+    $('inp-patient-id').value = '';
+    await renderRecentPatients();
+    $('inp-patient-id').focus();
+  });
+});
+
+// ── Global Enter for registration ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.target.id === 'inp-memo') { e.preventDefault(); registerReading(); }
+});
+
+// ── Window resize ──
+window.addEventListener('resize', () => {
+  if (currentPatientId) renderGraphAndLegend();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════
+
+(async () => {
+  try {
+    db = await openDB();
+  } catch (e) {
+    alert('IndexedDBのオープンに失敗しました: ' + e.message);
+    return;
+  }
+  await initIdScreen();
+  $('inp-patient-id').focus();
+})();
+</script>
+</body>
+</html>
