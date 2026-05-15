@@ -49,7 +49,7 @@ bp-app-dev/
 
 ## NOTES
 
-- 6 files, ~1050 lines total (app.js ~1050, chart.js ~240).
+- 6 files, ~1050 lines total (app.js ~1050, chart.js ~262).
 - `build.bat` uses PowerShell; `node /tmp/build.js` for Linux.
 - No test framework — manual E2E via Playwright scripts.
 - Graph has 8 configurable items; visit SBP/DBP can be toggled via checkbox.

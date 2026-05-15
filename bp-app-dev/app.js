@@ -1,5 +1,5 @@
 /* =================================================================
-   app.js — メインアプリケーションロジック v1.2.0
+   app.js — メインアプリケーションロジック v1.3.0
    ================================================================= */
 
 currentPatientId = null;
@@ -151,10 +151,10 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v1.2.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '1.2.0';
+  $('header-info').textContent = 'v1.3.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '1.3.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '1.2.0';
+  $('app-version-footer').textContent = '1.3.0';
 }
 
 // Synchronous DB open wrapper (runs inside async init)
