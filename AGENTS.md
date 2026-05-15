@@ -1,7 +1,7 @@
 # AGENTS.md — Blood Pressure Monitor
 
 **Generated:** 2026-05-15
-**Commit:** 847f6db
+**Commit:** cc16b64
 **Branch:** main
 
 ## OVERVIEW
