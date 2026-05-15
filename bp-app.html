@@ -325,7 +325,7 @@ input, select { font-family: inherit }
          <button class="btn btn-primary" id="btn-id-enter">開 始</button>
        </div>
        <div class="version-info">
-         <small>バージョン <span id="app-version">1.0.0</span> | <span id="app-build-date"></span></small>
+         <small>バージョン <span id="app-version">1.2.0</span> | <span id="app-build-date"></span></small>
        </div>
       <div style="margin-top:24px">
         <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
@@ -440,8 +440,9 @@ input, select { font-family: inherit }
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                <tbody>
-                 <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
-                 <tr><td>v1.0.0</td><td>—</td><td>初版（日次血圧測定＋月間サマリー＋警戒ライン）</td></tr>
+                  <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
+                  <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
+                  <tr><td>v1.0.0</td><td>—</td><td>初版（日次血圧測定＋月間サマリー＋警戒ライン）</td></tr>
                </tbody>
              </table>
            </div>
@@ -499,7 +500,7 @@ input, select { font-family: inherit }
 
        <!-- バージョン情報 -->
        <div class="version-footer">
-           <small>📋 v<span id="app-version-footer">1.1.0</span> | 💊 Blood Pressure Monitor</small>
+           <small>📋 v<span id="app-version-footer">1.2.0</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
@@ -656,7 +657,7 @@ async function getMonthlySummariesByPatient(patientId) {
    return prom(tx('monthly_summaries', 'readonly').index('byPatient').getAll(patientId));
 }
 /* =================================================================
-   chart.js — Canvas 2D グラフ描画モジュール v1.1.0
+   chart.js — Canvas 2D グラフ描画モジュール v1.2.0
    8項目（受診SBP/DBP, 家庭平均/最小/最大SBP/DBP）の時系列折れ線
    ================================================================= */
 
@@ -1010,7 +1011,7 @@ function parseBackupJSON(text) {
   }
 }
 /* =================================================================
-   app.js — メインアプリケーションロジック v1.1.0
+   app.js — メインアプリケーションロジック v1.2.0
    ================================================================= */
 
 currentPatientId = null;
@@ -1162,10 +1163,10 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v1.1.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '1.1.0';
+  $('header-info').textContent = 'v1.2.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '1.2.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '1.1.0';
+  $('app-version-footer').textContent = '1.2.0';
 }
 
 // Synchronous DB open wrapper (runs inside async init)
@@ -1385,6 +1386,11 @@ async function renderPatientPage() {
      var el = $('patient-header-info'); if (el) el.textContent = currentPatientId + ' ' + name;
      renderNav();
      renderView();
+     // 日付フォームが空の場合、本日の日付をデフォルト設定
+     var inpDate = $('inp-date');
+     if (inpDate && !inpDate.value) {
+       inpDate.value = fmtDate(new Date());
+     }
    } catch (e) {
      console.error('renderPatientPage error:', e);
      toast('ページ表示エラー');

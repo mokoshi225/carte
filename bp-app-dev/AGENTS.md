@@ -3,7 +3,7 @@
 **Parent:** [blood-pressure-app/](../AGENTS.md)
 
 ## OVERVIEW
-Source modules for the Blood Pressure Monitor. Rebuilt via `./build.bat` (or `node /tmp/rebuild.js`) into the single-file `../bp-app.html`.
+Source modules for the Blood Pressure Monitor. Rebuilt via `build.bat` (or `node /tmp/build.js`) into the single-file `../bp-app.html`.
 
 ## STRUCTURE
 
@@ -12,7 +12,7 @@ bp-app-dev/
 ├── index.html   ← HTML skeleton (head + body divs, no inline data)
 ├── style.css    ← All visual styles (responsive, print-ready)
 ├── db.js        ← IndexedDB layer: patients, readings, monthly_summaries
-├── chart.js     ← Canvas 2D graphing (drawAllPeriodGraph, drawMonthGraph)
+├── chart.js     ← Canvas 2D graphing: 8-item time-series chart
 ├── csv.js       ← CSV parse/serialize + JSON backup/restore
 └── app.js       ← Main application logic (init, UI, CRUD, navigation)
 ```
@@ -23,11 +23,12 @@ bp-app-dev/
 |--------|------|
 | DB schema migration | db.js |
 | Add/edit/delete queries | db.js |
-| Graph axis / colors / layout | chart.js |
+| Graph lines / colors / tooltip | chart.js |
+| Visit BP toggle logic | chart.js + app.js |
 | CSV column mapping | csv.js |
 | Screen transitions / navigation | app.js |
 | Button event wiring | app.js |
-| Monthly summary CRUD | app.js + db.js |
+| Visit input form fields | app.js + index.html |
 | CSS layout / colors / fonts | style.css |
 | DOM element IDs used by JS | index.html |
 
@@ -48,6 +49,7 @@ bp-app-dev/
 
 ## NOTES
 
-- 6 files, ~550 lines total.
-- `build.bat` uses PowerShell `readAllText` + regex replace to concatenate.
+- 6 files, ~1050 lines total (app.js ~1050, chart.js ~240).
+- `build.bat` uses PowerShell; `node /tmp/build.js` for Linux.
 - No test framework — manual E2E via Playwright scripts.
+- Graph has 8 configurable items; visit SBP/DBP can be toggled via checkbox.

@@ -1,5 +1,5 @@
 /* =================================================================
-   app.js — メインアプリケーションロジック v1.1.0
+   app.js — メインアプリケーションロジック v1.2.0
    ================================================================= */
 
 currentPatientId = null;
@@ -151,10 +151,10 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v1.1.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '1.1.0';
+  $('header-info').textContent = 'v1.2.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '1.2.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '1.1.0';
+  $('app-version-footer').textContent = '1.2.0';
 }
 
 // Synchronous DB open wrapper (runs inside async init)
@@ -374,6 +374,11 @@ async function renderPatientPage() {
      var el = $('patient-header-info'); if (el) el.textContent = currentPatientId + ' ' + name;
      renderNav();
      renderView();
+     // 日付フォームが空の場合、本日の日付をデフォルト設定
+     var inpDate = $('inp-date');
+     if (inpDate && !inpDate.value) {
+       inpDate.value = fmtDate(new Date());
+     }
    } catch (e) {
      console.error('renderPatientPage error:', e);
      toast('ページ表示エラー');
