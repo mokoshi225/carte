@@ -109,13 +109,21 @@ async function init() {
      if (e.key === 'Enter') { e.preventDefault(); var d = $('inp-dbp'); if (d) d.focus(); }
    });
 
-   // Event: 受診時血圧表示トグル
-   var chkVisit = $('chk-show-visit');
-   if (chkVisit) chkVisit.addEventListener('change', function() {
-     if (currentPatientId && currentView === 'all') renderView();
-   });
+    // Event: 受診時血圧表示トグル
+    var chkVisit = $('chk-show-visit');
+    if (chkVisit) chkVisit.addEventListener('change', function() {
+      if (currentPatientId && currentView === 'all') renderView();
+    });
 
-   // Event: Resize
+    // Event: 基準線トグル
+    ['chk-threshold-12575', 'chk-threshold-13585'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.addEventListener('change', function() {
+        if (currentPatientId && currentView === 'all') renderView();
+      });
+    });
+
+    // Event: Resize
    window.addEventListener('resize', function() {
      if (currentPatientId && currentView === 'all') renderView();
    });

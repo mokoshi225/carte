@@ -108,6 +108,30 @@ function drawAllPeriodGraph(canvas, readings) {
   }
   ctx.setLineDash([]);
 
+  // ── 基準線（125/75, 135/85） ──
+  const THRESHOLD_SETS = [
+    { id: 'chk-threshold-12575', sbp: 125, dbp: 75, color: '#27ae60', label: '125/75' },
+    { id: 'chk-threshold-13585', sbp: 135, dbp: 85, color: '#e67e22', label: '135/85' },
+  ];
+  THRESHOLD_SETS.forEach(function(ts) {
+    const chk = document.getElementById(ts.id);
+    if (!chk || !chk.checked) return;
+    ctx.strokeStyle = ts.color;
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([5, 4]);
+    ctx.globalAlpha = 0.65;
+    var ySbp = bpToY(ts.sbp, pad, ph);
+    ctx.beginPath(); ctx.moveTo(pad.left, ySbp); ctx.lineTo(W - pad.right, ySbp); ctx.stroke();
+    ctx.fillStyle = ts.color; ctx.globalAlpha = 0.85;
+    ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillText(ts.sbp, W - pad.right - 4, ySbp + 3);
+    var yDbp = bpToY(ts.dbp, pad, ph);
+    ctx.beginPath(); ctx.moveTo(pad.left, yDbp); ctx.lineTo(W - pad.right, yDbp); ctx.stroke();
+    ctx.fillText(ts.dbp, W - pad.right - 4, yDbp + 3);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 1.0;
+  });
+
   // ── 折れ線を描画（表示対象のみ） ──
   const seriesData = []; // ツールチップ用に各ポイントを保持
 
