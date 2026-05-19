@@ -302,6 +302,9 @@ input, select { font-family: inherit }
 .cal-two-month .cal-table { flex: 1; min-width: 0 }
 .cal-table { width: 100%; border-collapse: collapse; table-layout: fixed }
 .cal-month-title { font-size: .95em; font-weight: 700; margin-bottom: 4px; caption-side: top; text-align: center; padding: 6px 0; color: #2c3e50 }
+.cal-offset { display: block; font-size: .7em; color: #bdc3c7; font-weight: 400; line-height: 1.2 }
+.cal-offset-today { color: #27ae60; font-weight: 600 }
+.cal-offset-past { color: #e74c3c }
 .cal-table th {
   padding: 8px 4px; text-align: center; font-size: .82em;
   background: #ecf0f1; border: 1px solid #ddd; font-weight: 600;
@@ -2215,6 +2218,7 @@ function calNavigate(delta) {
 function _buildMonthTable(y, m, pad, patientCache, todayStr) {
   var firstDay = new Date(y, m - 1, 1).getDay();
   var daysInMonth = new Date(y, m, 0).getDate();
+  var todayDate = new Date(todayStr + 'T00:00:00');
 
   var html = '<table class="cal-table"><caption class="cal-month-title">' + y + '年' + m + '月</caption>';
   html += '<thead><tr><th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th></tr></thead><tbody>';
@@ -2241,7 +2245,19 @@ function _buildMonthTable(y, m, pad, patientCache, todayStr) {
         if (isSat) cls += ' cal-sat';
         if (dayAppts.length > 0) cls += ' cal-has-appt';
 
-        var label = '' + day;
+        // 今日からの日数
+        var cellDate = new Date(dateStr + 'T00:00:00');
+        var offset = Math.round((cellDate - todayDate) / 86400000);
+        var offsetLabel = '';
+        if (offset === 0) {
+          offsetLabel = '<span class="cal-offset cal-offset-today">今日</span>';
+        } else if (offset > 0) {
+          offsetLabel = '<span class="cal-offset">+' + offset + '</span>';
+        } else {
+          offsetLabel = '<span class="cal-offset cal-offset-past">' + offset + '</span>';
+        }
+
+        var label = '' + day + '<br>' + offsetLabel;
         if (dayAppts.length > 0) {
           var names = dayAppts.map(function(a) { return patientCache[a.patientId] || a.patientId; });
           var displayNames = names.slice(0, 2);

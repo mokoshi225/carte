@@ -1007,6 +1007,7 @@ function calNavigate(delta) {
 function _buildMonthTable(y, m, pad, patientCache, todayStr) {
   var firstDay = new Date(y, m - 1, 1).getDay();
   var daysInMonth = new Date(y, m, 0).getDate();
+  var todayDate = new Date(todayStr + 'T00:00:00');
 
   var html = '<table class="cal-table"><caption class="cal-month-title">' + y + '年' + m + '月</caption>';
   html += '<thead><tr><th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th></tr></thead><tbody>';
@@ -1033,7 +1034,19 @@ function _buildMonthTable(y, m, pad, patientCache, todayStr) {
         if (isSat) cls += ' cal-sat';
         if (dayAppts.length > 0) cls += ' cal-has-appt';
 
-        var label = '' + day;
+        // 今日からの日数
+        var cellDate = new Date(dateStr + 'T00:00:00');
+        var offset = Math.round((cellDate - todayDate) / 86400000);
+        var offsetLabel = '';
+        if (offset === 0) {
+          offsetLabel = '<span class="cal-offset cal-offset-today">今日</span>';
+        } else if (offset > 0) {
+          offsetLabel = '<span class="cal-offset">+' + offset + '</span>';
+        } else {
+          offsetLabel = '<span class="cal-offset cal-offset-past">' + offset + '</span>';
+        }
+
+        var label = '' + day + '<br>' + offsetLabel;
         if (dayAppts.length > 0) {
           var names = dayAppts.map(function(a) { return patientCache[a.patientId] || a.patientId; });
           var displayNames = names.slice(0, 2);
