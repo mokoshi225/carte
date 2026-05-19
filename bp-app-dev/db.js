@@ -3,7 +3,7 @@
    ================================================================= */
 
 const DB_NAME = 'BloodPressureDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let db = null;
 
 /** DB オープン */
@@ -22,11 +22,17 @@ return new Promise((resolve, reject) => {
          rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
          rs.createIndex('byDate', 'date', { unique: false });
        }
-       if (!d.objectStoreNames.contains('monthly_summaries')) {
-         const ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
-         ms.createIndex('byPatient', 'patientId', { unique: false });
-       }
-     };
+        if (!d.objectStoreNames.contains('monthly_summaries')) {
+          const ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
+          ms.createIndex('byPatient', 'patientId', { unique: false });
+        }
+        if (!d.objectStoreNames.contains('appointments')) {
+          const as = d.createObjectStore('appointments', { keyPath: 'id', autoIncrement: true });
+          as.createIndex('byPatient', 'patientId', { unique: false });
+          as.createIndex('byDate', 'appointmentDate', { unique: false });
+          as.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
+        }
+      };
     req.onsuccess = () => { db = req.result; resolve(db); };
     req.onerror = () => reject(req.error);
   });
@@ -119,4 +125,65 @@ async function deleteMonthlySummary(patientId, year, month) {
 
 async function getMonthlySummariesByPatient(patientId) {
    return prom(tx('monthly_summaries', 'readonly').index('byPatient').getAll(patientId));
+}
+
+/* ---- 予約データ ---- */
+
+async function getAppointment(id) {
+  return prom(tx('appointments', 'readonly').get(id));
+}
+
+async function getAppointmentsByPatient(patientId) {
+  return prom(tx('appointments', 'readonly').index('byPatient').getAll(patientId));
+}
+
+async function getAppointmentsByDate(date) {
+  return prom(tx('appointments', 'readonly').index('byDate').getAll(date));
+}
+
+async function getAppointmentsByDateRange(startDate, endDate) {
+  const s = tx('appointments', 'readonly').index('byDate');
+  return prom(s.getAll(IDBKeyRange.bound(startDate, endDate, false, false)));
+}
+
+async function getUpcomingAppointment(patientId) {
+  const appointments = await getAppointmentsByPatient(patientId);
+  const today = new Date();
+  const todayStr = today.getFullYear() + '-' +
+    String(today.getMonth() + 1).padStart(2, '0') + '-' +
+    String(today.getDate()).padStart(2, '0');
+  const upcoming = appointments
+    .filter(a => a.status === 'scheduled' && a.appointmentDate >= todayStr)
+    .sort((a, b) => a.appointmentDate.localeCompare(b.appointmentDate));
+  return upcoming.length > 0 ? upcoming[0] : null;
+}
+
+async function putAppointment(a) {
+  a.updatedAt = new Date().toISOString();
+  if (!a.createdAt) a.createdAt = a.updatedAt;
+  return prom(tx('appointments', 'readwrite').put(a));
+}
+
+async function deleteAppointment(id) {
+  return prom(tx('appointments', 'readwrite').delete(id));
+}
+
+async function getAllAppointments() {
+  return prom(tx('appointments', 'readonly').getAll());
+}
+
+async function cancelAppointment(id) {
+  const a = await getAppointment(id);
+  if (!a) return;
+  a.status = 'cancelled';
+  a.updatedAt = new Date().toISOString();
+  return prom(tx('appointments', 'readwrite').put(a));
+}
+
+async function markAppointmentDone(id) {
+  const a = await getAppointment(id);
+  if (!a) return;
+  a.status = 'done';
+  a.updatedAt = new Date().toISOString();
+  return prom(tx('appointments', 'readwrite').put(a));
 }
