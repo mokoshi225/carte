@@ -291,7 +291,10 @@ input, select { font-family: inherit }
 .appointment-badge.cancelled { background: #fadbd8; color: #c0392b }
 
 /* ===== Calendar ===== */
+.cal-two-month { display: flex; gap: 16px; justify-content: center; align-items: flex-start }
+.cal-two-month .cal-table { flex: 1; min-width: 0 }
 .cal-table { width: 100%; border-collapse: collapse; table-layout: fixed }
+.cal-month-title { font-size: .95em; font-weight: 700; margin-bottom: 4px; caption-side: top; text-align: center; padding: 6px 0; color: #2c3e50 }
 .cal-table th {
   padding: 8px 4px; text-align: center; font-size: .82em;
   background: #ecf0f1; border: 1px solid #ddd; font-weight: 600;

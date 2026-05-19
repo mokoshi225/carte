@@ -998,54 +998,20 @@ function closeCalendar() {
 }
 
 function calNavigate(delta) {
-  _calMonth += delta;
-  if (_calMonth < 1) { _calMonth = 12; _calYear--; }
-  if (_calMonth > 12) { _calMonth = 1; _calYear++; }
+  _calMonth += delta * 2;
+  if (_calMonth < 1) { _calMonth += 12; _calYear--; }
+  if (_calMonth > 12) { _calMonth -= 12; _calYear++; }
   renderCalendar(_calYear, _calMonth);
 }
 
-async function renderCalendar(year, month) {
-  var title = $('cal-title');
-  var body = $('cal-body');
-  var info = $('cal-header-info');
-  if (!title || !body) return;
+function _buildMonthTable(y, m, pad, patientCache, todayStr) {
+  var firstDay = new Date(y, m - 1, 1).getDay();
+  var daysInMonth = new Date(y, m, 0).getDate();
 
-  title.textContent = year + '年' + month + '月';
-  if (info) {
-    var today = new Date();
-    info.textContent = '今日: ' + fmtDate(today);
-  }
+  var html = '<table class="cal-table"><caption class="cal-month-title">' + y + '年' + m + '月</caption>';
+  html += '<thead><tr><th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th></tr></thead><tbody>';
 
-  var pad = function(n) { return String(n).padStart(2, '0'); };
-  var startDate = year + '-' + pad(month) + '-01';
-  var endDate = year + '-' + pad(month) + '-31';
-  try {
-    _calAppointments = await getAppointmentsByDateRange(startDate, endDate);
-  } catch (e) {
-    _calAppointments = [];
-  }
-
-  var patientCache = {};
-  for (var i = 0; i < _calAppointments.length; i++) {
-    var pid = _calAppointments[i].patientId;
-    if (!patientCache[pid]) {
-      try {
-        var pat = await getPatient(pid);
-        patientCache[pid] = pat ? pat.name : pid;
-      } catch (e) {
-        patientCache[pid] = pid;
-      }
-    }
-  }
-
-  var firstDay = new Date(year, month - 1, 1).getDay();
-  var daysInMonth = new Date(year, month, 0).getDate();
-  var todayStr = fmtDate(new Date());
-
-  var html = '';
-  var cellIdx = 0;
   var day = 1;
-
   for (var row = 0; row < 6; row++) {
     if (day > daysInMonth) break;
     html += '<tr>';
@@ -1053,7 +1019,7 @@ async function renderCalendar(year, month) {
       if ((row === 0 && col < firstDay) || day > daysInMonth) {
         html += '<td class="cal-empty"></td>';
       } else {
-        var dateStr = year + '-' + pad(month) + '-' + pad(day);
+        var dateStr = y + '-' + pad(m) + '-' + pad(day);
         var isToday = dateStr === todayStr;
         var dayAppts = _calAppointments.filter(function(a) {
           return a.appointmentDate === dateStr && a.status === 'scheduled';
@@ -1081,7 +1047,56 @@ async function renderCalendar(year, month) {
     }
     html += '</tr>';
   }
+  html += '</tbody></table>';
+  return html;
+}
 
+async function renderCalendar(year, month) {
+  var title = $('cal-title');
+  var body = $('cal-body');
+  var info = $('cal-header-info');
+  if (!title || !body) return;
+
+  // 次月を計算
+  var nextMonth = month + 1;
+  var nextYear = year;
+  if (nextMonth > 12) { nextMonth = 1; nextYear++; }
+
+  title.textContent = year + '年' + month + '月 - ' + nextYear + '年' + nextMonth + '月';
+  if (info) {
+    var today = new Date();
+    info.textContent = '今日: ' + fmtDate(today);
+  }
+
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var startDate = year + '-' + pad(month) + '-01';
+  var endDate = nextYear + '-' + pad(nextMonth) + '-31';
+  try {
+    _calAppointments = await getAppointmentsByDateRange(startDate, endDate);
+  } catch (e) {
+    _calAppointments = [];
+  }
+
+  // 患者名をキャッシュ
+  var patientCache = {};
+  for (var i = 0; i < _calAppointments.length; i++) {
+    var pid = _calAppointments[i].patientId;
+    if (!patientCache[pid]) {
+      try {
+        var pat = await getPatient(pid);
+        patientCache[pid] = pat ? pat.name : pid;
+      } catch (e) {
+        patientCache[pid] = pid;
+      }
+    }
+  }
+
+  var todayStr = fmtDate(new Date());
+
+  var html = '<div class="cal-two-month">';
+  html += _buildMonthTable(year, month, pad, patientCache, todayStr);
+  html += _buildMonthTable(nextYear, nextMonth, pad, patientCache, todayStr);
+  html += '</div>';
   body.innerHTML = html;
 
   body.querySelectorAll('.cal-day[data-date]').forEach(function(td) {
