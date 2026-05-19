@@ -3,7 +3,7 @@
    ================================================================= */
 
 const DB_NAME = 'BloodPressureDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 let db = null;
 
 /** DB オープン */
@@ -31,6 +31,9 @@ return new Promise((resolve, reject) => {
           as.createIndex('byPatient', 'patientId', { unique: false });
           as.createIndex('byDate', 'appointmentDate', { unique: false });
           as.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
+        }
+        if (!d.objectStoreNames.contains('daySettings')) {
+          d.createObjectStore('daySettings', { keyPath: 'date' });
         }
       };
     req.onsuccess = () => { db = req.result; resolve(db); };
@@ -186,4 +189,24 @@ async function markAppointmentDone(id) {
   a.status = 'done';
   a.updatedAt = new Date().toISOString();
   return prom(tx('appointments', 'readwrite').put(a));
+}
+
+/* ---- 日付設定 ---- */
+
+async function getDaySetting(date) {
+  try { return await prom(tx('daySettings', 'readonly').get(date)); } catch { return null; }
+}
+
+async function putDaySetting(ds) {
+  ds.updatedAt = new Date().toISOString();
+  return prom(tx('daySettings', 'readwrite').put(ds));
+}
+
+async function getDaySettingsByDateRange(startDate, endDate) {
+  const s = tx('daySettings', 'readonly');
+  return prom(s.getAll(IDBKeyRange.bound(startDate, endDate, false, false)));
+}
+
+async function deleteDaySetting(date) {
+  return prom(tx('daySettings', 'readwrite').delete(date));
 }

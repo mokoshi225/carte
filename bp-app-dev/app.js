@@ -169,6 +169,10 @@ async function init() {
   var btnExportAppt = $('btn-export-appt-csv');
   if (btnExportAppt) btnExportAppt.addEventListener('click', exportAppointmentsCSV);
 
+  // Event: Demo data
+  var btnDemo = $('btn-demo-data');
+  if (btnDemo) btnDemo.addEventListener('click', initDemoData);
+
   // Init screen: check if patients exist and auto-navigate
   try {
     var patients = await getAllPatients();
@@ -192,58 +196,34 @@ async function init() {
 
 // Synchronous DB open wrapper (runs inside async init)
 function openDBSync() {
-   var opened = null, error = null;
-    var req = indexedDB.open('BloodPressureDB', 3);
-req.onupgradeneeded = function(e) {
-      var d = e.target.result;
-      if (!d.objectStoreNames.contains('patients')) {
-        var ps = d.createObjectStore('patients', { keyPath: 'id' });
-        ps.createIndex('name', 'name');
-      }
-      if (!d.objectStoreNames.contains('readings')) {
-        var rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
-        rs.createIndex('byPatient', 'patientId');
-        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
-        rs.createIndex('byDate', 'date');
-      }
-      if (!d.objectStoreNames.contains('monthly_summaries')) {
-        var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
-        ms.createIndex('byPatient', 'patientId');
-      }
-      if (!d.objectStoreNames.contains('appointments')) {
-        var as2 = d.createObjectStore('appointments', { keyPath: 'id', autoIncrement: true });
-        as2.createIndex('byPatient', 'patientId');
-        as2.createIndex('byDate', 'appointmentDate');
-        as2.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
-      }
-    };
-    req.onsuccess = function(e) { opened = e.target.result; };
-    req.onerror = function(e) { error = e.target.error; };
    return new Promise(function(resolve, reject) {
-     var r = indexedDB.open('BloodPressureDB', 3);
-r.onupgradeneeded = function(e) {
-      var d = e.target.result;
-      if (!d.objectStoreNames.contains('patients')) {
-        var ps = d.createObjectStore('patients', { keyPath: 'id' });
-        ps.createIndex('name', 'name');
-      }
-      if (!d.objectStoreNames.contains('readings')) {
-        var rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
-        rs.createIndex('byPatient', 'patientId');
-        rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
-        rs.createIndex('byDate', 'date');
-      }
-      if (!d.objectStoreNames.contains('monthly_summaries')) {
-        var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
-        ms.createIndex('byPatient', 'patientId');
-      }
-      if (!d.objectStoreNames.contains('appointments')) {
-        var as3 = d.createObjectStore('appointments', { keyPath: 'id', autoIncrement: true });
-        as3.createIndex('byPatient', 'patientId');
-        as3.createIndex('byDate', 'appointmentDate');
-        as3.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
-      }
-    };
+     var r = indexedDB.open('BloodPressureDB', 4);
+     r.onupgradeneeded = function(e) {
+       var d = e.target.result;
+       if (!d.objectStoreNames.contains('patients')) {
+         var ps = d.createObjectStore('patients', { keyPath: 'id' });
+         ps.createIndex('name', 'name');
+       }
+       if (!d.objectStoreNames.contains('readings')) {
+         var rs = d.createObjectStore('readings', { keyPath: 'id', autoIncrement: true });
+         rs.createIndex('byPatient', 'patientId');
+         rs.createIndex('byPatientDate', ['patientId', 'date'], { unique: true });
+         rs.createIndex('byDate', 'date');
+       }
+       if (!d.objectStoreNames.contains('monthly_summaries')) {
+         var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
+         ms.createIndex('byPatient', 'patientId');
+       }
+       if (!d.objectStoreNames.contains('appointments')) {
+         var as3 = d.createObjectStore('appointments', { keyPath: 'id', autoIncrement: true });
+         as3.createIndex('byPatient', 'patientId');
+         as3.createIndex('byDate', 'appointmentDate');
+         as3.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
+       }
+       if (!d.objectStoreNames.contains('daySettings')) {
+         d.createObjectStore('daySettings', { keyPath: 'date' });
+       }
+     };
      r.onsuccess = function(e) { resolve(e.target.result); };
      r.onerror = function(e) { reject(e.target.error); };
    });
@@ -316,6 +296,21 @@ async function getUpcomingAppointment(pid) {
 }
 async function getAppointmentsByDateRange(start, end) {
   return prom(tx('appointments', 'readonly').index('byDate').getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+
+// ── 日付設定 ──
+async function getDaySetting(date) {
+  try { return await prom(tx('daySettings', 'readonly').get(date)); } catch { return null; }
+}
+async function putDaySetting(ds) {
+  ds.updatedAt = new Date().toISOString();
+  return prom(tx('daySettings', 'readwrite').put(ds));
+}
+async function getDaySettingsByDateRange(start, end) {
+  return prom(tx('daySettings', 'readonly').getAll(IDBKeyRange.bound(start, end, false, false)));
+}
+async function deleteDaySetting(date) {
+  return prom(tx('daySettings', 'readwrite').delete(date));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -973,6 +968,31 @@ async function handleMarkDone() {
 //  CALENDAR
 // ═══════════════════════════════════════════════════════════
 
+// 日本の祝日データ（2025-2027年）
+var JP_HOLIDAYS = {
+  '2025-01-01': '元日', '2025-01-13': '成人の日', '2025-02-11': '建国記念の日',
+  '2025-02-23': '天皇誕生日', '2025-02-24': '振替休日', '2025-03-20': '春分の日',
+  '2025-04-29': '昭和の日', '2025-05-03': '憲法記念日', '2025-05-04': 'みどりの日',
+  '2025-05-05': 'こどもの日', '2025-05-06': '振替休日', '2025-07-21': '海の日',
+  '2025-08-11': '山の日', '2025-09-15': '敬老の日', '2025-09-23': '秋分の日',
+  '2025-10-13': 'スポーツの日', '2025-11-03': '文化の日', '2025-11-23': '勤労感謝の日',
+  '2025-11-24': '振替休日',
+  '2026-01-01': '元日', '2026-01-12': '成人の日', '2026-02-11': '建国記念の日',
+  '2026-02-23': '天皇誕生日', '2026-03-20': '春分の日', '2026-04-29': '昭和の日',
+  '2026-05-03': '憲法記念日', '2026-05-04': 'みどりの日', '2026-05-05': 'こどもの日',
+  '2026-05-06': '振替休日', '2026-07-20': '海の日', '2026-08-11': '山の日',
+  '2026-09-21': '敬老の日', '2026-09-22': '秋分の日', '2026-10-12': 'スポーツの日',
+  '2026-11-03': '文化の日', '2026-11-23': '勤労感謝の日',
+  '2027-01-01': '元日', '2027-01-11': '成人の日', '2027-02-11': '建国記念の日',
+  '2027-02-23': '天皇誕生日', '2027-03-20': '春分の日', '2027-03-22': '振替休日',
+  '2027-04-29': '昭和の日', '2027-05-03': '憲法記念日', '2027-05-04': 'みどりの日',
+  '2027-05-05': 'こどもの日', '2027-07-19': '海の日', '2027-08-11': '山の日',
+  '2027-09-20': '敬老の日', '2027-09-23': '秋分の日', '2027-10-11': 'スポーツの日',
+  '2027-11-03': '文化の日', '2027-11-23': '勤労感謝の日'
+};
+
+var _busyLevelLabels = ['空き', '通常', '混雑', '激混み'];
+
 function openCalendar() {
   var now = new Date();
   _calYear = now.getFullYear();
@@ -1004,7 +1024,30 @@ function calNavigate(delta) {
   renderCalendar(_calYear, _calMonth);
 }
 
-function _buildMonthTable(y, m, pad, patientCache, todayStr) {
+function _busyLabel(level) {
+  return level >= -1 && level <= 2 ? _busyLevelLabels[level + 1] : '';
+}
+
+function _predictionMapKey(dsMap, startDate, endDate) {
+  // 28日後予測マップを作成
+  var pred = {};
+  for (var dateStr in dsMap) {
+    if (dateStr < startDate || dateStr > endDate) continue;
+    var ds = dsMap[dateStr];
+    if (!ds.isManual) continue;
+    var triggerBusy = (ds.busyLevel === 2 || ds.busyLevel === -1) || ds.flags.isHoliday;
+    if (!triggerBusy) continue;
+    var d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + 28);
+    var pd = fmtDate(d);
+    if (pd >= startDate && pd <= endDate && (!dsMap[pd] || !dsMap[pd].isManual)) {
+      pred[pd] = { fromDate: dateStr, busyLevel: ds.flags.isHoliday ? -1 : ds.busyLevel };
+    }
+  }
+  return pred;
+}
+
+function _buildMonthTable(y, m, pad, patientCache, todayStr, daySettingMap, predMap) {
   var firstDay = new Date(y, m - 1, 1).getDay();
   var daysInMonth = new Date(y, m, 0).getDate();
   var todayDate = new Date(todayStr + 'T00:00:00');
@@ -1034,6 +1077,18 @@ function _buildMonthTable(y, m, pad, patientCache, todayStr) {
         if (isSat) cls += ' cal-sat';
         if (dayAppts.length > 0) cls += ' cal-has-appt';
 
+        // 日付設定を参照
+        var ds = daySettingMap ? daySettingMap[dateStr] : null;
+        if (ds) {
+          if (ds.flags && ds.flags.isHoliday) cls += ' cal-holiday';
+          if (ds.flags && ds.flags.isClosed) cls += ' cal-closed';
+          if (ds.flags && ds.flags.isBusinessTrip) cls += ' cal-businesstrip';
+          if (ds.flags && ds.flags.isLimited) cls += ' cal-limited';
+          if (ds.busyLevel === 2) cls += ' cal-busy-2';
+          else if (ds.busyLevel === 1) cls += ' cal-busy-1';
+          else if (ds.busyLevel === -1) cls += ' cal-busy-m1';
+        }
+
         // 今日からの日数
         var cellDate = new Date(dateStr + 'T00:00:00');
         var offset = Math.round((cellDate - todayDate) / 86400000);
@@ -1047,11 +1102,44 @@ function _buildMonthTable(y, m, pad, patientCache, todayStr) {
         }
 
         var label = '' + day + '<br>' + offsetLabel;
+
+        // 混雑度バッジ
+        if (ds) {
+          var busyBadge = '';
+          if (ds.flags && ds.flags.isHoliday) {
+            busyBadge = '<span class="cal-badge cal-badge-holiday">祝日</span>';
+          } else if (ds.flags && ds.flags.isClosed) {
+            busyBadge = '<span class="cal-badge cal-badge-closed">休診</span>';
+          } else if (ds.flags && ds.flags.isBusinessTrip) {
+            busyBadge = '<span class="cal-badge cal-badge-trip">出張</span>';
+          } else if (ds.busyLevel === 2) {
+            busyBadge = '<span class="cal-badge cal-badge-busy2">激混み</span>';
+          } else if (ds.busyLevel === 1) {
+            busyBadge = '<span class="cal-badge cal-badge-busy1">混雑</span>';
+          } else if (ds.busyLevel === -1) {
+            busyBadge = '<span class="cal-badge cal-badge-empty">余裕</span>';
+          }
+          if (busyBadge) label += '<br>' + busyBadge;
+          if (ds.flags && ds.flags.isLimited) {
+            label += '<br><span class="cal-badge cal-badge-limited">制限</span>';
+          }
+        }
+
+        // 患者名
         if (dayAppts.length > 0) {
           var names = dayAppts.map(function(a) { return patientCache[a.patientId] || a.patientId; });
           var displayNames = names.slice(0, 2);
           if (names.length > 2) displayNames.push('+' + (names.length - 2));
           label += '<br><span class="cal-appt-names">' + displayNames.join('<br>') + '</span>';
+        }
+
+        // 28日後予測
+        var pred = predMap ? predMap[dateStr] : null;
+        if (pred) {
+          var predLabel = pred.busyLevel === -1
+            ? '<span class="cal-pred cal-pred-empty">🟢←28日予測</span>'
+            : '<span class="cal-pred cal-pred-busy">🔴←28日予測</span>';
+          label += '<br>' + predLabel;
         }
 
         html += '<td class="' + cls + '" data-date="' + dateStr + '">' + label + '</td>';
@@ -1104,11 +1192,38 @@ async function renderCalendar(year, month) {
     }
   }
 
+  // daySettings を取得
+  var daySettingMap = {};
+  try {
+    var daySettings = await getDaySettingsByDateRange(startDate, endDate);
+    for (var i = 0; i < daySettings.length; i++) {
+      daySettingMap[daySettings[i].date] = daySettings[i];
+    }
+  } catch (e) { /* ignore */ }
+
+  // 祝日を自動セット（手動設定済みの日は上書きしない）
+  for (var dateStr in JP_HOLIDAYS) {
+    if (dateStr >= startDate && dateStr <= endDate) {
+      if (!daySettingMap[dateStr] || !daySettingMap[dateStr].isManual) {
+        daySettingMap[dateStr] = {
+          date: dateStr,
+          flags: { isHoliday: true, isBusinessTrip: false, isLimited: false, isClosed: false },
+          busyLevel: -1,
+          note: JP_HOLIDAYS[dateStr],
+          isManual: false
+        };
+      }
+    }
+  }
+
+  // 28日後予測マップ
+  var predMap = _predictionMapKey(daySettingMap, startDate, endDate);
+
   var todayStr = fmtDate(new Date());
 
   var html = '<div class="cal-two-month">';
-  html += _buildMonthTable(year, month, pad, patientCache, todayStr);
-  html += _buildMonthTable(nextYear, nextMonth, pad, patientCache, todayStr);
+  html += _buildMonthTable(year, month, pad, patientCache, todayStr, daySettingMap, predMap);
+  html += _buildMonthTable(nextYear, nextMonth, pad, patientCache, todayStr, daySettingMap, predMap);
   html += '</div>';
   body.innerHTML = html;
 
@@ -1159,7 +1274,7 @@ async function showAppointmentDetail(date, appts) {
     html += '</tbody></table>';
   }
 
-  // 新規予約フォーム（常に表示）
+  // 新規予約フォーム
   html += '<div style="margin-top:' + (appts && appts.length > 0 ? '16px;padding-top:16px;border-top:2px solid #e0e4e8' : '0') + '">';
   html += '<h4 style="font-size:.9em;margin-bottom:10px;color:#2c3e50">📅 新規予約</h4>';
   html += '<div class="form-row"><label>患者</label><select id="cal-new-patient" style="flex:1;padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.9em;background:#fff"></select></div>';
@@ -1200,7 +1315,87 @@ async function showAppointmentDetail(date, appts) {
     });
   });
 
+  // 📌 日付設定
+  _renderDaySettingSection(date);
+
   showModal('appt-detail');
+}
+
+// ── 日付設定 ──
+
+async function _renderDaySettingSection(date) {
+  var container = $('appt-detail-body');
+  if (!container) return;
+
+  // 既存設定を取得
+  var ds = null;
+  try { ds = await getDaySetting(date); } catch (e) { /* ignore */ }
+  var flags = ds && ds.flags ? ds.flags : {};
+  var busyLevel = ds ? ds.busyLevel : 0;
+  var note = ds ? (ds.note || '') : '';
+
+  var sec = document.createElement('div');
+  sec.style.cssText = 'margin-top:16px;padding-top:16px;border-top:2px solid #e0e4e8';
+  sec.innerHTML =
+    '<h4 style="font-size:.9em;margin-bottom:10px;color:#2c3e50">📌 日付設定</h4>' +
+    '<div class="form-row" style="gap:8px">' +
+      '<label style="min-width:60px">種別</label>' +
+      '<label style="font-size:.82em;font-weight:400"><input type="checkbox" id="cal-flag-holiday"' + (flags.isHoliday ? ' checked' : '') + '> 祝日</label>' +
+      '<label style="font-size:.82em;font-weight:400"><input type="checkbox" id="cal-flag-trip"' + (flags.isBusinessTrip ? ' checked' : '') + '> 出張</label>' +
+      '<label style="font-size:.82em;font-weight:400"><input type="checkbox" id="cal-flag-limited"' + (flags.isLimited ? ' checked' : '') + '> 制限</label>' +
+      '<label style="font-size:.82em;font-weight:400"><input type="checkbox" id="cal-flag-closed"' + (flags.isClosed ? ' checked' : '') + '> 休診</label>' +
+    '</div>' +
+    '<div class="form-row"><label style="min-width:60px">混雑</label>' +
+      '<select id="cal-busy-level" style="padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.88em;background:#fff">' +
+        '<option value="-1"' + (busyLevel === -1 ? ' selected' : '') + '>空き</option>' +
+        '<option value="0"' + (busyLevel === 0 ? ' selected' : '') + '>通常</option>' +
+        '<option value="1"' + (busyLevel === 1 ? ' selected' : '') + '>混雑</option>' +
+        '<option value="2"' + (busyLevel === 2 ? ' selected' : '') + '>激混み</option>' +
+      '</select>' +
+    '</div>' +
+    '<div class="form-row"><label style="min-width:60px">メモ</label>' +
+      '<input type="text" id="cal-setting-note" value="' + esc(note) + '" placeholder="任意" style="flex:1;padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.9em">' +
+    '</div>' +
+    '<div class="btn-group" style="margin-top:10px;justify-content:flex-start">' +
+      '<button class="btn btn-primary" id="btn-cal-save-setting" style="padding:8px 20px;font-size:.88em">💾 設定保存</button>' +
+      (ds ? '<span style="font-size:.78em;color:#95a5a6;margin-left:8px">最終更新: ' + new Date(ds.updatedAt).toLocaleDateString('ja-JP') + '</span>' : '') +
+    '</div>';
+
+  container.appendChild(sec);
+
+  var btnSave = $('btn-cal-save-setting');
+  if (btnSave) {
+    btnSave.addEventListener('click', function() { handleSaveDaySetting(date); });
+  }
+}
+
+async function handleSaveDaySetting(date) {
+  var getChk = function(id) { var e = $(id); return e ? e.checked : false; };
+  var busyEl = $('cal-busy-level');
+  var noteEl = $('cal-setting-note');
+
+  var ds = {
+    date: date,
+    flags: {
+      isHoliday: getChk('cal-flag-holiday'),
+      isBusinessTrip: getChk('cal-flag-trip'),
+      isLimited: getChk('cal-flag-limited'),
+      isClosed: getChk('cal-flag-closed')
+    },
+    busyLevel: busyEl ? Number(busyEl.value) : 0,
+    note: noteEl ? noteEl.value.trim() : '',
+    isManual: true
+  };
+
+  try {
+    await putDaySetting(ds);
+    toast('日付設定を保存しました');
+    hideModal('appt-detail');
+    renderCalendar(_calYear, _calMonth);
+  } catch (e) {
+    console.error('handleSaveDaySetting error:', e);
+    toast('保存エラー: ' + e.message);
+  }
 }
 
 async function handleCalendarCreateAppointment(date) {
@@ -1249,6 +1444,109 @@ async function handleCalendarCreateAppointment(date) {
   } catch (e) {
     console.error('handleCalendarCreateAppointment error:', e);
     toast('予約作成エラー: ' + e.message);
+  }
+}
+
+// ── デモデータ ──
+
+async function initDemoData() {
+  var ok = await confirmAsync('デモデータ投入',
+    '患者DEMO-001〜003、カレンダー用の日付設定・予約データを作成します。\n続行しますか？');
+  if (!ok) return;
+
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var pad2 = function(n) { return String(n).padStart(2, '0'); };
+  var fmtYMD = function(d) {
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+  };
+
+  function addDays(d, n) {
+    var r = new Date(d);
+    r.setDate(r.getDate() + n);
+    return r;
+  }
+
+  try {
+    // ---- Patients ----
+    var demoPats = [
+      { id: 'DEMO-001', name: '山田太郎', gender: '男', birthDate: '1965-03-15', memo: '高血圧' },
+      { id: 'DEMO-002', name: '鈴木花子', gender: '女', birthDate: '1978-07-22', memo: '経過観察' },
+      { id: 'DEMO-003', name: '佐藤健一', gender: '男', birthDate: '1955-11-08', memo: '糖尿病合併' }
+    ];
+    for (var pi = 0; pi < demoPats.length; pi++) {
+      await putPatient(demoPats[pi]);
+    }
+
+    // ---- DaySettings ----
+    var dsList = [
+      { offset: 1,  flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: false }, busyLevel: 1, note: '混雑見込み' },
+      { offset: 3,  flags: { isHoliday: false, isBusinessTrip: false, isLimited: true, isClosed: false }, busyLevel: 2, note: '激混み＋予約制限' },
+      { offset: 5,  flags: { isHoliday: false, isBusinessTrip: true, isLimited: false, isClosed: false }, busyLevel: 0, note: '午後出張' },
+      { offset: 7,  flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: true }, busyLevel: 0, note: '休診日' },
+      { offset: 10, flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: false }, busyLevel: -1, note: '空き' },
+      { offset: 14, flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: false }, busyLevel: 2, note: '混雑予想' },
+      { offset: 21, flags: { isHoliday: false, isBusinessTrip: true, isLimited: false, isClosed: false }, busyLevel: 0, note: '終日出張' },
+      { offset: 28, flags: { isHoliday: false, isBusinessTrip: false, isLimited: true, isClosed: false }, busyLevel: 1, note: '午前制限' },
+    ];
+
+    // 来月もいくつか設定
+    var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    var nmDsList = [
+      { offset: 5,  flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: false }, busyLevel: -1, note: '空き' },
+      { offset: 10, flags: { isHoliday: false, isBusinessTrip: true, isLimited: false, isClosed: false }, busyLevel: 0, note: '出張' },
+      { offset: 15, flags: { isHoliday: false, isBusinessTrip: false, isLimited: true, isClosed: false }, busyLevel: 2, note: '激混み' },
+      { offset: 20, flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: true }, busyLevel: 0, note: '休診' },
+    ];
+
+    for (var di = 0; di < dsList.length; di++) {
+      var d = addDays(today, dsList[di].offset);
+      await putDaySetting({
+        date: fmtYMD(d),
+        flags: dsList[di].flags,
+        busyLevel: dsList[di].busyLevel,
+        note: dsList[di].note,
+        isManual: true
+      });
+    }
+    for (var di = 0; di < nmDsList.length; di++) {
+      var d = addDays(nextMonth, nmDsList[di].offset);
+      await putDaySetting({
+        date: fmtYMD(d),
+        flags: nmDsList[di].flags,
+        busyLevel: nmDsList[di].busyLevel,
+        note: nmDsList[di].note,
+        isManual: true
+      });
+    }
+
+    // ---- Appointments ----
+    var apptData = [
+      { pid: 'DEMO-001', offset: -7,  days: 28, note: '定期処方', status: 'done' },
+      { pid: 'DEMO-002', offset: -14, days: 14, note: '経過観察', status: 'done' },
+      { pid: 'DEMO-001', offset: 3,   days: 28, note: '定期処方', status: 'scheduled' },
+      { pid: 'DEMO-002', offset: 7,   days: 14, note: '経過観察', status: 'scheduled' },
+      { pid: 'DEMO-003', offset: 14,  days: 30, note: '糖尿病定期', status: 'scheduled' },
+    ];
+
+    for (var ai = 0; ai < apptData.length; ai++) {
+      var ap = apptData[ai];
+      var ad = addDays(today, ap.offset);
+      var now = new Date();
+      await putAppointment({
+        patientId: ap.pid,
+        appointmentDate: fmtYMD(ad),
+        medicationDays: ap.days,
+        medicationNote: ap.note,
+        status: ap.status,
+        createdAt: now.toISOString()
+      });
+    }
+
+    toast('デモデータを投入しました: 患者3件, 日付設定12件, 予約5件');
+  } catch (e) {
+    console.error('initDemoData error:', e);
+    toast('デモデータ投入エラー: ' + e.message);
   }
 }
 

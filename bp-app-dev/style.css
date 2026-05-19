@@ -290,6 +290,34 @@ input, select { font-family: inherit }
 .appointment-badge.done { background: #d6eaf8; color: #2980b9 }
 .appointment-badge.cancelled { background: #fadbd8; color: #c0392b }
 
+/* ===== Calendar Day Setting Indicators ===== */
+.cal-holiday { background: #fde8e8 !important }
+.cal-closed { background: #e8e8e8 !important; text-decoration: line-through; opacity: .7 }
+.cal-businesstrip { background: #fef5e7 !important }
+.cal-limited { box-shadow: inset 2px 2px 0 #f39c12, inset -2px -2px 0 #f39c12 !important }
+.cal-busy-2 { background: #fdedec !important }
+.cal-busy-1 { background: #fef9e7 !important }
+.cal-busy-m1 { background: #eafaf1 !important }
+
+.cal-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 3px;
+  font-size: .7em; font-weight: 600; line-height: 1.5;
+}
+.cal-badge-holiday { background: #f5b7b1; color: #fff }
+.cal-badge-closed { background: #bdc3c7; color: #fff }
+.cal-badge-trip { background: #f0b27a; color: #fff }
+.cal-badge-busy2 { background: #e74c3c; color: #fff }
+.cal-badge-busy1 { background: #f39c12; color: #fff }
+.cal-badge-empty { background: #27ae60; color: #fff }
+.cal-badge-limited { color: #f39c12; font-weight: 700; font-size: .72em }
+
+.cal-pred {
+  display: inline-block; font-size: .65em; font-weight: 600;
+  padding: 1px 5px; border-radius: 2px; margin-top: 1px;
+}
+.cal-pred-empty { background: #d5f5e3; color: #1e8449 }
+.cal-pred-busy { background: #fadbd8; color: #c0392b }
+
 /* ===== Calendar ===== */
 .cal-two-month { display: flex; gap: 16px; justify-content: center; align-items: flex-start }
 .cal-two-month .cal-table { flex: 1; min-width: 0 }

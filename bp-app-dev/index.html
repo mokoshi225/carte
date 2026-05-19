@@ -22,10 +22,11 @@
         <input type="text" id="inp-patient-id" placeholder="例: 12345" autofocus>
         <div class="hint">IDを入力して Enter キーで開始</div>
       </div>
-       <div class="btn-group">
-          <button class="btn btn-primary" id="btn-id-enter">開 始</button>
-          <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
-        </div>
+        <div class="btn-group">
+           <button class="btn btn-primary" id="btn-id-enter">開 始</button>
+           <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
+           <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
+         </div>
        <div class="version-info">
          <small>         バージョン <span id="app-version">2.0.0</span> | <span id="app-build-date"></span></small>
        </div>
@@ -258,8 +259,17 @@
       <div id="cal-grid-container" style="overflow-x:auto">
         <div id="cal-body"></div>
       </div>
-      <div id="cal-legend" style="margin-top:8px;font-size:.82em;color:#7f8c8d">
-        <span>🟢 予約あり | 空き日🟡クリックで予約作成</span>
+      <div id="cal-legend" style="margin-top:8px;font-size:.78em;color:#7f8c8d;display:flex;flex-wrap:wrap;gap:4px 12px">
+        <span>🟢 予約あり</span>
+        <span style="background:#fde8e8;padding:1px 4px;border-radius:2px">祝日</span>
+        <span style="background:#e8e8e8;padding:1px 4px;border-radius:2px;text-decoration:line-through">休診</span>
+        <span style="background:#fef5e7;padding:1px 4px;border-radius:2px">出張</span>
+        <span style="border:1px solid #f39c12;padding:1px 4px;border-radius:2px">制限</span>
+        <span style="background:#fdedec;padding:1px 4px;border-radius:2px">激混み</span>
+        <span style="background:#fef9e7;padding:1px 4px;border-radius:2px">混雑</span>
+        <span style="background:#eafaf1;padding:1px 4px;border-radius:2px">空き</span>
+        <span>🔴←28日予測</span>
+        <span>🟢←28日予測</span>
       </div>
       <div class="data-bar" style="margin-top:12px">
         <button id="btn-export-appt-csv">📤 予約CSV出力</button>
