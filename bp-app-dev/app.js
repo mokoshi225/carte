@@ -1,11 +1,14 @@
 /* =================================================================
-   app.js — メインアプリケーションロジック v1.3.0
+   app.js — メインアプリケーションロジック v2.0.0
    ================================================================= */
 
 currentPatientId = null;
 var currentView = 'all';
 var editingId = null;
 var _confirmResolve = null;
+var _calYear = 0;
+var _calMonth = 0;
+var _calAppointments = [];
 
 function tx(s, m) { return db.transaction(s, m).objectStore(s); }
 function prom(r) {
@@ -35,9 +38,10 @@ function toast(msg) {
 function showModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'flex'; }
 function hideModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'none'; }
 function showScreen(id) {
-  var a = $('screen-id'), b = $('screen-patient');
+  var a = $('screen-id'), b = $('screen-patient'), c = $('screen-calendar');
   if (a) a.style.display = id === 'id' ? '' : 'none';
   if (b) b.style.display = id === 'patient' ? '' : 'none';
+  if (c) c.style.display = id === 'calendar' ? '' : 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -136,6 +140,35 @@ async function init() {
   if (cYes) cYes.addEventListener('click', function() { handleConfirm(true); });
   if (cNo) cNo.addEventListener('click', function() { handleConfirm(false); });
 
+  // Event: Appointment
+  var btnSaveAppt = $('btn-save-appointment');
+  if (btnSaveAppt) btnSaveAppt.addEventListener('click', handleSaveAppointment);
+  var btnMarkDone = $('btn-mark-done');
+  if (btnMarkDone) btnMarkDone.addEventListener('click', handleMarkDone);
+
+  var inpNextDate = $('inp-next-date');
+  if (inpNextDate) inpNextDate.addEventListener('change', updateAppointmentCountdown);
+  var inpMedDays = $('inp-medication-days');
+  if (inpMedDays) inpMedDays.addEventListener('input', updateAppointmentCountdown);
+
+  // Event: Calendar
+  var calTop = $('btn-calendar-top');
+  if (calTop) calTop.addEventListener('click', openCalendar);
+  var vCal = $('view-calendar');
+  if (vCal) vCal.addEventListener('click', function() { currentView = 'calendar'; if (currentPatientId) renderView(); });
+  var calPrev = $('cal-prev');
+  if (calPrev) calPrev.addEventListener('click', function() { calNavigate(-1); });
+  var calNext = $('cal-next');
+  if (calNext) calNext.addEventListener('click', function() { calNavigate(1); });
+  var calToday = $('cal-today');
+  if (calToday) calToday.addEventListener('click', function() { openCalendar(); });
+  var calBack = $('cal-back');
+  if (calBack) calBack.addEventListener('click', closeCalendar);
+  var calDetailClose = $('appt-detail-close');
+  if (calDetailClose) calDetailClose.addEventListener('click', function() { hideModal('appt-detail'); });
+  var btnExportAppt = $('btn-export-appt-csv');
+  if (btnExportAppt) btnExportAppt.addEventListener('click', exportAppointmentsCSV);
+
   // Init screen: check if patients exist and auto-navigate
   try {
     var patients = await getAllPatients();
@@ -151,16 +184,16 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v1.3.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '1.3.0';
+  $('header-info').textContent = 'v2.0.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.0.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '1.3.0';
+  $('app-version-footer').textContent = '2.0.0';
 }
 
 // Synchronous DB open wrapper (runs inside async init)
 function openDBSync() {
    var opened = null, error = null;
-   var req = indexedDB.open('BloodPressureDB', 2);
+    var req = indexedDB.open('BloodPressureDB', 3);
 req.onupgradeneeded = function(e) {
       var d = e.target.result;
       if (!d.objectStoreNames.contains('patients')) {
@@ -177,11 +210,17 @@ req.onupgradeneeded = function(e) {
         var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
         ms.createIndex('byPatient', 'patientId');
       }
+      if (!d.objectStoreNames.contains('appointments')) {
+        var as2 = d.createObjectStore('appointments', { keyPath: 'id', autoIncrement: true });
+        as2.createIndex('byPatient', 'patientId');
+        as2.createIndex('byDate', 'appointmentDate');
+        as2.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
+      }
     };
     req.onsuccess = function(e) { opened = e.target.result; };
     req.onerror = function(e) { error = e.target.error; };
    return new Promise(function(resolve, reject) {
-     var r = indexedDB.open('BloodPressureDB', 2);
+     var r = indexedDB.open('BloodPressureDB', 3);
 r.onupgradeneeded = function(e) {
       var d = e.target.result;
       if (!d.objectStoreNames.contains('patients')) {
@@ -197,6 +236,12 @@ r.onupgradeneeded = function(e) {
       if (!d.objectStoreNames.contains('monthly_summaries')) {
         var ms = d.createObjectStore('monthly_summaries', { keyPath: ['patientId', 'year', 'month'] });
         ms.createIndex('byPatient', 'patientId');
+      }
+      if (!d.objectStoreNames.contains('appointments')) {
+        var as3 = d.createObjectStore('appointments', { keyPath: 'id', autoIncrement: true });
+        as3.createIndex('byPatient', 'patientId');
+        as3.createIndex('byDate', 'appointmentDate');
+        as3.createIndex('byPatientDate', ['patientId', 'appointmentDate'], { unique: true });
       }
     };
      r.onsuccess = function(e) { resolve(e.target.result); };
@@ -242,6 +287,36 @@ async function putReading(r) {
 }
 async function deleteReading(id) { return prom(tx('readings', 'readwrite').delete(id)); }
 async function getAllReadings() { return prom(tx('readings', 'readonly').getAll()); }
+
+// ── 予約 ──
+async function getAppointment(id) { return prom(tx('appointments', 'readonly').get(id)); }
+async function getAppointmentsByPatient(pid) { return prom(tx('appointments', 'readonly').index('byPatient').getAll(pid)); }
+async function getAppointmentsByDate(date) { return prom(tx('appointments', 'readonly').index('byDate').getAll(date)); }
+async function putAppointment(a) {
+  a.updatedAt = new Date().toISOString();
+  if (!a.createdAt) a.createdAt = a.updatedAt;
+  return prom(tx('appointments', 'readwrite').put(a));
+}
+async function deleteAppointment(id) { return prom(tx('appointments', 'readwrite').delete(id)); }
+async function getAllAppointments() { return prom(tx('appointments', 'readonly').getAll()); }
+async function markAppointmentDone(id) {
+  var a = await getAppointment(id);
+  if (!a) return;
+  a.status = 'done';
+  a.updatedAt = new Date().toISOString();
+  return prom(tx('appointments', 'readwrite').put(a));
+}
+async function getUpcomingAppointment(pid) {
+  var apps = await getAppointmentsByPatient(pid);
+  var today = new Date();
+  var todayStr = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
+  var upcoming = apps.filter(function(a) { return a.status === 'scheduled' && a.appointmentDate >= todayStr; });
+  upcoming.sort(function(a, b) { return a.appointmentDate.localeCompare(b.appointmentDate); });
+  return upcoming.length > 0 ? upcoming[0] : null;
+}
+async function getAppointmentsByDateRange(start, end) {
+  return prom(tx('appointments', 'readonly').index('byDate').getAll(IDBKeyRange.bound(start, end, false, false)));
+}
 
 // ═══════════════════════════════════════════════════════════
 //  ID INPUT
@@ -374,19 +449,22 @@ async function renderPatientPage() {
      var el = $('patient-header-info'); if (el) el.textContent = currentPatientId + ' ' + name;
      renderNav();
      renderView();
-     // 日付フォームが空の場合、本日の日付をデフォルト設定
-     var inpDate = $('inp-date');
-     if (inpDate && !inpDate.value) {
-       inpDate.value = fmtDate(new Date());
-     }
-   } catch (e) {
-     console.error('renderPatientPage error:', e);
-     toast('ページ表示エラー');
-   }
- }
+      // 日付フォームが空の場合、本日の日付をデフォルト設定
+      var inpDate = $('inp-date');
+      if (inpDate && !inpDate.value) {
+        inpDate.value = fmtDate(new Date());
+      }
+      // 予約セクション表示
+      await renderAppointmentSection();
+    } catch (e) {
+      console.error('renderPatientPage error:', e);
+      toast('ページ表示エラー');
+    }
+  }
 
 function renderView() {
   if (currentView === 'paste') { showPasteView(); renderPasteView(); }
+  else if (currentView === 'calendar') { showCalendarView(); }
   else { hidePasteView(); renderAllPeriodView(); }
 }
 
@@ -414,9 +492,10 @@ function showEl(id, show) {
 }
 
 function setViewTabs() {
-  var a = $('view-all'), p = $('view-paste');
+  var a = $('view-all'), p = $('view-paste'), c = $('view-calendar');
   if (a) a.classList.toggle('active', currentView === 'all');
   if (p) p.classList.toggle('active', currentView === 'paste');
+  if (c) c.classList.toggle('active', currentView === 'calendar');
 }
 
 // ─── ALL PERIOD VIEW ───
@@ -558,13 +637,27 @@ async function registerReading() {
        reading.id = existing.id;
        reading.createdAt = existing.createdAt;
      }
-     await putReading(reading);
-     toast(date + ' のデータを保存しました');
+      await putReading(reading);
 
-     var ndate = new Date(date + 'T00:00:00');
-     ndate.setDate(ndate.getDate() + 1);
-     if (d) d.value = fmtDate(ndate);
-     if (sb) sb.value = '';
+      // 同じ日付に予約があれば自動で来院済に
+      try {
+        var apptsOnDate = await getAppointmentsByPatient(currentPatientId);
+        var apptToday = apptsOnDate.find(function(a) {
+          return a.appointmentDate === date && a.status === 'scheduled';
+        });
+        if (apptToday) {
+          await markAppointmentDone(apptToday.id);
+          toast(date + ' のデータを保存しました（予約を来院済に更新）');
+        } else {
+          toast(date + ' のデータを保存しました');
+        }
+      } catch (e2) {
+        toast(date + ' のデータを保存しました');
+      }
+      var ndate = new Date(date + 'T00:00:00');
+      ndate.setDate(ndate.getDate() + 1);
+      if (d) d.value = fmtDate(ndate);
+      if (sb) sb.value = '';
      if (db) db.value = '';
      if (as) as.value = ''; if (ad) ad.value = '';
      if (ns) ns.value = ''; if (nd) nd.value = '';
@@ -693,7 +786,8 @@ function handleImportCSV() {
 async function handleBackup() {
   var patients = await getAllPatients();
   var readings = await getAllReadings();
-  downloadFile(backupToJSON({ patients: patients, readings: readings }),
+  var appointments = await getAllAppointments();
+  downloadFile(backupToJSON({ patients: patients, readings: readings, appointments: appointments }),
     'bp_backup_' + fmtDate(new Date()) + '.json', 'application/json');
   toast('バックアップ完了');
 }
@@ -712,6 +806,7 @@ function handleRestore() {
         if (!ok) return;
         if (data.patients) for (var i = 0; i < data.patients.length; i++) await putPatient(data.patients[i]);
         if (data.readings) for (var j = 0; j < data.readings.length; j++) await putReading(data.readings[j]);
+        if (data.appointments) for (var k = 0; k < data.appointments.length; k++) await putAppointment(data.appointments[k]);
         toast('復元完了');
         currentPatientId = null;
         showScreen('id');
@@ -756,6 +851,407 @@ function updateDataStat() {
 }
 
 
+
+// ═══════════════════════════════════════════════════════════
+//  APPOINTMENT
+// ═══════════════════════════════════════════════════════════
+
+async function renderAppointmentSection() {
+  var statusArea = $('appointment-status-area');
+  var formArea = $('appointment-form-area');
+  if (!statusArea || !formArea) return;
+  var nd = $('inp-next-date'), md = $('inp-medication-days');
+  var memo = $('inp-appointment-memo'), cd = $('appointment-countdown');
+  var btnDone = $('btn-mark-done'), btnSave = $('btn-save-appointment');
+  var statusEl = $('appointment-status');
+
+  var upcoming = await getUpcomingAppointment(currentPatientId);
+
+  if (upcoming) {
+    statusArea.innerHTML = '<div class="appointment-badge scheduled">📅 予約済 | ' + upcoming.appointmentDate + ' | 処方: ' + (upcoming.medicationDays || '?') + '日分</div>';
+    if (nd) nd.value = upcoming.appointmentDate;
+    if (md) md.value = upcoming.medicationDays || '';
+    if (memo) memo.value = upcoming.medicationNote || '';
+    if (cd) cd.textContent = calcCountdown(upcoming.appointmentDate);
+    if (btnDone) btnDone.style.display = '';
+    if (btnSave) btnSave.textContent = '📅 予約更新';
+    if (statusEl) statusEl.textContent = '前回設定: ' + (upcoming.updatedAt ? new Date(upcoming.updatedAt).toLocaleDateString('ja-JP') : '');
+  } else {
+    statusArea.innerHTML = '';
+    if (nd) nd.value = '';
+    if (md) md.value = '';
+    if (memo) memo.value = '';
+    if (cd) cd.textContent = '';
+    if (btnDone) btnDone.style.display = 'none';
+    if (btnSave) btnSave.textContent = '📅 予約登録';
+    if (statusEl) statusEl.textContent = '';
+  }
+}
+
+function calcCountdown(dateStr) {
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var target = new Date(dateStr + 'T00:00:00');
+  var diff = Math.round((target - today) / 86400000);
+  if (diff < 0) return '⚠ ' + (-diff) + '日前（期限切れ）';
+  if (diff === 0) return '🟢 今日';
+  if (diff === 1) return '🔵 明日';
+  return '🔵 ' + diff + '日後（' + dateStr + '）';
+}
+
+function updateAppointmentCountdown() {
+  var nd = $('inp-next-date');
+  var cd = $('appointment-countdown');
+  if (!nd || !cd) return;
+  if (nd.value) {
+    cd.textContent = calcCountdown(nd.value);
+  } else {
+    cd.textContent = '';
+  }
+}
+
+async function handleSaveAppointment() {
+  var nd = $('inp-next-date'), md = $('inp-medication-days');
+  var memo = $('inp-appointment-memo');
+  if (!nd) return;
+  var date = nd.value;
+  if (!date) { toast('次回来院日を入力してください'); return; }
+
+  try {
+    // 既存の予約をチェック
+    var upcoming = await getUpcomingAppointment(currentPatientId);
+    var appointment = {
+      patientId: currentPatientId,
+      appointmentDate: date,
+      medicationDays: md ? Number(md.value) || 0 : 0,
+      medicationNote: memo ? memo.value.trim() : '',
+      status: 'scheduled',
+      createdAt: upcoming ? upcoming.createdAt : new Date().toISOString()
+    };
+
+    // 同一患者・同一天の既存予約があれば上書き
+    var allPatientApps = await getAppointmentsByPatient(currentPatientId);
+    var existingOnDate = allPatientApps.find(function(a) {
+      return a.appointmentDate === date && a.status === 'scheduled';
+    });
+    if (existingOnDate) {
+      appointment.id = existingOnDate.id;
+    } else if (upcoming) {
+      // 既存の未来予約があればキャンセルして新しいものを作る
+      if (upcoming.appointmentDate !== date) {
+        await cancelAppointment(upcoming.id);
+      } else {
+        appointment.id = upcoming.id;
+      }
+    }
+
+    await putAppointment(appointment);
+    toast('予約を保存しました: ' + date + (md && md.value ? ' (' + md.value + '日分)' : ''));
+    await renderAppointmentSection();
+  } catch (e) {
+    console.error('handleSaveAppointment error:', e);
+    toast('予約保存エラー: ' + e.message);
+  }
+}
+
+async function handleMarkDone() {
+  var upcoming = await getUpcomingAppointment(currentPatientId);
+  if (!upcoming) { toast('予約がありません'); return; }
+  var ok = await confirmAsync('来院済確認', upcoming.appointmentDate + ' の予約を「来院済」にしますか？' + (upcoming.medicationDays ? '\n処方: ' + upcoming.medicationDays + '日分' : ''));
+  if (!ok) return;
+  try {
+    await markAppointmentDone(upcoming.id);
+    toast(upcoming.appointmentDate + ' の予約を来院済にしました');
+    await renderAppointmentSection();
+  } catch (e) {
+    console.error(e);
+    toast('エラー: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CALENDAR
+// ═══════════════════════════════════════════════════════════
+
+function openCalendar() {
+  var now = new Date();
+  _calYear = now.getFullYear();
+  _calMonth = now.getMonth() + 1;
+  showScreen('calendar');
+  renderCalendar(_calYear, _calMonth);
+}
+
+function showCalendarView() {
+  setViewTabs();
+  openCalendar();
+}
+
+function closeCalendar() {
+  if (currentPatientId) {
+    showScreen('patient');
+    renderPatientPage();
+  } else {
+    showScreen('id');
+    initIdScreen();
+  }
+}
+
+function calNavigate(delta) {
+  _calMonth += delta;
+  if (_calMonth < 1) { _calMonth = 12; _calYear--; }
+  if (_calMonth > 12) { _calMonth = 1; _calYear++; }
+  renderCalendar(_calYear, _calMonth);
+}
+
+async function renderCalendar(year, month) {
+  var title = $('cal-title');
+  var body = $('cal-body');
+  var info = $('cal-header-info');
+  if (!title || !body) return;
+
+  title.textContent = year + '年' + month + '月';
+  if (info) {
+    var today = new Date();
+    info.textContent = '今日: ' + fmtDate(today);
+  }
+
+  var pad = function(n) { return String(n).padStart(2, '0'); };
+  var startDate = year + '-' + pad(month) + '-01';
+  var endDate = year + '-' + pad(month) + '-31';
+  try {
+    _calAppointments = await getAppointmentsByDateRange(startDate, endDate);
+  } catch (e) {
+    _calAppointments = [];
+  }
+
+  var patientCache = {};
+  for (var i = 0; i < _calAppointments.length; i++) {
+    var pid = _calAppointments[i].patientId;
+    if (!patientCache[pid]) {
+      try {
+        var pat = await getPatient(pid);
+        patientCache[pid] = pat ? pat.name : pid;
+      } catch (e) {
+        patientCache[pid] = pid;
+      }
+    }
+  }
+
+  var firstDay = new Date(year, month - 1, 1).getDay();
+  var daysInMonth = new Date(year, month, 0).getDate();
+  var todayStr = fmtDate(new Date());
+
+  var html = '';
+  var cellIdx = 0;
+  var day = 1;
+
+  for (var row = 0; row < 6; row++) {
+    if (day > daysInMonth) break;
+    html += '<tr>';
+    for (var col = 0; col < 7; col++) {
+      if ((row === 0 && col < firstDay) || day > daysInMonth) {
+        html += '<td class="cal-empty"></td>';
+      } else {
+        var dateStr = year + '-' + pad(month) + '-' + pad(day);
+        var isToday = dateStr === todayStr;
+        var dayAppts = _calAppointments.filter(function(a) {
+          return a.appointmentDate === dateStr && a.status === 'scheduled';
+        });
+        var isSun = col === 0;
+        var isSat = col === 6;
+
+        var cls = 'cal-day';
+        if (isToday) cls += ' cal-today';
+        if (isSun) cls += ' cal-sun';
+        if (isSat) cls += ' cal-sat';
+        if (dayAppts.length > 0) cls += ' cal-has-appt';
+
+        var label = '' + day;
+        if (dayAppts.length > 0) {
+          var names = dayAppts.map(function(a) { return patientCache[a.patientId] || a.patientId; });
+          var displayNames = names.slice(0, 2);
+          if (names.length > 2) displayNames.push('+' + (names.length - 2));
+          label += '<br><span class="cal-appt-names">' + displayNames.join('<br>') + '</span>';
+        }
+
+        html += '<td class="' + cls + '" data-date="' + dateStr + '">' + label + '</td>';
+        day++;
+      }
+    }
+    html += '</tr>';
+  }
+
+  body.innerHTML = html;
+
+  body.querySelectorAll('.cal-day[data-date]').forEach(function(td) {
+    td.addEventListener('click', function() {
+      var date = this.dataset.date;
+      var dayAppts = _calAppointments.filter(function(a) { return a.appointmentDate === date && a.status === 'scheduled'; });
+      showAppointmentDetail(date, dayAppts);
+    });
+    td.style.cursor = 'pointer';
+  });
+}
+
+async function showAppointmentDetail(date, appts) {
+  var title = $('appt-detail-title');
+  var body = $('appt-detail-body');
+  if (!title || !body) return;
+
+  title.textContent = '📅 ' + date + ' の予約（' + (appts ? appts.length : 0) + '件）';
+
+  var html = '';
+
+  // 既存予約一覧
+  if (appts && appts.length > 0) {
+    var nameCache = {};
+    for (var i = 0; i < appts.length; i++) {
+      var pid = appts[i].patientId;
+      if (!nameCache[pid]) {
+        try {
+          var p = await getPatient(pid);
+          nameCache[pid] = p ? p.name : pid;
+        } catch (e) { nameCache[pid] = pid; }
+      }
+    }
+
+    html += '<table class="summary-table"><thead><tr><th>患者ID</th><th>氏名</th><th>処方日数</th><th>操作</th></tr></thead><tbody>';
+    for (var i = 0; i < appts.length; i++) {
+      var a = appts[i];
+      var pid = esc(a.patientId);
+      var pname = esc(nameCache[a.patientId] || a.patientId);
+      html += '<tr>' +
+        '<td>' + pid + '</td>' +
+        '<td>' + pname + '</td>' +
+        '<td>' + (a.medicationDays ? a.medicationDays + '日分' : '-') + '</td>' +
+        '<td><button class="btn btn-sm btn-primary" data-nav-pid="' + esc(a.patientId) + '">📊 血圧</button></td>' +
+        '</tr>';
+    }
+    html += '</tbody></table>';
+  }
+
+  // 新規予約フォーム（常に表示）
+  html += '<div style="margin-top:' + (appts && appts.length > 0 ? '16px;padding-top:16px;border-top:2px solid #e0e4e8' : '0') + '">';
+  html += '<h4 style="font-size:.9em;margin-bottom:10px;color:#2c3e50">📅 新規予約</h4>';
+  html += '<div class="form-row"><label>患者</label><select id="cal-new-patient" style="flex:1;padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.9em;background:#fff"></select></div>';
+  html += '<div class="form-row"><label>処方日数</label><input type="number" id="cal-new-days" min="1" max="365" placeholder="28" style="padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;width:70px;font-size:.9em"><span class="unit" style="font-size:.82em;color:#7f8c8d">日分</span></div>';
+  html += '<div class="form-row"><label>メモ</label><input type="text" id="cal-new-memo" placeholder="任意" style="flex:1;padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.9em"></div>';
+  html += '<div class="btn-group" style="margin-top:10px;justify-content:flex-start"><button class="btn btn-primary" id="btn-cal-create-appt" style="padding:8px 20px;font-size:.88em">📅 予約作成</button></div>';
+  html += '</div>';
+
+  body.innerHTML = html;
+
+  // 患者ドロップダウンを設定
+  try {
+    var patients = await getAllPatients();
+    var sel = $('cal-new-patient');
+    if (sel) {
+      sel.innerHTML = '<option value="">-- 患者を選択 --</option>';
+      for (var i = 0; i < patients.length; i++) {
+        sel.innerHTML += '<option value="' + esc(patients[i].id) + '">' + esc(patients[i].id) + ' ' + esc(patients[i].name || '') + '</option>';
+      }
+    }
+  } catch (e) { console.error(e); }
+
+  // 作成ボタン
+  var btnCreate = $('btn-cal-create-appt');
+  if (btnCreate) {
+    btnCreate.addEventListener('click', function() {
+      handleCalendarCreateAppointment(date);
+    });
+  }
+
+  // 血圧遷移ボタン
+  body.querySelectorAll('[data-nav-pid]').forEach(function(btn) {
+    var pid = btn.dataset.navPid;
+    btn.addEventListener('click', function() {
+      hideModal('appt-detail');
+      navigateToPatient(pid);
+    });
+  });
+
+  showModal('appt-detail');
+}
+
+async function handleCalendarCreateAppointment(date) {
+  var sel = $('cal-new-patient');
+  var days = $('cal-new-days');
+  var memo = $('cal-new-memo');
+  if (!sel) return;
+
+  var pid = sel.value;
+  if (!pid) { toast('患者を選択してください'); return; }
+
+  // 過去日チェック
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+  var targetDate = new Date(date + 'T00:00:00');
+  if (targetDate < today) {
+    toast('過去の日付には予約できません');
+    return;
+  }
+
+  try {
+    // 既存予約チェック（患者1人につき未来の予約1件のみ）
+    var allApps = await getAppointmentsByPatient(pid);
+    var existing = allApps.find(function(a) { return a.status === 'scheduled'; });
+    if (existing) {
+      var ok = await confirmAsync('予約重複',
+        'この患者さんには ' + existing.appointmentDate + ' の予約があります。\n新しい日付に変更しますか？');
+      if (!ok) return;
+      // 既存予約をキャンセル
+      await cancelAppointment(existing.id);
+    }
+
+    var appointment = {
+      patientId: pid,
+      appointmentDate: date,
+      medicationDays: days ? Number(days.value) || 0 : 0,
+      medicationNote: memo ? memo.value.trim() : '',
+      status: 'scheduled',
+      createdAt: new Date().toISOString()
+    };
+
+    await putAppointment(appointment);
+    toast('予約を作成しました: ' + date + ' ' + (appointment.medicationDays ? '(' + appointment.medicationDays + '日分)' : ''));
+    hideModal('appt-detail');
+    renderCalendar(_calYear, _calMonth);
+  } catch (e) {
+    console.error('handleCalendarCreateAppointment error:', e);
+    toast('予約作成エラー: ' + e.message);
+  }
+}
+
+async function exportAppointmentsCSV() {
+  var appointments = await getAllAppointments();
+  if (appointments.length === 0) { toast('予約データがありません'); return; }
+
+  // 患者名を一括取得
+  var nameCache = {};
+  for (var i = 0; i < appointments.length; i++) {
+    var pid = appointments[i].patientId;
+    if (!nameCache[pid]) {
+      try {
+        var p = await getPatient(pid);
+        nameCache[pid] = p ? p.name : pid;
+      } catch (e) { nameCache[pid] = pid; }
+    }
+  }
+
+  var csv = '\ufeff予約日,患者ID,患者氏名,処方日数,処方メモ,ステータス\n';
+  appointments.sort(function(a, b) { return a.appointmentDate.localeCompare(b.appointmentDate); });
+  for (var i = 0; i < appointments.length; i++) {
+    var a = appointments[i];
+    var name = (nameCache[a.patientId] || a.patientId).replace(/"/g, '""');
+    csv += a.appointmentDate + ',' +
+      a.patientId + ',"' + name + '",' +
+      (a.medicationDays || 0) + ',"' + (a.medicationNote || '').replace(/"/g, '""') + '",' +
+      (a.status || 'scheduled') + '\n';
+  }
+  var today = fmtDate(new Date());
+  downloadFile(csv, 'appointments_' + today + '.csv');
+  toast('予約CSV出力完了');
+}
 
 // ═══════════════════════════════════════════════════════════
 //  PASTE VIEW
@@ -1067,7 +1563,7 @@ function backupToJSON(data) { return JSON.stringify(data, null, 2); }
 function parseBackupJSON(text) {
   try {
     var data = JSON.parse(text);
-    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings))) return data;
+    if (data && (Array.isArray(data.patients) || Array.isArray(data.readings) || Array.isArray(data.appointments))) return data;
     return null;
   } catch { return null; }
 }

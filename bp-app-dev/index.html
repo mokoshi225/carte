@@ -22,11 +22,12 @@
         <input type="text" id="inp-patient-id" placeholder="例: 12345" autofocus>
         <div class="hint">IDを入力して Enter キーで開始</div>
       </div>
-<div class="btn-group">
-         <button class="btn btn-primary" id="btn-id-enter">開 始</button>
-       </div>
+       <div class="btn-group">
+          <button class="btn btn-primary" id="btn-id-enter">開 始</button>
+          <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
+        </div>
        <div class="version-info">
-         <small>バージョン <span id="app-version">1.3.0</span> | <span id="app-build-date"></span></small>
+         <small>         バージョン <span id="app-version">2.0.0</span> | <span id="app-build-date"></span></small>
        </div>
       <div style="margin-top:24px">
         <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
@@ -47,6 +48,7 @@
         <div class="view-tabs">
           <button class="nav-btn view-btn active" id="view-all" title="全期間表示">📈 全期間</button>
           <button class="nav-btn view-btn" id="view-paste" title="貼付">📋 貼付</button>
+          <button class="nav-btn view-btn" id="view-calendar" title="予約カレンダー">📅 予約</button>
         </div>
         <button id="btn-back" title="トップに戻る">🏠</button>
       </div>
@@ -108,6 +110,36 @@
          </div>
        </div>
 
+      <!-- 📅 予約・処方セクション -->
+      <div class="form-section" id="section-appointment">
+        <h3>📅 予約・処方</h3>
+        <div id="appointment-status-area"></div>
+        <div id="appointment-form-area">
+          <div class="form-row">
+            <label for="inp-next-date">次回来院日</label>
+            <input type="date" id="inp-next-date">
+          </div>
+          <div class="form-row">
+            <label for="inp-medication-days">処方日数</label>
+            <input type="number" id="inp-medication-days" class="short" min="1" max="365" placeholder="28">
+            <span class="unit">日分</span>
+          </div>
+          <div class="form-row">
+            <label>次回まで</label>
+            <span id="appointment-countdown" style="font-size:.9em;color:#7f8c8d"></span>
+          </div>
+          <div class="form-row">
+            <label for="inp-appointment-memo">処方メモ</label>
+            <input type="text" id="inp-appointment-memo" class="memo-input" placeholder="任意">
+          </div>
+          <div class="form-row">
+            <button class="btn btn-primary" id="btn-save-appointment">📅 予約登録</button>
+            <button class="btn btn-secondary" id="btn-mark-done" style="display:none">✅ 来院済</button>
+            <span id="appointment-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+          </div>
+        </div>
+      </div>
+
       <div class="form-section" id="section-daily-list">
          <h3>📅 受診データ一覧</h3>
          <div class="daily-list">
@@ -141,8 +173,9 @@
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                <tbody>
-                   <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
-                   <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
+                    <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
+                    <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
+                    <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
                   <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
                   <tr><td>v1.0.0</td><td>—</td><td>初版（日次血圧測定＋月間サマリー＋警戒ライン）</td></tr>
                </tbody>
@@ -202,11 +235,45 @@
 
        <!-- バージョン情報 -->
        <div class="version-footer">
-           <small>📋 v<span id="app-version-footer">1.3.0</span> | 💊 Blood Pressure Monitor</small>
+           <small>📋 v<span id="app-version-footer">2.0.0</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
- </div>
+  </div>
+
+  <!-- Calendar Screen -->
+  <div id="screen-calendar" style="display:none">
+    <div class="header">
+      <h1>📅 予約カレンダー</h1>
+      <span class="info" id="cal-header-info"></span>
+    </div>
+    <div class="content">
+      <div class="nav-bar">
+        <button class="nav-btn" id="cal-prev">◀</button>
+        <span class="active-period" id="cal-title"></span>
+        <button class="nav-btn" id="cal-next">▶</button>
+        <button class="btn btn-sm" id="cal-today" style="margin-left:8px">今日</button>
+        <button class="btn btn-sm btn-secondary" id="cal-back" style="margin-left:auto">🏠 戻る</button>
+      </div>
+      <div id="cal-grid-container" style="overflow-x:auto">
+        <table class="cal-table" id="cal-table">
+          <thead>
+            <tr>
+              <th>日</th><th>月</th><th>火</th><th>水</th><th>木</th><th>金</th><th>土</th>
+            </tr>
+          </thead>
+          <tbody id="cal-body"></tbody>
+        </table>
+      </div>
+      <div id="cal-legend" style="margin-top:8px;font-size:.82em;color:#7f8c8d">
+        <span>🟢 予約あり | 空き日🟡クリックで予約作成</span>
+      </div>
+      <div class="data-bar" style="margin-top:12px">
+        <button id="btn-export-appt-csv">📤 予約CSV出力</button>
+        <span class="stat" id="cal-stat"></span>
+      </div>
+    </div>
+  </div>
 
 <input type="file" id="file-import" accept=".csv,.json" style="display:none">
 <div class="toast" id="toast"></div>
@@ -230,6 +297,17 @@
     <div class="btn-group" style="justify-content:flex-end">
       <button class="btn modal-close" id="confirm-no">キャンセル</button>
       <button class="btn btn-danger" id="confirm-yes">実行</button>
+    </div>
+  </div>
+</div>
+
+<!-- 予約詳細モーダル -->
+<div class="modal-overlay" id="modal-appt-detail" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <h3 id="appt-detail-title">予約詳細</h3>
+    <div id="appt-detail-body" style="font-size:.9em;margin-bottom:16px"></div>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="btn modal-close" id="appt-detail-close">閉じる</button>
     </div>
   </div>
 </div>
