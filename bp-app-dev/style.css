@@ -280,6 +280,39 @@ input, select { font-family: inherit }
 }
 
 
+/* ===== Appointment Section ===== */
+#appointment-status-area { margin-bottom: 8px }
+.appointment-badge {
+  display: inline-block; padding: 6px 14px; border-radius: 6px;
+  font-size: .88em; font-weight: 600; margin-bottom: 8px;
+}
+.appointment-badge.scheduled { background: #d5f5e3; color: #27ae60 }
+.appointment-badge.done { background: #d6eaf8; color: #2980b9 }
+.appointment-badge.cancelled { background: #fadbd8; color: #c0392b }
+
+/* ===== Calendar ===== */
+.cal-table { width: 100%; border-collapse: collapse; table-layout: fixed }
+.cal-table th {
+  padding: 8px 4px; text-align: center; font-size: .82em;
+  background: #ecf0f1; border: 1px solid #ddd; font-weight: 600;
+}
+.cal-table td {
+  padding: 6px 4px; text-align: center; font-size: .85em;
+  border: 1px solid #e8ecef; vertical-align: top; height: 72px;
+  width: 14.28%; transition: background .15s;
+}
+.cal-table td.cal-empty { background: #f8f9fb }
+.cal-table td.cal-day:hover { background: #e8f8f5; cursor: pointer }
+.cal-table td.cal-today { background: #d5f5e3; font-weight: 700 }
+.cal-table td.cal-sun { color: #e74c3c }
+.cal-table td.cal-sat { color: #2980b9 }
+.cal-table td.cal-has-appt { background: #fef9e7 }
+.cal-table td.cal-today.cal-has-appt { background: #d5f5e3; box-shadow: inset 0 -3px 0 #27ae60 }
+.cal-appt-names {
+  display: block; font-size: .72em; line-height: 1.3; color: #2c3e50;
+  margin-top: 2px; font-weight: 400;
+}
+
 /* ===== Version History ===== */
 .version-history details { cursor: pointer }
 .version-history summary { font-size: .9em; color: #2c3e50; padding: 4px 0 }
