@@ -987,6 +987,7 @@ function showCalendarView() {
 }
 
 function closeCalendar() {
+  currentView = 'all';
   if (currentPatientId) {
     showScreen('patient');
     renderPatientPage();
@@ -1148,7 +1149,8 @@ async function showAppointmentDetail(date, appts) {
     if (sel) {
       sel.innerHTML = '<option value="">-- 患者を選択 --</option>';
       for (var i = 0; i < patients.length; i++) {
-        sel.innerHTML += '<option value="' + esc(patients[i].id) + '">' + esc(patients[i].id) + ' ' + esc(patients[i].name || '') + '</option>';
+        var selected = patients[i].id === currentPatientId ? ' selected' : '';
+        sel.innerHTML += '<option value="' + esc(patients[i].id) + '"' + selected + '>' + esc(patients[i].id) + ' ' + esc(patients[i].name || '') + '</option>';
       }
     }
   } catch (e) { console.error(e); }
