@@ -192,6 +192,7 @@ async function init() {
   $('app-version').textContent = '2.0.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
   $('app-version-footer').textContent = '2.0.0';
+  startEmrFollow();
 }
 
 // Synchronous DB open wrapper (runs inside async init)
@@ -1894,4 +1895,80 @@ function parseBackupJSON(text) {
     if (data && (Array.isArray(data.patients) || Array.isArray(data.readings) || Array.isArray(data.appointments))) return data;
     return null;
   } catch { return null; }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  EMR AUTO-FOLLOW
+// ═══════════════════════════════════════════════════════════
+
+var _emrLastId = null;
+var _emrPollTimer = null;
+var _emrConnected = false;
+
+function startEmrFollow() {
+  pollEmr();
+}
+
+async function pollEmr() {
+  try {
+    var resp = await fetch('emr-patient.json?t=' + Date.now());
+    if (!resp.ok) {
+      updateEmrStatus(false);
+      _emrPollTimer = setTimeout(pollEmr, 1500);
+      return;
+    }
+    var data = await resp.json();
+    if (!data || !data.patientId) {
+      updateEmrStatus(false);
+      _emrPollTimer = setTimeout(pollEmr, 1500);
+      return;
+    }
+    updateEmrStatus(true);
+    var id = String(data.patientId).trim();
+    if (id && id !== _emrLastId) {
+      _emrLastId = id;
+      navigateToPatientAuto(id);
+    }
+  } catch (e) {
+    updateEmrStatus(false);
+  }
+  _emrPollTimer = setTimeout(pollEmr, 1500);
+}
+
+async function navigateToPatientAuto(id) {
+  if (!/^\d{8}$/.test(id)) {
+    toast('EMR患者IDの形式が不正です: ' + id);
+    return;
+  }
+  try {
+    var patient = await getPatient(id);
+    if (!patient) {
+      await putPatient({
+        id: id,
+        name: '',
+        gender: '',
+        birthDate: '',
+        memo: '（EMR連携 自動作成）',
+        createdAt: new Date().toISOString()
+      });
+    }
+    currentPatientId = id;
+    currentView = 'all';
+    showScreen('patient');
+    await renderPatientPage();
+    toast('EMR連携: 患者 ' + id + ' を開きました');
+  } catch (e) {
+    console.error('navigateToPatientAuto error:', e);
+  }
+}
+
+function updateEmrStatus(connected) {
+  var ids = ['emr-status', 'emr-status-patient', 'emr-status-calendar'];
+  var text = connected ? '● EMR連携中' : '○ EMR未接続';
+  var cls = connected ? 'emr-status connected' : 'emr-status disconnected';
+  for (var i = 0; i < ids.length; i++) {
+    var el = $(ids[i]);
+    if (el) { el.textContent = text; el.className = cls; }
+  }
+  _emrConnected = connected;
 }
