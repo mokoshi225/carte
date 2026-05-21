@@ -23,6 +23,18 @@ function fmtDate(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
+// Clipboard copy (file://対応 execCommand フォールバック)
+function copyToClipboard(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch (e) { console.error('clipboard copy error:', e); }
+  document.body.removeChild(ta);
+}
+
 // Toast
 var toastTimer = null;
 function toast(msg) {
@@ -650,6 +662,22 @@ async function registerReading() {
       } catch (e2) {
         toast(date + ' のデータを保存しました');
       }
+
+      // クリップボードにコピー
+      var clipDate = reading.date.replace(/-/g, '/');
+      var clipSbp = reading.systolic || 0;
+      var clipDbp = reading.diastolic || 0;
+      var clipAvgSbp = reading.avgSbp || 0;
+      var clipAvgDbp = reading.avgDbp || 0;
+      var clipMinSbp = reading.minSbp || 0;
+      var clipMinDbp = reading.minDbp || 0;
+      var clipMaxSbp = reading.maxSbp || 0;
+      var clipMaxDbp = reading.maxDbp || 0;
+      var clipText = clipDate + '\n' +
+        '受診時血圧' + clipSbp + '/' + clipDbp + 'mmHg\n' +
+        '家庭血圧平均' + clipAvgSbp + '/' + clipAvgDbp + 'mmHg、最低' + clipMinSbp + '/' + clipMinDbp + 'mmHg、最高' + clipMaxSbp + '/' + clipMaxDbp + 'mmHg';
+      copyToClipboard(clipText);
+
       var ndate = new Date(date + 'T00:00:00');
       ndate.setDate(ndate.getDate() + 1);
       if (d) d.value = fmtDate(ndate);
