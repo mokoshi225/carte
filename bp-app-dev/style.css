@@ -111,7 +111,7 @@ input, select { font-family: inherit }
 /* ===== Graph ===== */
 .graph-container { position: relative; margin-bottom: 20px }
 .graph-container canvas {
-  width: 100%; height: 380px; display: block;
+  width: 100%; height: 500px; display: block;
   background: #fafbfc; border: 1px solid #e0e4e8; border-radius: 6px;
 }
 .legend {
