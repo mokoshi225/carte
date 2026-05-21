@@ -1624,9 +1624,8 @@ function handleParseVisit() {
 
 function parseVisitData(text, baseYear) {
   var lines = text.split(/\r?\n/);
-  var records = [];
+  var entries = [];
   var now = new Date();
-  var currentMonth = now.getMonth() + 1;
   var currentYear = now.getFullYear();
 
   for (var i = 0; i < lines.length; i++) {
@@ -1699,25 +1698,51 @@ function parseVisitData(text, baseYear) {
 
     if (avgSbp === 0 && avgDbp === 0 && minSbp === 0 && maxSbp === 0 && minSbpPm === 0 && maxSbpPm === 0) continue;
 
-    var year = baseYear || currentYear;
-    if (month > currentMonth + 1 && year === currentYear) {
-      year = currentYear - 1;
-    }
-
-    var yyyy = String(year);
-    var mm = String(month).padStart(2, '0');
-    var dd = String(day).padStart(2, '0');
-    var fullDate = yyyy + '-' + mm + '-' + dd;
-
-    records.push({
-      date: fullDate,
-      year: year, month: month, day: day,
+    entries.push({
+      month: month, day: day,
       avgSbp: avgSbp, avgDbp: avgDbp,
       minSbp: minSbp, minDbp: minDbp,
       maxSbp: maxSbp, maxDbp: maxDbp,
       minSbpPm: minSbpPm, maxSbpPm: maxSbpPm,
       memo: memo
     });
+  }
+
+  if (entries.length === 0) return [];
+
+  // 年推論: 逆順に処理し、各日付に「今日以前かつ時系列順となる最も最近の年」を割り当てる
+  var records = new Array(entries.length);
+  var lastDate = null;
+
+  for (var i = entries.length - 1; i >= 0; i--) {
+    var e = entries[i];
+    var year = currentYear;
+
+    while (true) {
+      var candidate = new Date(year, e.month - 1, e.day);
+      if (candidate <= now && (!lastDate || candidate < lastDate)) {
+        break;
+      }
+      year--;
+      if (year < 1970) break;
+    }
+
+    var yyyy = String(year);
+    var mm = String(e.month).padStart(2, '0');
+    var dd = String(e.day).padStart(2, '0');
+    var fullDate = yyyy + '-' + mm + '-' + dd;
+
+    records[i] = {
+      date: fullDate,
+      year: year, month: e.month, day: e.day,
+      avgSbp: e.avgSbp, avgDbp: e.avgDbp,
+      minSbp: e.minSbp, minDbp: e.minDbp,
+      maxSbp: e.maxSbp, maxDbp: e.maxDbp,
+      minSbpPm: e.minSbpPm, maxSbpPm: e.maxSbpPm,
+      memo: e.memo
+    };
+
+    lastDate = new Date(year, e.month - 1, e.day);
   }
 
   return records;
