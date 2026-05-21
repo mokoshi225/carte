@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>💊 血圧モニター（開発版 v2.4.0）</title>
+<title>💊 血圧モニター（開発版）</title>
 <style>
 /* =================================================================
    style.css — スタイルシート（共通）
@@ -118,7 +118,7 @@ input, select { font-family: inherit }
 /* ===== Graph ===== */
 .graph-container { position: relative; margin-bottom: 20px }
 .graph-container canvas {
-  width: 100%; height: 380px; display: block;
+  width: 100%; height: 500px; display: block;
   background: #fafbfc; border: 1px solid #e0e4e8; border-radius: 6px;
 }
 .legend {
@@ -376,23 +376,7 @@ input, select { font-family: inherit }
 }
 .emr-status.disconnected {
   background: #95a5a6;
-}
-.emr-btn {
-  font-size: .75em;
-  padding: 2px 8px;
-  margin-left: 6px;
-  border: 1px solid #bdc3c7;
-  border-radius: 4px;
-  background: #ecf0f1;
-  color: #2c3e50;
-  cursor: pointer;
-  white-space: nowrap;
-}
-.emr-btn:hover {
-  background: #d5dbdb;
-}
-.emr-btn:active {
-  background: #bdc3c7;
+  color: #fff;
 }
 
 /* ===== Responsive ===== */
@@ -414,7 +398,6 @@ input, select { font-family: inherit }
       <h1>💊 血圧モニター</h1>
       <span class="info" id="header-info"></span>
       <span id="emr-status" class="emr-status disconnected">○ EMR未接続</span>
-      <button class="emr-btn" id="emr-btn-id" title="カルテから患者情報を読み込む">EMR読込</button>
     </div>
     <div class="content">
       <h2>患者IDを入力してください</h2>
@@ -429,7 +412,7 @@ input, select { font-family: inherit }
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
        <div class="version-info">
-         <small>         バージョン <span id="app-version">2.3.0</span> | <span id="app-build-date"></span></small>
+         <small>         バージョン <span id="app-version">2.0.0</span> | <span id="app-build-date"></span></small>
        </div>
       <div style="margin-top:24px">
         <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
@@ -444,7 +427,6 @@ input, select { font-family: inherit }
       <h1>💊 血圧モニター</h1>
       <span class="info" id="patient-header-info"></span>
       <span id="emr-status-patient" class="emr-status disconnected">○ EMR未接続</span>
-      <button class="emr-btn" id="emr-btn-patient" title="カルテから患者情報を読み込む">EMR読込</button>
     </div>
     <div class="content">
       <div class="nav-bar">
@@ -577,10 +559,7 @@ input, select { font-family: inherit }
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                <tbody>
-                    <tr><td>v2.3.0</td><td>2026-05-20</td><td>自動ポーリング廃止→手動「EMR読込」ボタン方式に変更、AutomationId(lblKjName)直検索</td></tr>
-<tr><td>v2.2.0</td><td>2026-05-20</td><td>ControlType.Text要素検出対応（カルテ・オーダー入力窓からの情報取得）</td></tr>
-<tr><td>v2.1.0</td><td>2026-05-20</td><td>EMR自動連携機能: CITA/CIA窓から患者ID+氏名検出、script注入でfile://対応、USB運用対応</td></tr>
-<tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
+                    <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
                     <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
                     <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
                   <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
@@ -642,7 +621,7 @@ input, select { font-family: inherit }
 
        <!-- バージョン情報 -->
        <div class="version-footer">
-           <small>📋 v<span id="app-version-footer">2.3.0</span> | 💊 Blood Pressure Monitor</small>
+           <small>📋 v<span id="app-version-footer">2.0.0</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
@@ -654,7 +633,6 @@ input, select { font-family: inherit }
       <h1>📅 予約カレンダー</h1>
       <span class="info" id="cal-header-info"></span>
       <span id="emr-status-calendar" class="emr-status disconnected">○ EMR未接続</span>
-      <button class="emr-btn" id="emr-btn-calendar" title="カルテから患者情報を読み込む">EMR読込</button>
     </div>
     <div class="content">
       <div class="nav-bar">
@@ -960,7 +938,7 @@ const GRAPH = {
 };
 
 function bpToY(bp, pad, plotH) {
-  return pad.top + plotH - ((bp - 50) / (210 - 50)) * plotH;
+  return pad.top + plotH - ((bp - 60) / (150 - 60)) * plotH;
 }
 
 /**
@@ -970,7 +948,7 @@ function bpToY(bp, pad, plotH) {
 function drawAllPeriodGraph(canvas, readings) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
-  const W = rect.width, H = 380;
+  const W = rect.width, H = 500;
   canvas.width = W * dpr; canvas.height = H * dpr;
   canvas.style.height = H + 'px'; canvas.style.width = '100%';
   const ctx = canvas.getContext('2d');
@@ -1001,18 +979,8 @@ function drawAllPeriodGraph(canvas, readings) {
 
   valid.sort((a, b) => a.date.localeCompare(b.date));
 
-  // Y軸範囲：表示対象の全項目の値から自動計算
-  let allVals = [];
-  valid.forEach(function(r) {
-    activeItems.forEach(function(item) {
-      const v = r[item.key];
-      if (v && v > 0) allVals.push(v);
-    });
-  });
-  let yMin = Math.min(...allVals);
-  let yMax = Math.max(...allVals);
-  yMin = Math.max(50, Math.floor(yMin / 10) * 10 - 10);
-  yMax = Math.min(210, Math.ceil(yMax / 10) * 10 + 10);
+  // Y軸範囲：60-150に固定
+  const yMin = 60, yMax = 150;
 
   // 日付→X座標のマッピング（日数ベース）
   const firstDate = new Date(valid[0].date + 'T00:00:00');
@@ -1020,12 +988,16 @@ function drawAllPeriodGraph(canvas, readings) {
   const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
   const dayToX = (d) => pad.left + (d / totalDays) * pw;
 
-  // ── グリッド ──
-  ctx.strokeStyle = '#e8ecef'; ctx.lineWidth = 0.5;
-  for (let bp = yMin; bp <= yMax; bp += 20) {
+  // ── グリッド（10刻み、1桁目5） ──
+  for (let bp = 65; bp <= 145; bp += 10) {
     const y = bpToY(bp, pad, ph);
+    const isTarget = (bp === 125 || bp === 75);
+    ctx.strokeStyle = isTarget ? '#e74c3c' : '#e8ecef';
+    ctx.lineWidth = isTarget ? 1.0 : 0.5;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillStyle = isTarget ? '#e74c3c' : '#95a5a6';
+    ctx.font = isTarget ? 'bold 11px sans-serif' : '11px sans-serif';
+    ctx.textAlign = 'right';
     ctx.fillText(bp, pad.left - 5, y + 4);
   }
 
@@ -1313,7 +1285,7 @@ function parseBackupJSON(text) {
   }
 }
 /* =================================================================
-   app.js — メインアプリケーションロジック v2.3.0
+   app.js — メインアプリケーションロジック v2.0.0
    ================================================================= */
 
 currentPatientId = null;
@@ -1502,17 +1474,11 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v2.3.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '2.3.0';
+  $('header-info').textContent = 'v2.0.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.0.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '2.3.0';
-
-  // EMR manual read buttons
-  var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
-  for (var i = 0; i < emrBtns.length; i++) {
-    var btn = $(emrBtns[i]);
-    if (btn) btn.addEventListener('click', readEmrPatient);
-  }
+  $('app-version-footer').textContent = '2.0.0';
+  startEmrFollow();
 }
 
 // Synchronous DB open wrapper (runs inside async init)
@@ -3243,40 +3209,44 @@ function parseBackupJSON(text) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  EMR MANUAL READ (button-triggered, no auto-polling)
+//  EMR AUTO-FOLLOW
 // ═══════════════════════════════════════════════════════════
 
+var _emrLastId = null;
+var _emrPollTimer = null;
 var _emrConnected = false;
 
-function readEmrPatient() {
-  // Remove previous script element
-  var old = document.getElementById('emr-script');
-  if (old) old.parentNode.removeChild(old);
-
-  // Inject script to read emr-patient.js (one-shot)
-  var s = document.createElement('script');
-  s.id = 'emr-script';
-  s.src = 'emr-patient.js?t=' + Date.now();
-  s.onload = function() {
-    var data = window.EMR_PATIENT;
-    if (data && data.patientId) {
-      updateEmrStatus(true);
-      var id = String(data.patientId).trim();
-      var name = data.patientName || '';
-      navigateToPatientAuto(id, name);
-    } else {
-      updateEmrStatus(false);
-      toast('EMRデータが見つかりません');
-    }
-  };
-  s.onerror = function() {
-    updateEmrStatus(false);
-    toast('EMR接続エラー（emr-watcherが起動していません）');
-  };
-  document.body.appendChild(s);
+function startEmrFollow() {
+  pollEmr();
 }
 
-async function navigateToPatientAuto(id, name) {
+async function pollEmr() {
+  try {
+    var resp = await fetch('emr-patient.json?t=' + Date.now());
+    if (!resp.ok) {
+      updateEmrStatus(false);
+      _emrPollTimer = setTimeout(pollEmr, 1500);
+      return;
+    }
+    var data = await resp.json();
+    if (!data || !data.patientId) {
+      updateEmrStatus(false);
+      _emrPollTimer = setTimeout(pollEmr, 1500);
+      return;
+    }
+    updateEmrStatus(true);
+    var id = String(data.patientId).trim();
+    if (id && id !== _emrLastId) {
+      _emrLastId = id;
+      navigateToPatientAuto(id);
+    }
+  } catch (e) {
+    updateEmrStatus(false);
+  }
+  _emrPollTimer = setTimeout(pollEmr, 1500);
+}
+
+async function navigateToPatientAuto(id) {
   if (!/^\d{8}$/.test(id)) {
     toast('EMR患者IDの形式が不正です: ' + id);
     return;
@@ -3286,7 +3256,7 @@ async function navigateToPatientAuto(id, name) {
     if (!patient) {
       await putPatient({
         id: id,
-        name: name || '',
+        name: '',
         gender: '',
         birthDate: '',
         memo: '（EMR連携 自動作成）',
@@ -3297,9 +3267,7 @@ async function navigateToPatientAuto(id, name) {
     currentView = 'all';
     showScreen('patient');
     await renderPatientPage();
-    var label = id;
-    if (name) label += ' ' + name;
-    toast('EMR連携: 患者 ' + label + ' を開きました');
+    toast('EMR連携: 患者 ' + id + ' を開きました');
   } catch (e) {
     console.error('navigateToPatientAuto error:', e);
   }
@@ -3314,7 +3282,6 @@ function updateEmrStatus(connected) {
     if (el) { el.textContent = text; el.className = cls; }
   }
   _emrConnected = connected;
-}
-</script>
+}</script>
 </body>
 </html>

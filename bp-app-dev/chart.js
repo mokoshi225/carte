@@ -21,7 +21,7 @@ const GRAPH = {
 };
 
 function bpToY(bp, pad, plotH) {
-  return pad.top + plotH - ((bp - 50) / (210 - 50)) * plotH;
+  return pad.top + plotH - ((bp - 60) / (150 - 60)) * plotH;
 }
 
 /**
@@ -31,7 +31,7 @@ function bpToY(bp, pad, plotH) {
 function drawAllPeriodGraph(canvas, readings) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
-  const W = rect.width, H = 380;
+  const W = rect.width, H = 500;
   canvas.width = W * dpr; canvas.height = H * dpr;
   canvas.style.height = H + 'px'; canvas.style.width = '100%';
   const ctx = canvas.getContext('2d');
@@ -62,18 +62,8 @@ function drawAllPeriodGraph(canvas, readings) {
 
   valid.sort((a, b) => a.date.localeCompare(b.date));
 
-  // Y軸範囲：表示対象の全項目の値から自動計算
-  let allVals = [];
-  valid.forEach(function(r) {
-    activeItems.forEach(function(item) {
-      const v = r[item.key];
-      if (v && v > 0) allVals.push(v);
-    });
-  });
-  let yMin = Math.min(...allVals);
-  let yMax = Math.max(...allVals);
-  yMin = Math.max(50, Math.floor(yMin / 10) * 10 - 10);
-  yMax = Math.min(210, Math.ceil(yMax / 10) * 10 + 10);
+  // Y軸範囲：60-150に固定
+  const yMin = 60, yMax = 150;
 
   // 日付→X座標のマッピング（日数ベース）
   const firstDate = new Date(valid[0].date + 'T00:00:00');
@@ -81,12 +71,16 @@ function drawAllPeriodGraph(canvas, readings) {
   const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
   const dayToX = (d) => pad.left + (d / totalDays) * pw;
 
-  // ── グリッド ──
-  ctx.strokeStyle = '#e8ecef'; ctx.lineWidth = 0.5;
-  for (let bp = yMin; bp <= yMax; bp += 20) {
+  // ── グリッド（10刻み、1桁目5） ──
+  for (let bp = 65; bp <= 145; bp += 10) {
     const y = bpToY(bp, pad, ph);
+    const isTarget = (bp === 125 || bp === 75);
+    ctx.strokeStyle = isTarget ? '#e74c3c' : '#e8ecef';
+    ctx.lineWidth = isTarget ? 1.0 : 0.5;
     ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
-    ctx.fillStyle = '#95a5a6'; ctx.font = '11px sans-serif'; ctx.textAlign = 'right';
+    ctx.fillStyle = isTarget ? '#e74c3c' : '#95a5a6';
+    ctx.font = isTarget ? 'bold 11px sans-serif' : '11px sans-serif';
+    ctx.textAlign = 'right';
     ctx.fillText(bp, pad.left - 5, y + 4);
   }
 
