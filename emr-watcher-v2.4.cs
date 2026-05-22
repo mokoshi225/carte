@@ -161,8 +161,9 @@ class EmrWatcher
         try
         {
             // Phase 1: search known label AutomationIds across all descendants
-            //   lblKjName = patient name (kanji)
-            //   lblBirth  = birth date
+            //   lblKanCode = patient ID (8 digits)
+            //   lblKjName  = patient name (kanji)
+            //   lblBirth   = birth date
             string foundName = null;
             string foundId = null;
 
@@ -176,6 +177,27 @@ class EmrWatcher
                     string txt = nameEls[0].Current.Name;
                     if (!string.IsNullOrEmpty(txt)) foundName = txt.Trim();
                     Log("ScanWindow: lblKjName = \"" + (foundName ?? "") + "\"");
+                }
+            }
+            catch { }
+
+            // Search for lblKanCode (patient ID label) — PRIMARY ID source
+            try
+            {
+                var idEls = window.FindAll(TreeScope.Descendants,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty, "lblKanCode"));
+                if (idEls != null && idEls.Count > 0)
+                {
+                    string txt = idEls[0].Current.Name;
+                    if (!string.IsNullOrEmpty(txt))
+                    {
+                        string trimmed = txt.Trim();
+                        if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
+                        {
+                            foundId = trimmed;
+                            Log("ScanWindow: lblKanCode = \"" + foundId + "\"");
+                        }
+                    }
                 }
             }
             catch { }
@@ -194,9 +216,9 @@ class EmrWatcher
             }
             catch { }
 
-            // Phase 2: search for 8-digit ID within lblKjName's parent container only.
-            //   This ensures the ID belongs to the same patient info section as the name,
-            //   avoiding stale IDs from elsewhere in the window.
+            // Phase 2: Fallback — if lblKanCode AutomationId not found,
+            // walk up from lblKjName to the patient info header container (pnlKanHd)
+            // and search all Text elements for 8-digit IDs.
             if (foundId == null && foundName != null)
             {
                 try
@@ -205,22 +227,25 @@ class EmrWatcher
                         new PropertyCondition(AutomationElement.AutomationIdProperty, "lblKjName"));
                     if (nameEls != null && nameEls.Count > 0)
                     {
+                        // Walk up: lblKjName → flpName → pnlKanHd
                         AutomationElement parent = TreeWalker.ControlViewWalker.GetParent(nameEls[0]);
-                        if (parent != null)
+                        AutomationElement grandparent = (parent != null)
+                            ? TreeWalker.ControlViewWalker.GetParent(parent) : null;
+                        AutomationElement container = grandparent ?? parent ?? window;
+
+                        var textEls = container.FindAll(TreeScope.Descendants,
+                            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+                        foreach (AutomationElement el in textEls)
                         {
-                            var textEls = parent.FindAll(TreeScope.Descendants,
-                                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
-                            foreach (AutomationElement el in textEls)
+                            string txt = null;
+                            try { txt = el.Current.Name; } catch { continue; }
+                            if (string.IsNullOrEmpty(txt)) continue;
+                            string trimmed = txt.Trim();
+                            if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
                             {
-                                string txt = null;
-                                try { txt = el.Current.Name; } catch { continue; }
-                                if (string.IsNullOrEmpty(txt)) continue;
-                                string trimmed = txt.Trim();
-                                if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
-                                {
-                                    foundId = trimmed;
-                                    break;
-                                }
+                                foundId = trimmed;
+                                Log("ScanWindow: fallback ID = \"" + foundId + "\"");
+                                break;
                             }
                         }
                     }
