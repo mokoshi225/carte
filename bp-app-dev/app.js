@@ -1,5 +1,5 @@
 /* =================================================================
-   app.js — メインアプリケーションロジック v2.0.0
+   app.js — メインアプリケーションロジック v2.1.0
    ================================================================= */
 
 currentPatientId = null;
@@ -50,10 +50,11 @@ function toast(msg) {
 function showModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'flex'; }
 function hideModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'none'; }
 function showScreen(id) {
-  var a = $('screen-id'), b = $('screen-patient'), c = $('screen-calendar');
+  var a = $('screen-id'), b = $('screen-patient'), c = $('screen-calendar'), d = $('screen-cleanup');
   if (a) a.style.display = id === 'id' ? '' : 'none';
   if (b) b.style.display = id === 'patient' ? '' : 'none';
   if (c) c.style.display = id === 'calendar' ? '' : 'none';
+  if (d) d.style.display = id === 'cleanup' ? '' : 'none';
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -181,9 +182,17 @@ async function init() {
   var btnExportAppt = $('btn-export-appt-csv');
   if (btnExportAppt) btnExportAppt.addEventListener('click', exportAppointmentsCSV);
 
-  // Event: Demo data
-  var btnDemo = $('btn-demo-data');
-  if (btnDemo) btnDemo.addEventListener('click', initDemoData);
+   // Event: Demo data
+   var btnDemo = $('btn-demo-data');
+   if (btnDemo) btnDemo.addEventListener('click', initDemoData);
+
+   // Event: Data Cleanup
+   var btnCleanup = $('btn-data-cleanup');
+   if (btnCleanup) btnCleanup.addEventListener('click', openDataCleanup);
+   var btnCleanupBack = $('btn-cleanup-back');
+   if (btnCleanupBack) btnCleanupBack.addEventListener('click', closeCleanup);
+   var btnCleanupRefresh = $('btn-cleanup-refresh');
+   if (btnCleanupRefresh) btnCleanupRefresh.addEventListener('click', runCleanupCheck);
 
   // Init screen: check if patients exist and auto-navigate
   try {
@@ -200,10 +209,10 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v2.0.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '2.0.0';
+  $('header-info').textContent = 'v2.1.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.1.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '2.0.0';
+  $('app-version-footer').textContent = '2.1.0';
   startEmrFollow();
 }
 

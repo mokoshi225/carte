@@ -15,11 +15,11 @@ powershell -NoProfile -Command ^
   "  $html = [System.IO.File]::ReadAllText('%DIR%\index.html');" ^
   "  $css  = [System.IO.File]::ReadAllText('%DIR%\style.css');" ^
   "  $js   = '';" ^
-  "  foreach($f in @('db.js','chart.js','csv.js','app.js')) {" ^
+  "  foreach($f in @('db.js','chart.js','csv.js','app.js','cleanup.js')) {" ^
   "    $js += [Environment]::NewLine + [System.IO.File]::ReadAllText(\"%DIR%\" + \"\\\" + $f);" ^
   "  }" ^
   "  $html = $html -replace '<link rel=\"stylesheet\" href=\"style.css\">', \"<style>`n\" + $css + \"`n</style>\";" ^
-  "  $html = $html -replace '<script id=\"app-bundle\">[\s\S]*?</script>', '<script>' + $js + '</script>';" ^
+  "  $js = $js -replace '\$', '$$$$'; $html = $html -replace '<script id=\"app-bundle\">[\s\S]*?</script>', '<script>' + $js + '</script>';" ^
   "  [System.IO.File]::WriteAllText('%OUT%', $html);" ^
   "  Write-Host ('完了: ' + (Get-Item '%OUT%').FullName);" ^
   "  Write-Host ('サイズ: ' + (Get-Item '%OUT%').Length + ' bytes');" ^
