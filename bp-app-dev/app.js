@@ -1,5 +1,5 @@
 /* =================================================================
-   app.js — メインアプリケーションロジック v2.0.0
+   app.js — メインアプリケーションロジック v2.2.0
    ================================================================= */
 
 currentPatientId = null;
@@ -181,6 +181,14 @@ async function init() {
   var btnExportAppt = $('btn-export-appt-csv');
   if (btnExportAppt) btnExportAppt.addEventListener('click', exportAppointmentsCSV);
 
+  // Event: Summary update
+  var btnUpdSum = $('btn-update-summary');
+  if (btnUpdSum) btnUpdSum.addEventListener('click', handleUpdateSummary);
+
+  // Event: SOAP copy
+  var btnCopySoap = $('btn-copy-soap');
+  if (btnCopySoap) btnCopySoap.addEventListener('click', copySoapOutput);
+
   // Event: Demo data
   var btnDemo = $('btn-demo-data');
   if (btnDemo) btnDemo.addEventListener('click', initDemoData);
@@ -200,10 +208,10 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v2.0.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '2.0.0';
+  $('header-info').textContent = 'v2.2.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.2.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '2.0.0';
+  $('app-version-footer').textContent = '2.2.0';
   startEmrFollow();
 }
 
@@ -464,6 +472,10 @@ async function renderPatientPage() {
       }
       // 予約セクション表示
       await renderAppointmentSection();
+      // 評価サマリー表示
+      await renderAssessmentSection();
+      // SOAP出力更新
+      updateSoapOutput();
     } catch (e) {
       console.error('renderPatientPage error:', e);
       toast('ページ表示エラー');
@@ -621,11 +633,14 @@ async function registerReading() {
    if (sbp > 0 && (sbp < 50 || sbp > 300)) { toast('収縮期血圧の範囲が不正です'); return; }
    if (dbp > 0 && (dbp < 30 || dbp > 200)) { toast('拡張期血圧の範囲が不正です'); return; }
 
+   var subjEl = $('inp-subjective');
+
    var reading = {
      patientId: currentPatientId, date: date,
      systolic: sbp || 0, diastolic: dbp || 0,
      meanArterial: sbp && dbp ? Math.round((sbp + dbp * 2) / 3) : 0,
      note: memo,
+     subjective: subjEl ? subjEl.value.trim() : '',
      avgSbp: Number(as ? as.value : 0) || 0,
      avgDbp: Number(ad ? ad.value : 0) || 0,
      minSbp: Number(ns ? ns.value : 0) || 0,
@@ -687,11 +702,12 @@ async function registerReading() {
      if (ns) ns.value = ''; if (nd) nd.value = '';
      if (xs) xs.value = ''; if (xd) xd.value = '';
      if (m) m.value = '';
-     editingId = null;
-     var rs = $('register-status'); if (rs) rs.textContent = '';
-     if (sb) sb.focus();
-     renderView();
-   } catch (e) {
+      editingId = null;
+      var rs = $('register-status'); if (rs) rs.textContent = '';
+      if (sb) sb.focus();
+      renderView();
+      updateSoapOutput();
+    } catch (e) {
      console.error('registerReading error:', e);
      toast('登録エラー: ' + e.message);
    }
@@ -711,6 +727,7 @@ async function editReading(id) {
     var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
     var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
     var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+    var sj = $('inp-subjective');
     if (d) d.value = r.date;
     if (sb) sb.value = r.systolic || '';
     if (db) db.value = r.diastolic || '';
@@ -721,6 +738,7 @@ async function editReading(id) {
     if (xs) xs.value = r.maxSbp || '';
     if (xd) xd.value = r.maxDbp || '';
     if (m) m.value = r.note || '';
+    if (sj) sj.value = r.subjective || '';
     var rs = $('register-status'); if (rs) rs.textContent = '📝 編集中';
     if (sb) { sb.focus(); sb.select(); sb.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   } catch (e) { console.error('editReading:', e); }
@@ -1957,12 +1975,18 @@ function parseBackupJSON(text) {
 var _emrLastId = null;
 var _emrPollTimer = null;
 var _emrConnected = false;
+var _emrEnabled = true;
 
 function startEmrFollow() {
+  if (window.location.protocol === 'file:') {
+    updateEmrStatus(false);
+    return;
+  }
   pollEmr();
 }
 
 async function pollEmr() {
+  if (!_emrEnabled) return;
   try {
     var resp = await fetch('emr-patient.json?t=' + Date.now());
     if (!resp.ok) {
@@ -1984,6 +2008,11 @@ async function pollEmr() {
     }
   } catch (e) {
     updateEmrStatus(false);
+    if (_emrConnected) {
+      _emrEnabled = false;
+      setTimeout(function() { _emrEnabled = true; pollEmr(); }, 30000);
+      return;
+    }
   }
   _emrPollTimer = setTimeout(pollEmr, 1500);
 }
@@ -2024,4 +2053,197 @@ function updateEmrStatus(connected) {
     if (el) { el.textContent = text; el.className = cls; }
   }
   _emrConnected = connected;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ASSESSMENT — 編集＋差分追記
+// ═══════════════════════════════════════════════════════════
+
+var _summaryPrevText = '';
+
+function lineDiff(oldText, newText) {
+  var oldLines = (oldText || '').split('\n');
+  var newLines = (newText || '').split('\n');
+  var added = [];
+  var oldSet = {};
+  for (var i = 0; i < oldLines.length; i++) oldSet[oldLines[i].trim()] = true;
+  for (var i = 0; i < newLines.length; i++) {
+    if (!oldSet[newLines[i].trim()]) added.push(newLines[i]);
+  }
+  return added.join('\n');
+}
+
+async function renderAssessmentSection() {
+  var textarea = $('inp-summary-current');
+  var historyEl = $('summary-history');
+  if (!textarea) return;
+  var statusEl = $('summary-status');
+  if (statusEl) statusEl.textContent = '';
+
+  try {
+    var patient = await getPatient(currentPatientId);
+    var summary = (patient && patient.summary) || '';
+    textarea.value = summary;
+    _summaryPrevText = summary;
+
+    if (historyEl) {
+      var html = '';
+      if (patient && patient.soapHistory && patient.soapHistory.length > 0) {
+        for (var i = 0; i < patient.soapHistory.length; i++) {
+          var h = patient.soapHistory[i];
+          html += '【' + h.date + '】' + h.text + '\n';
+        }
+      } else {
+        html = '（まだ追記履歴はありません）';
+      }
+      historyEl.textContent = html;
+    }
+
+    textarea.style.color = '';
+  } catch (e) {
+    console.error('renderAssessmentSection error:', e);
+  }
+}
+
+async function handleUpdateSummary() {
+  var textarea = $('inp-summary-current');
+  if (!textarea) return;
+  var newText = textarea.value;
+  var oldText = _summaryPrevText;
+
+  if (newText === oldText) {
+    toast('変更点がないため追記しませんでした');
+    return;
+  }
+
+  var diffText = lineDiff(oldText, newText);
+  if (!diffText.trim()) {
+    toast('差分が検出できませんでした');
+    return;
+  }
+
+  try {
+    var patient = await getPatient(currentPatientId);
+    if (!patient) { toast('患者が見つかりません'); return; }
+
+    if (!patient.soapHistory) patient.soapHistory = [];
+    patient.soapHistory.push({ date: fmtDate(new Date()), section: 'A', text: diffText });
+    patient.summary = newText;
+    patient.updatedAt = new Date().toISOString();
+    await putPatient(patient);
+
+    _summaryPrevText = newText;
+    await renderAssessmentSection();
+    updateSoapOutput();
+    toast('サマリーを更新しました（差分を追記）');
+  } catch (e) {
+    console.error('handleUpdateSummary error:', e);
+    toast('保存エラー');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SOAP OUTPUT
+// ═══════════════════════════════════════════════════════════
+
+function getFormValue(id) { var el = $(id); return el ? el.value.trim() : ''; }
+
+function buildHomeBPString(avgSbp, avgDbp, minSbp, minDbp, maxSbp, maxDbp) {
+  var parts = [];
+  if (avgSbp || avgDbp) parts.push('平均' + (avgSbp || '?') + '/' + (avgDbp || '?'));
+  if (minSbp || minDbp) {
+    parts.push('最低' + (minSbp || '?') + '/' + (minDbp || '?'));
+  }
+  if (maxSbp || maxDbp) {
+    parts.push('最高' + (maxSbp || '?') + '/' + (maxDbp || '?'));
+  }
+  return parts;
+}
+
+async function updateSoapOutput() {
+  var soapEl = $('soap-output');
+  if (!soapEl) return;
+
+  var subjective = getFormValue('inp-subjective');
+  var avgSbp = getFormValue('inp-avg-sbp');
+  var avgDbp = getFormValue('inp-avg-dbp');
+  var minSbp = getFormValue('inp-min-sbp');
+  var minDbp = getFormValue('inp-min-dbp');
+  var maxSbp = getFormValue('inp-max-sbp');
+  var maxDbp = getFormValue('inp-max-dbp');
+
+  var lines = [];
+
+  // S
+  lines.push('【S】' + (subjective || '（特記事項なし）'));
+
+  var oDate = '';
+  var oSbp = '';
+  var oDbp = '';
+  try {
+    var latest = await getLatestReading(currentPatientId);
+    if (latest) {
+      oDate = latest.date;
+      if (latest.systolic) oSbp = String(latest.systolic);
+      if (latest.diastolic) oDbp = String(latest.diastolic);
+    }
+  } catch (e) {
+    console.error('getLatestReading error:', e);
+  }
+
+  var oParts = ['【O】'];
+  if (oDate) oParts.push(oDate);
+  if (oSbp || oDbp) {
+    oParts.push('受診時血圧');
+    oParts.push((oSbp || '---') + '/' + (oDbp || '---') + 'mmHg');
+  }
+  lines.push(oParts.join(' '));
+
+  var homeParts = buildHomeBPString(avgSbp, avgDbp, minSbp, minDbp, maxSbp, maxDbp);
+  if (homeParts.length > 0) {
+    lines.push('　　家庭血圧 ' + homeParts.join('、'));
+  }
+
+  var aLines = [];
+  try {
+    var patient = await getPatient(currentPatientId);
+    if (patient && patient.soapHistory && patient.soapHistory.length > 0) {
+      for (var i = 0; i < patient.soapHistory.length; i++) {
+        var h = patient.soapHistory[i];
+        if (h.section === 'A') {
+          aLines.push('【' + h.date + '】' + h.text);
+        }
+      }
+    }
+  } catch (e) {
+    console.error('updateSoapOutput A error:', e);
+  }
+  var aLine = '【A】' + (aLines.length > 0 ? '\n' + aLines.join('\n') : '（記載なし）');
+
+  // P
+  var nd = getFormValue('inp-next-date');
+  var md = getFormValue('inp-medication-days');
+  var pm = getFormValue('inp-appointment-memo');
+  var pParts = [];
+  if (md) pParts.push('処方 ' + md + '日分');
+  if (pm) pParts.push(pm);
+  if (nd) pParts.push('次回 ' + nd);
+  var pLine = '【P】' + (pParts.length > 0 ? pParts.join('／') : '（未設定）');
+
+  soapEl.textContent = lines.join('\n') + '\n' + aLine + '\n' + pLine;
+}
+
+async function copySoapOutput() {
+  var soapEl = $('soap-output');
+  if (!soapEl) return;
+  var text = soapEl.textContent;
+  if (!text) {
+    toast('SOAPデータを生成中です…');
+    return;
+  }
+  copyToClipboard(text);
+  var statusEl = $('soap-status');
+  if (statusEl) statusEl.textContent = '✅ コピーしました';
+  setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 2500);
+  toast('SOAPをクリップボードにコピーしました');
 }
