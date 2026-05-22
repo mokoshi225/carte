@@ -693,9 +693,6 @@ async function registerReading() {
         '家庭血圧平均' + clipAvgSbp + '/' + clipAvgDbp + 'mmHg、最低' + clipMinSbp + '/' + clipMinDbp + 'mmHg、最高' + clipMaxSbp + '/' + clipMaxDbp + 'mmHg';
       copyToClipboard(clipText);
 
-      var ndate = new Date(date + 'T00:00:00');
-      ndate.setDate(ndate.getDate() + 1);
-      if (d) d.value = fmtDate(ndate);
       if (sb) sb.value = '';
      if (db) db.value = '';
      if (as) as.value = ''; if (ad) ad.value = '';
