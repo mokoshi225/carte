@@ -67,7 +67,7 @@ echo   UIA Client: %UIA_REF%
 echo   UIA Types:  %UIA_TYPES_REF%
 echo   WinBase:    %WBASE_REF%
 
-%CSC% /target:exe /reference:%UIA_REF% /reference:%UIA_TYPES_REF% /reference:%WBASE_REF% /reference:System.Core.dll /out:emr-watcher-v2.4.exe emr-watcher-v2.4.cs
+%CSC% /target:exe /reference:%UIA_REF% /reference:%UIA_TYPES_REF% /reference:%WBASE_REF% /reference:System.Core.dll /out:emr-watcher-v2.5.exe emr-watcher-v2.5.cs
 
 if %ERRORLEVEL% NEQ 0 (
   echo [ERROR] Compile failed. Code: %ERRORLEVEL%
@@ -75,13 +75,12 @@ if %ERRORLEVEL% NEQ 0 (
   exit /b %ERRORLEVEL%
 )
 
-echo [SUCCESS] emr-watcher-v2.4.exe generated:
-dir emr-watcher-v2.4.exe
+echo [SUCCESS] emr-watcher-v2.5.exe generated:
+dir emr-watcher-v2.5.exe
 echo.
 echo Usage:
-echo   1. Copy emr-watcher-v2.4.exe + bp-app-v2.4.html to USB
-echo   2. Rename to emr-watcher.exe + bp-app.html on USB (optional)
-echo   3. Double-click emr-watcher.exe
-echo   4. Open bp-app.html in browser
-echo   5. Ctrl+C to stop
+echo   1. Copy emr-watcher-v2.5.exe + bp-app.html to USB
+echo   2. Double-click emr-watcher.exe (or rename as needed)
+echo   3. Open bp-app.html in browser
+echo   4. Ctrl+C to stop
 pause

@@ -1,10 +1,10 @@
 // ===================================================================
-//  emr-watcher-v2.4.cs — SSI e-カルテ 患者情報 常時監視 Companion
+//  emr-watcher-v2.5.cs — SSI e-カルテ 患者情報 常時監視 Companion
 //  コンパイル: build-companion.bat をダブルクリック
 //  動作:
 //    1. 常時稼働（バックグラウンド、最小化推奨）
-//    2. 1秒ごとに e-カルテ/CITA ウィンドウをUIAで検出
-//    3. 検出後即ファイル書出（初回検出で即時反映）
+//    2. 1秒ごとに「カルテ・オーダー入力」ウィンドウをUIAで検出
+//    3. 検出後ファイル書出（2回連続確認で整合性保証）
 //    4. bp-app.html の [EMR読込] ボタンで読み込む
 // ===================================================================
 
@@ -28,6 +28,8 @@ class EmrWatcher
     static string _jsOutputPath;
     static string _logPath;
     static string _lastWrittenId = null;
+    static string _pendingId = null;
+    static string _pendingName = null;
     static int _pollIntervalMs = 1000;
 
     static void Main(string[] args)
@@ -51,6 +53,8 @@ class EmrWatcher
                 _pollIntervalMs = Math.Max(500, Math.Min(interval, 10000));
         }
 
+        // Clear old log on startup to prevent unbounded growth
+        try { File.WriteAllText(_logPath, ""); } catch { }
         Log("EMR Watcher started | interval=" + _pollIntervalMs + "ms");
         Console.WriteLine("EMR Watcher running in background... (Ctrl+C to stop)");
         Console.WriteLine("Output: " + _outputPath);
@@ -70,11 +74,19 @@ class EmrWatcher
                 if (info != null && info.Id != null)
                 {
                     string curId = info.Id;
-                    string name = (info.Name ?? "").Trim();
-                    // Write JSON only when patient ID changes (avoid redundant writes)
-                    if (curId != _lastWrittenId)
+                    string curName = (info.Name ?? "").Trim();
+
+                    if (curId == _lastWrittenId)
                     {
-                        string escapedName = name.Replace("\\", "\\\\").Replace("\"", "\\\"");
+                        // Same patient — clear pending state, no write needed
+                        _pendingId = null;
+                        _pendingName = null;
+                    }
+                    else if (_pendingId == curId && _pendingName == curName)
+                    {
+                        // Confirmed: same (ID, name) seen twice consecutively
+                        // Write now (avoids mixed new-ID + old-name race condition)
+                        string escapedName = curName.Replace("\\", "\\\\").Replace("\"", "\\\"");
                         string json = "{\n" +
                             "  \"patientId\": \"" + curId + "\",\n" +
                             "  \"patientName\": \"" + escapedName + "\",\n" +
@@ -84,11 +96,26 @@ class EmrWatcher
                         File.WriteAllText(_outputPath, json, Encoding.UTF8);
                         string js = "window.EMR_PATIENT=" + json + ";\n";
                         File.WriteAllText(_jsOutputPath, js, Encoding.UTF8);
-                        Log("Patient ID: " + curId + " Name: " + name);
+                        Log("Patient ID: " + curId + " Name: " + curName);
                         Console.WriteLine("[" + DateTime.Now.ToString("HH:mm:ss")
-                            + "] Patient: " + curId + " " + name);
+                            + "] Patient: " + curId + " " + curName);
                         _lastWrittenId = curId;
+                        _pendingId = null;
+                        _pendingName = null;
                     }
+                    else
+                    {
+                        // First sighting of a new (ID, name) pair — defer write
+                        // until next poll confirms consistency
+                        _pendingId = curId;
+                        _pendingName = curName;
+                    }
+                }
+                else
+                {
+                    // No patient detected — clear pending
+                    _pendingId = null;
+                    _pendingName = null;
                 }
             }
             catch (Exception ex)
@@ -104,52 +131,12 @@ class EmrWatcher
         var root = AutomationElement.RootElement;
         if (root == null) return null;
 
-        // Strategy 1: "カルテ記載" window — probe confirms Pane detection works here
-        AutomationElement descWin = FindWindowByTitle(root, "カルテ記載");
-        if (descWin != null)
-        {
-            PatientInfo info = ScanWindowForPatient(descWin);
-            if (info != null) { Log("Detected via カルテ記載 Pane: " + info.Id); return info; }
-        }
-
-        // Strategy 2: "カルテ・オーダー入力" window — probe found Pane but may hit element limit
+        // Only monitor "カルテ・オーダー入力" window
         AutomationElement orderWin = FindWindowByTitle(root, "カルテ・オーダー入力");
         if (orderWin != null)
         {
             PatientInfo info = ScanWindowForPatient(orderWin);
-            if (info != null) { Log("Detected via カルテ・オーダー入力 Pane: " + info.Id); return info; }
-        }
-
-        // Strategy 3: title regex on ALL top-level windows for [00000000]
-        // (this catches CITA Clinical Finder etc., but prefer windows with "カルテ")
-        AutomationElement titleMatch = null;
-        string titleId = null;
-        foreach (AutomationElement win in EnumerateWindows(root))
-        {
-            string title = win.Current.Name;
-            if (string.IsNullOrEmpty(title)) continue;
-            Match m = Regex.Match(title, @"\[(\d{8})\]");
-            if (!m.Success) continue;
-            if (title.IndexOf("カルテ", StringComparison.OrdinalIgnoreCase) >= 0)
-            {
-                PatientInfo info = ScanWindowForPatient(win);
-                if (info != null) { Log("Detected via " + title + ": " + info.Id); return info; }
-                Log("Detected via title [" + m.Groups[1].Value + "] from (優先): " + title);
-                return new PatientInfo { Id = m.Groups[1].Value, Name = "" };
-            }
-            // Remember first match if no priority window found
-            if (titleMatch == null)
-            {
-                titleMatch = win;
-                titleId = m.Groups[1].Value;
-            }
-        }
-        if (titleId != null)
-        {
-            PatientInfo info = ScanWindowForPatient(titleMatch);
-            if (info != null) { Log("Detected via " + titleMatch.Current.Name + ": " + info.Id); return info; }
-            Log("Detected via title regex [" + titleId + "] from: " + titleMatch.Current.Name);
-            return new PatientInfo { Id = titleId, Name = "" };
+            if (info != null) { Log("Detected via カルテ・オーダー入力: " + info.Id); return info; }
         }
 
         return null;
@@ -295,17 +282,6 @@ class EmrWatcher
         foreach (AutomationElement w in EnumerateWindows(parent))
         {
             if (w.Current.Name.IndexOf(partialTitle, StringComparison.OrdinalIgnoreCase) >= 0)
-                return w;
-        }
-        return null;
-    }
-
-    static AutomationElement FindWindowByClass(AutomationElement parent, string classPrefix)
-    {
-        foreach (AutomationElement w in EnumerateWindows(parent))
-        {
-            string cls = w.Current.ClassName;
-            if (!string.IsNullOrEmpty(cls) && cls.StartsWith(classPrefix))
                 return w;
         }
         return null;
