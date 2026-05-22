@@ -59,11 +59,11 @@ function parseCSV(text) {
  * @returns {string} BOM付きUTF-8 CSV
  */
 function recordsToCSV(records) {
-  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ,体重\n';
   records.forEach(r => {
     const name = r.name ? `"${r.name}"` : '';
     const note = r.note ? `"${r.note}"` : '';
-    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note},${r.weight || 0}\n`;
   });
   return csv;
 }

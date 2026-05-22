@@ -92,9 +92,17 @@ async function init() {
    var btnReg = $('btn-register');
    if (btnReg) btnReg.addEventListener('click', registerReading);
 
+   // Event: EMR copy
+   var btnEmr = $('btn-emr-copy');
+   if (btnEmr) btnEmr.addEventListener('click', generateEMRText);
+
    var inpDbp = $('inp-dbp');
    if (inpDbp) inpDbp.addEventListener('keydown', function(e) {
-     if (e.key === 'Enter') { e.preventDefault(); registerReading(); }
+     if (e.key === 'Enter') { e.preventDefault(); var w = $('inp-weight'); if (w) w.focus(); }
+   });
+   var inpWeight = $('inp-weight');
+   if (inpWeight) inpWeight.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); var m = $('inp-memo'); if (m) m.focus(); }
    });
    var inpMemo = $('inp-memo');
    if (inpMemo) inpMemo.addEventListener('keydown', function(e) {
@@ -573,7 +581,7 @@ function renderDailyListFromData(readings) {
   var body = $('daily-body');
   if (!body) return;
   if (!readings || readings.length === 0) {
-    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    body.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
     return;
   }
   readings.sort(function(a, b) { return b.date.localeCompare(a.date); });
@@ -581,6 +589,7 @@ function renderDailyListFromData(readings) {
   for (var i = 0; i < readings.length; i++) {
     var r = readings[i];
     function n(v) { return v > 0 ? v : '-'; }
+    function w(v) { return v > 0 ? v : '-'; }
     html += '<tr>' +
       '<td>' + r.date + '</td>' +
       '<td class="bp-val">' + n(r.systolic) + '</td>' +
@@ -591,6 +600,7 @@ function renderDailyListFromData(readings) {
       '<td class="bp-val">' + n(r.minDbp) + '</td>' +
       '<td class="bp-val">' + n(r.maxSbp) + '</td>' +
       '<td class="bp-val">' + n(r.maxDbp) + '</td>' +
+      '<td class="bp-val">' + w(r.weight) + '</td>' +
       '<td style="text-align:right;white-space:nowrap">' +
       '<button class="btn btn-sm btn-secondary" data-edit="' + r.id + '">編集</button> ' +
       '<button class="btn btn-sm btn-danger" data-del="' + r.id + '">削除</button>' +
@@ -638,9 +648,11 @@ async function registerReading() {
    var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
    var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
    var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+   var wt = $('inp-weight');
    var m = $('inp-memo');
    if (!d || !sb || !db) return;
    var date = d.value, sbp = Number(sb.value), dbp = Number(db.value);
+   var weight = wt ? Number(wt.value) : 0;
    var memo = m ? m.value.trim() : '';
    if (!date) { toast('日付は必須です'); return; }
    if (sbp > 0 && (sbp < 50 || sbp > 300)) { toast('収縮期血圧の範囲が不正です'); return; }
@@ -659,7 +671,8 @@ async function registerReading() {
      minSbp: Number(ns ? ns.value : 0) || 0,
      minDbp: Number(nd ? nd.value : 0) || 0,
      maxSbp: Number(xs ? xs.value : 0) || 0,
-     maxDbp: Number(xd ? xd.value : 0) || 0
+     maxDbp: Number(xd ? xd.value : 0) || 0,
+     weight: weight || 0
    };
 
    try {
@@ -711,6 +724,7 @@ async function registerReading() {
      if (as) as.value = ''; if (ad) ad.value = '';
      if (ns) ns.value = ''; if (nd) nd.value = '';
      if (xs) xs.value = ''; if (xd) xd.value = '';
+     if (wt) wt.value = '';
      if (m) m.value = '';
       editingId = null;
       var rs = $('register-status'); if (rs) rs.textContent = '';
@@ -738,6 +752,7 @@ async function editReading(id) {
     var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
     var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
     var sj = $('inp-subjective');
+    var wt = $('inp-weight'); (体重入力フィールドとEMR所見コピー機能を追加)
     if (d) d.value = r.date;
     if (sb) sb.value = r.systolic || '';
     if (db) db.value = r.diastolic || '';
@@ -747,6 +762,7 @@ async function editReading(id) {
     if (nd) nd.value = r.minDbp || '';
     if (xs) xs.value = r.maxSbp || '';
     if (xd) xd.value = r.maxDbp || '';
+    if (wt) wt.value = r.weight || '';
     if (m) m.value = r.note || '';
     if (sj) sj.value = r.subjective || '';
     var rs = $('register-status'); if (rs) rs.textContent = '📝 編集中';
@@ -773,7 +789,7 @@ async function exportCSV() {
   var patient = await getPatient(currentPatientId);
   if (readings.length === 0) { toast('データがありません'); return; }
   readings.sort(function(a, b) { return a.date.localeCompare(b.date); });
-  var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,メモ\n';
+  var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,体重,メモ\n';
   for (var i = 0; i < readings.length; i++) {
     var r = readings[i];
     var name = patient ? patient.name.replace(/"/g, '""') : '';
@@ -782,6 +798,7 @@ async function exportCSV() {
       (r.avgSbp || 0) + ',' + (r.avgDbp || 0) + ',' +
       (r.minSbp || 0) + ',' + (r.minDbp || 0) + ',' +
       (r.maxSbp || 0) + ',' + (r.maxDbp || 0) + ',' +
+      (r.weight || 0) + ',' +
       '"' + (r.note || '').replace(/"/g, '""') + '"\n';
   }
   var today = fmtDate(new Date());
@@ -902,7 +919,66 @@ function updateDataStat() {
    });
 }
 
+// ═══════════════════════════════════════════════════════════
+//  EMR TEXT GENERATION
+// ═══════════════════════════════════════════════════════════
 
+function generateEMRText() {
+  var d = $('inp-date'), sb = $('inp-sbp'), db = $('inp-dbp');
+  var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
+  var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
+  var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+  var wt = $('inp-weight');
+  if (!d) { toast('日付が入力されていません'); return; }
+  var date = d.value;
+  if (!date) { toast('日付が入力されていません'); return; }
+
+  var parts = date.split('-');
+  var dateStr = parts.join('/');
+
+  function v(el) { return el && el.value && Number(el.value) > 0 ? el.value : '-'; }
+  function bpPair(s, d) {
+    var sv = v(s), dv = v(d);
+    return sv + '/' + dv;
+  }
+
+  var clinicBP = bpPair(sb, db);
+  var homeAvg  = '家庭' + bpPair(as, ad);
+  var homeMin  = bpPair(ns, nd);
+  var homeMax  = bpPair(xs, xd);
+  var homeRange = homeMin + '-' + homeMax;
+  var weight = v(wt);
+
+  var line1 = dateStr;
+  var line2 = clinicBP + ',' + homeAvg + ',' + homeRange + ',' + weight;
+
+  var text = line1 + '\n' + line2;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      toast('所見をクリップボードにコピーしました');
+    }).catch(function() {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('所見をクリップボードにコピーしました');
+  } catch (e) {
+    toast('コピーに失敗しました。手動でコピーしてください。\n' + text);
+  }
+  document.body.removeChild(ta);
+}
 
 // ═══════════════════════════════════════════════════════════
 //  APPOINTMENT
