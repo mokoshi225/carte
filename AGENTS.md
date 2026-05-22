@@ -1,7 +1,7 @@
 # AGENTS.md — Blood Pressure Monitor
 
 **Generated:** 2026-05-22
-**Commit:** cc16b64
+**Commit:** 6c0e381
 **Branch:** main
 
 ## OVERVIEW
@@ -12,16 +12,18 @@ Offline blood pressure tracking web app for clinic use. Single HTML file (`bp-ap
 
 ```
 carte/
-├── bp-app.html          ← Distribution: single-file build (USB-ready)
-├── bp-app-built.html    ← Previous build artifact
-├── build.bat            ← Windows build: concatenates bp-app-dev/ into bp-app.html
-├── README.md            ← Project docs (Japanese)
-├── spec-v0.3.html       ← Old spec
-├── spec-v0.4.html       ← Current spec (draft)
-├── capture-bp.js        ← Playwright capture script
-├── bp-graph.png         ← Screenshot
-├── failure.md           ← 障害記録（コード変更前に読むこと）
-└── bp-app-dev/          ← Source modules (see bp-app-dev/AGENTS.md)
+├── bp-app.html            ← Distribution: single-file build (USB-ready)
+├── bp-app-built.html      ← Previous build artifact
+├── build.bat              ← Windows build: concatenates bp-app-dev/ into bp-app.html
+├── build-companion.bat    ← EMR Watcher コンパイルスクリプト
+├── emr-watcher-v2.5.cs    ← EMR Watcher C# ソース（UIAで監視）
+├── README.md              ← Project docs (Japanese)
+├── spec-v0.3.html         ← Old spec
+├── spec-v0.4.html         ← Current spec (draft)
+├── capture-bp.js          ← Playwright capture script
+├── bp-graph.png           ← Screenshot
+├── failure.md             ← 障害記録（コード変更前に読むこと）
+└── bp-app-dev/            ← Source modules (see bp-app-dev/AGENTS.md)
 ```
 
 ## WHERE TO LOOK
@@ -30,6 +32,8 @@ carte/
 |------|----------|-------|
 | Distribution build | `bp-app.html` | USB-deployable single file |
 | Source code | `bp-app-dev/` | Split modules, rebuild via build.bat |
+| EMR Watcher (C#) | `emr-watcher-v2.5.cs` | 「カルテ・オーダー入力」のみUIA監視 |
+| EMR Watcher ビルド | `build-companion.bat` | CSC.exe で emr-watcher をコンパイル |
 | Spec | `spec-v0.4.html` | Draft requirements |
 | Build | `build.bat` | PowerShell concatenation |
 | Screenshot generation | `capture-bp.js` | Playwright script |
