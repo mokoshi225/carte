@@ -105,6 +105,13 @@ async function deleteReading(id) {
   return prom(tx('readings', 'readwrite').delete(id));
 }
 
+async function getLatestReading(patientId) {
+  const readings = await getReadingsByPatient(patientId);
+  if (!readings || readings.length === 0) return null;
+  readings.sort((a, b) => b.date.localeCompare(a.date));
+  return readings[0];
+}
+
 async function getAllReadings() {
    return prom(tx('readings', 'readonly').getAll());
 }
