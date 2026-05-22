@@ -406,6 +406,81 @@ input, select { font-family: inherit }
   background: #95a5a6;
   color: #fff;
 }
+.emr-btn {
+  font-size: .75em;
+  padding: 2px 8px;
+  margin-left: 6px;
+  border: 1px solid #bdc3c7;
+  border-radius: 4px;
+  background: #ecf0f1;
+  color: #2c3e50;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.emr-btn:hover {
+  background: #d5dbdb;
+}
+.emr-btn:active {
+  background: #bdc3c7;
+}
+
+/* ===== Data Cleanup Screen ===== */
+.cleanup-empty {
+  padding: 16px; background: #f8f9fb; border-radius: 6px;
+  color: #7f8c8d; font-size: .9em; text-align: center;
+}
+.cleanup-section-title {
+  font-size: 1em; color: #2c3e50; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.cleanup-section-title .cleanup-count {
+  background: #e74c3c; color: #fff; font-size: .78em;
+  padding: 0 8px; border-radius: 10px; line-height: 1.8;
+}
+.cleanup-desc { font-size: .82em; color: #7f8c8d; margin-bottom: 12px }
+.cleanup-card {
+  border: 1px solid #e0e4e8; border-radius: 6px;
+  margin-bottom: 8px; background: #fff;
+}
+.cleanup-card-header {
+  padding: 10px 14px; background: #f8f9fb;
+  border-bottom: 1px solid #e0e4e8;
+  font-size: .88em; border-radius: 6px 6px 0 0;
+}
+.cleanup-card-body { padding: 10px 14px }
+.cleanup-pat-row {
+  padding: 4px 0; font-size: .88em;
+  display: flex; align-items: center; gap: 8px;
+}
+.cleanup-pat-row code {
+  background: #ecf0f1; padding: 2px 8px;
+  border-radius: 3px; font-size: .9em;
+}
+.cleanup-pat-name { color: #2c3e50 }
+.cleanup-badge-target {
+  background: #27ae60; color: #fff; font-size: .72em;
+  padding: 1px 8px; border-radius: 8px;
+}
+.cleanup-card-action {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.cleanup-hint {
+  font-size: .78em; color: #95a5a6;
+}
+.cleanup-name-select {
+  padding: 4px 8px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .88em; background: #fff;
+}
+.cleanup-name-input {
+  padding: 6px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .9em; width: 200px;
+}
+.cleanup-name-input:focus {
+  outline: none; border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+}
 
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
@@ -426,6 +501,7 @@ input, select { font-family: inherit }
       <h1>💊 血圧モニター</h1>
       <span class="info" id="header-info"></span>
       <span id="emr-status" class="emr-status disconnected">○ EMR未接続</span>
+      <button class="emr-btn" id="emr-btn-id" title="カルテから患者情報を読み込む">EMR読込</button>
     </div>
     <div class="content">
       <h2>患者IDを入力してください</h2>
@@ -440,7 +516,7 @@ input, select { font-family: inherit }
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
        <div class="version-info">
-         <small>         バージョン <span id="app-version">2.1.0</span> | <span id="app-build-date"></span></small>
+         <small>         バージョン <span id="app-version">2.3.0</span> | <span id="app-build-date"></span></small>
        </div>
       <div style="margin-top:24px">
         <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
@@ -455,6 +531,7 @@ input, select { font-family: inherit }
       <h1>💊 血圧モニター</h1>
       <span class="info" id="patient-header-info"></span>
       <span id="emr-status-patient" class="emr-status disconnected">○ EMR未接続</span>
+      <button class="emr-btn" id="emr-btn-patient" title="カルテから患者情報を読み込む">EMR読込</button>
     </div>
     <div class="content">
       <div class="nav-bar">
@@ -621,7 +698,8 @@ input, select { font-family: inherit }
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                <tbody>
-                                        <tr><td>v2.2.0</td><td>2026-05-21</td><td>SOAP出力を最終登録血圧値ベースに変更（登録後もSOAPに反映）。サマリーを編集＋差分追記方式に全面改修：現在のサマリーを編集して「更新」で差分のみSOAPのAに追記、プロブレムごとの経過記載に対応</td></tr>
+                     <tr><td>v2.3.0</td><td>2026-05-22</td><td>自動ポーリング廃止→手動「EMR読込」ボタン方式に変更、script注入でfile://対応、氏名も取り込み</td></tr>
+                                         <tr><td>v2.2.0</td><td>2026-05-21</td><td>SOAP出力を最終登録血圧値ベースに変更（登録後もSOAPに反映）。サマリーを編集＋差分追記方式に全面改修：現在のサマリーを編集して「更新」で差分のみSOAPのAに追記、プロブレムごとの経過記載に対応</td></tr>
                     <tr><td>v2.1.0</td><td>2026-05-21</td><td>SOAP記録機能。S（主訴）入力欄、A（評価サマリー）累積追記、SOAP出力コピー。登録時・編集時にS項目を保存/読込対応</td></tr>
                     <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
                     <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
@@ -685,7 +763,7 @@ input, select { font-family: inherit }
 
        <!-- バージョン情報 -->
        <div class="version-footer">
-           <small>📋 v<span id="app-version-footer">2.1.0</span> | 💊 Blood Pressure Monitor</small>
+           <small>📋 v<span id="app-version-footer">2.3.0</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
@@ -697,6 +775,7 @@ input, select { font-family: inherit }
       <h1>📅 予約カレンダー</h1>
       <span class="info" id="cal-header-info"></span>
       <span id="emr-status-calendar" class="emr-status disconnected">○ EMR未接続</span>
+      <button class="emr-btn" id="emr-btn-calendar" title="カルテから患者情報を読み込む">EMR読込</button>
     </div>
     <div class="content">
       <div class="nav-bar">
@@ -1356,7 +1435,7 @@ function parseBackupJSON(text) {
   }
 }
 /* =================================================================
-   app.js — メインアプリケーションロジック v2.2.0
+   app.js — メインアプリケーションロジック v2.3.0
    ================================================================= */
 
 currentPatientId = null;
@@ -1565,11 +1644,16 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v2.2.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '2.2.0';
+  $('header-info').textContent = 'v2.3.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.3.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '2.2.0';
-  startEmrFollow();
+  $('app-version-footer').textContent = '2.3.0';
+
+  var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
+  for (var i = 0; i < emrBtns.length; i++) {
+    var btn = $(emrBtns[i]);
+    if (btn) btn.addEventListener('click', readEmrPatient);
+  }
 }
 
 // Synchronous DB open wrapper (runs inside async init)
@@ -3323,55 +3407,38 @@ function parseBackupJSON(text) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  EMR AUTO-FOLLOW
+//  EMR MANUAL READ (button-triggered, no auto-polling)
 // ═══════════════════════════════════════════════════════════
 
-var _emrLastId = null;
-var _emrPollTimer = null;
 var _emrConnected = false;
-var _emrEnabled = true;
 
-function startEmrFollow() {
-  if (window.location.protocol === 'file:') {
+function readEmrPatient() {
+  var old = document.getElementById('emr-script');
+  if (old) old.parentNode.removeChild(old);
+
+  var s = document.createElement('script');
+  s.id = 'emr-script';
+  s.src = 'emr-patient.js?t=' + Date.now();
+  s.onload = function() {
+    var data = window.EMR_PATIENT;
+    if (data && data.patientId) {
+      updateEmrStatus(true);
+      var id = String(data.patientId).trim();
+      var name = data.patientName || '';
+      navigateToPatientAuto(id, name);
+    } else {
+      updateEmrStatus(false);
+      toast('EMRデータが見つかりません');
+    }
+  };
+  s.onerror = function() {
     updateEmrStatus(false);
-    return;
-  }
-  pollEmr();
+    toast('EMR接続エラー（emr-watcherが起動していません）');
+  };
+  document.body.appendChild(s);
 }
 
-async function pollEmr() {
-  if (!_emrEnabled) return;
-  try {
-    var resp = await fetch('emr-patient.json?t=' + Date.now());
-    if (!resp.ok) {
-      updateEmrStatus(false);
-      _emrPollTimer = setTimeout(pollEmr, 1500);
-      return;
-    }
-    var data = await resp.json();
-    if (!data || !data.patientId) {
-      updateEmrStatus(false);
-      _emrPollTimer = setTimeout(pollEmr, 1500);
-      return;
-    }
-    updateEmrStatus(true);
-    var id = String(data.patientId).trim();
-    if (id && id !== _emrLastId) {
-      _emrLastId = id;
-      navigateToPatientAuto(id);
-    }
-  } catch (e) {
-    updateEmrStatus(false);
-    if (_emrConnected) {
-      _emrEnabled = false;
-      setTimeout(function() { _emrEnabled = true; pollEmr(); }, 30000);
-      return;
-    }
-  }
-  _emrPollTimer = setTimeout(pollEmr, 1500);
-}
-
-async function navigateToPatientAuto(id) {
+async function navigateToPatientAuto(id, name) {
   if (!/^\d{8}$/.test(id)) {
     toast('EMR患者IDの形式が不正です: ' + id);
     return;
@@ -3381,7 +3448,7 @@ async function navigateToPatientAuto(id) {
     if (!patient) {
       await putPatient({
         id: id,
-        name: '',
+        name: name || '',
         gender: '',
         birthDate: '',
         memo: '（EMR連携 自動作成）',
@@ -3392,7 +3459,9 @@ async function navigateToPatientAuto(id) {
     currentView = 'all';
     showScreen('patient');
     await renderPatientPage();
-    toast('EMR連携: 患者 ' + id + ' を開きました');
+    var label = id;
+    if (name) label += ' ' + name;
+    toast('EMR連携: 患者 ' + label + ' を開きました');
   } catch (e) {
     console.error('navigateToPatientAuto error:', e);
   }
@@ -3600,6 +3669,518 @@ async function copySoapOutput() {
   if (statusEl) statusEl.textContent = '✅ コピーしました';
   setTimeout(function() { if (statusEl) statusEl.textContent = ''; }, 2500);
   toast('SOAPをクリップボードにコピーしました');
+}
+/* =================================================================
+   cleanup.js — データクレンジングモジュール v1.0.0
+   患者データの不整合（IDフォーマット混在・名前不一致・名前なし）を
+   検出し、編集するUI
+   ================================================================= */
+
+/* ---- エントリポイント ---- */
+
+function openDataCleanup() {
+  showScreen('cleanup');
+  runCleanupCheck();
+}
+
+function closeCleanup() {
+  showScreen('id');
+  var inp = $('inp-patient-id');
+  if (inp) { inp.value = ''; inp.focus(); }
+  renderRecentPatients();
+}
+
+/* ---- 分析実行 ---- */
+
+async function runCleanupCheck() {
+  var statusEl = $('cleanup-status');
+  if (statusEl) statusEl.textContent = '患者データを分析中...';
+
+  try {
+    var patients = await getAllPatients();
+    var readings = await getAllReadings();
+
+    // 数値IDでグループ化（数字のみのIDを持つ患者のみ）
+    var groups = {};  // numericId -> [{id, name, ...}]
+    var nonNumericIds = [];
+
+    for (var i = 0; i < patients.length; i++) {
+      var p = patients[i];
+      var numId = parseInt(p.id, 10);
+      if (isNaN(numId)) {
+        nonNumericIds.push(p);
+        continue;
+      }
+      if (!groups[numId]) groups[numId] = [];
+      groups[numId].push(p);
+    }
+
+    // ---- 検出1: IDフォーマット混在 ----
+    var fmtIssues = [];
+    for (var numId in groups) {
+      var g = groups[numId];
+      if (g.length < 2) continue;
+      // ID文字列のバリエーションをチェック
+      var ids = {};
+      for (var j = 0; j < g.length; j++) {
+        ids[g[j].id] = true;
+      }
+      var uniqueIds = Object.keys(ids);
+      if (uniqueIds.length > 1) {
+        // ゼロパディングされたIDをターゲットに（より桁数の多い方）
+        var sorted = uniqueIds.slice().sort(function(a, b) { return b.length - a.length; });
+        var targetId = sorted[0];  // 桁数が多い方 = ゼロパディング済み
+        fmtIssues.push({
+          numId: Number(numId),
+          patients: g,
+          ids: uniqueIds,
+          targetId: targetId
+        });
+      }
+    }
+
+    // ---- 検出2: 名前不一致（ID重複グループ内で名前が異なる） ----
+    var nameConflicts = [];
+    for (var numId in groups) {
+      var g = groups[numId];
+      if (g.length < 2) continue;
+      var nameMap = {};
+      for (var j = 0; j < g.length; j++) {
+        var n = (g[j].name || '').trim();
+        if (n) nameMap[n] = (nameMap[n] || 0) + 1;
+      }
+      var names = Object.keys(nameMap);
+      if (names.length > 1) {
+        // 最多出現の名前を正解候補に
+        var bestName = names[0];
+        var bestCount = nameMap[names[0]];
+        for (var k = 1; k < names.length; k++) {
+          if (nameMap[names[k]] > bestCount) {
+            bestCount = nameMap[names[k]];
+            bestName = names[k];
+          }
+        }
+        nameConflicts.push({
+          numId: Number(numId),
+          patients: g,
+          names: names,
+          bestName: bestName
+        });
+      }
+    }
+
+    // ---- 検出3: 名前なし患者 ----
+    var noNamePats = [];
+    for (var i = 0; i < patients.length; i++) {
+      var p = patients[i];
+      if (!p.name || !p.name.trim()) {
+        // 測定データ件数を調べる
+        var cnt = 0;
+        for (var j = 0; j < readings.length; j++) {
+          if (readings[j].patientId === p.id) cnt++;
+        }
+        noNamePats.push({
+          patient: p,
+          readingCount: cnt
+        });
+      }
+    }
+
+    renderCleanupResults(fmtIssues, nameConflicts, noNamePats);
+
+    if (statusEl) statusEl.textContent = '';
+  } catch (e) {
+    console.error('runCleanupCheck error:', e);
+    if (statusEl) statusEl.textContent = 'エラー: ' + e.message;
+  }
+}
+
+/* ---- 結果表示 ---- */
+
+function renderCleanupResults(fmtIssues, nameConflicts, noNamePats) {
+  var summaryEl = $('cleanup-summary');
+  var fmtEl = $('cleanup-fmt-issues');
+  var nameEl = $('cleanup-name-conflicts');
+  var nonameEl = $('cleanup-noname');
+  if (!summaryEl || !fmtEl || !nameEl || !nonameEl) return;
+
+  var total = fmtIssues.length + nameConflicts.length + noNamePats.length;
+
+  // サマリー
+  summaryEl.innerHTML =
+    '<strong>検出結果</strong>: ' +
+    'IDフォーマット混在 ' + fmtIssues.length + '件 / ' +
+    '名前不一致 ' + nameConflicts.length + '件 / ' +
+    '名前なし ' + noNamePats.length + '件';
+
+  if (total === 0) {
+    fmtEl.innerHTML = '<div class="cleanup-empty">✅ 問題は見つかりませんでした</div>';
+    nameEl.innerHTML = '';
+    nonameEl.innerHTML = '';
+    return;
+  }
+
+  // ---- セクション1: IDフォーマット混在 ----
+  if (fmtIssues.length > 0) {
+    var fmtHtml = '';
+    for (var i = 0; i < fmtIssues.length; i++) {
+      (function(issue) {
+        var patRows = '';
+        for (var j = 0; j < issue.patients.length; j++) {
+          var p = issue.patients[j];
+          var pname = esc(p.name || '');
+          patRows += '<div class="cleanup-pat-row">' +
+            '<code>' + esc(p.id) + '</code> ' +
+            '<span class="cleanup-pat-name">' + pname + '</span>' +
+            (p.id === issue.targetId ? ' <span class="cleanup-badge-target">ターゲット</span>' : '') +
+            '</div>';
+        }
+        fmtHtml +=
+          '<div class="cleanup-card">' +
+          '<div class="cleanup-card-header">🔗 数値ID: <strong>' + issue.numId + '</strong> — ' +
+          issue.ids.length + '種類のID表記</div>' +
+          '<div class="cleanup-card-body">' +
+          patRows +
+          '<div class="cleanup-card-action">' +
+          '<button class="btn btn-primary btn-sm" data-merge-group="' + issue.numId + '">' +
+          '🔗 統合: ' + esc(issue.targetId) + ' に統一</button> ' +
+          '<span class="cleanup-hint">測定データ・予約を全て ' + esc(issue.targetId) + ' に移行します</span>' +
+          '</div></div></div>';
+      })(fmtIssues[i]);
+    }
+    fmtEl.innerHTML =
+      '<h3 class="cleanup-section-title">📛 IDフォーマット混在 <span class="cleanup-count">' + fmtIssues.length + '</span></h3>' +
+      '<p class="cleanup-desc">同じ患者なのにIDの桁数（ゼロ埋め）が異なります。ボタンをクリックして統一してください。</p>' +
+      fmtHtml;
+  } else {
+    fmtEl.innerHTML = '<div class="cleanup-empty">✅ IDフォーマット混在はありません</div>';
+  }
+
+  // ── イベント配線: ID統合 ──
+  fmtEl.querySelectorAll('[data-merge-group]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var numId = Number(this.dataset.mergeGroup);
+      var issue = null;
+      for (var i = 0; i < fmtIssues.length; i++) {
+        if (fmtIssues[i].numId === numId) { issue = fmtIssues[i]; break; }
+      }
+      if (issue) confirmMergeGroup(issue);
+    });
+  });
+
+  // ---- セクション2: 名前不一致 ----
+  if (nameConflicts.length > 0) {
+    var ncHtml = '';
+    for (var i = 0; i < nameConflicts.length; i++) {
+      (function(issue) {
+        var patRows = '';
+        for (var j = 0; j < issue.patients.length; j++) {
+          var p = issue.patients[j];
+          var pname = esc(p.name || '(なし)');
+          patRows += '<div class="cleanup-pat-row">' +
+            '<code>' + esc(p.id) + '</code> ' +
+            '<span class="cleanup-pat-name">' + pname + '</span>' +
+            '</div>';
+        }
+
+        var selectHtml = '<select class="cleanup-name-select" data-namefix-group="' + issue.numId + '">';
+        for (var j = 0; j < issue.names.length; j++) {
+          var selected = issue.names[j] === issue.bestName ? ' selected' : '';
+          selectHtml += '<option value="' + esc(issue.names[j]) + '"' + selected + '>' + esc(issue.names[j]) + '</option>';
+        }
+        selectHtml += '</select>';
+
+        ncHtml +=
+          '<div class="cleanup-card">' +
+          '<div class="cleanup-card-header">❓ 数値ID: <strong>' + issue.numId + '</strong> — 名前に不一致</div>' +
+          '<div class="cleanup-card-body">' +
+          patRows +
+          '<div class="cleanup-card-action">' +
+          '正しい名前を選択: ' + selectHtml + ' ' +
+          '<button class="btn btn-primary btn-sm" data-fix-name-group="' + issue.numId + '">' +
+          '✅ 適用</button>' +
+          '</div></div></div>';
+      })(nameConflicts[i]);
+    }
+    nameEl.innerHTML =
+      '<h3 class="cleanup-section-title">❓ 名前不一致 <span class="cleanup-count">' + nameConflicts.length + '</span></h3>' +
+      '<p class="cleanup-desc">同じ患者のグループ内で氏名の登録が異なります。正しい名前を選んで統一してください。</p>' +
+      ncHtml;
+  } else {
+    nameEl.innerHTML = '<div class="cleanup-empty">✅ 名前不一致はありません</div>';
+  }
+
+  // ── イベント配線: 名前修正 ──
+  nameEl.querySelectorAll('[data-fix-name-group]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var numId = Number(this.dataset.fixNameGroup);
+      var issue = null;
+      for (var i = 0; i < nameConflicts.length; i++) {
+        if (nameConflicts[i].numId === numId) { issue = nameConflicts[i]; break; }
+      }
+      if (!issue) return;
+      var select = btn.parentElement.querySelector('.cleanup-name-select');
+      if (!select) return;
+      var correctName = select.value;
+      confirmApplyName(issue, correctName);
+    });
+  });
+
+  // ---- セクション3: 名前なし患者 ----
+  if (noNamePats.length > 0) {
+    var nnHtml = '';
+    for (var i = 0; i < noNamePats.length; i++) {
+      (function(item) {
+        var p = item.patient;
+        nnHtml +=
+          '<div class="cleanup-card">' +
+          '<div class="cleanup-card-header">⚠ ID: <code>' + esc(p.id) + '</code>' +
+          '（測定' + item.readingCount + '件）' +
+          '</div>' +
+          '<div class="cleanup-card-body">' +
+          '<div class="cleanup-card-action">' +
+          '<input type="text" class="cleanup-name-input" data-patient-id="' + esc(p.id) + '" placeholder="氏名を入力" value=""> ' +
+          '<button class="btn btn-primary btn-sm" data-assign-name="' + esc(p.id) + '">💾 保存</button> ' +
+          (item.readingCount === 0 ? '<button class="btn btn-danger btn-sm" data-del-noname="' + esc(p.id) + '">🗑 削除</button>' : '') +
+          '</div></div></div>';
+      })(noNamePats[i]);
+    }
+    nonameEl.innerHTML =
+      '<h3 class="cleanup-section-title">⚠ 名前なし患者 <span class="cleanup-count">' + noNamePats.length + '</span></h3>' +
+      '<p class="cleanup-desc">氏名が登録されていない患者です。名前を入力するか、不要な患者を削除してください。</p>' +
+      nnHtml;
+  } else {
+    nonameEl.innerHTML = '<div class="cleanup-empty">✅ 名前なし患者はいません</div>';
+  }
+
+  // ── イベント配線: 名前登録 ──
+  nonameEl.querySelectorAll('[data-assign-name]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pid = this.dataset.assignName;
+      var inp = document.querySelector('.cleanup-name-input[data-patient-id="' + pid.replace(/[."\\\/\[\]]/g, '\\$&') + '"]');
+      var name = inp ? inp.value.trim() : '';
+      if (!name) { toast('氏名を入力してください'); return; }
+      handleAssignName(pid, name);
+    });
+  });
+
+  // ── イベント配線: 名前なし患者削除 ──
+  nonameEl.querySelectorAll('[data-del-noname]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var pid = this.dataset.delNoname;
+      confirmDeletePatient(pid);
+    });
+  });
+}
+
+/* ---- ID統合の確認 ---- */
+
+function confirmMergeGroup(issue) {
+  var msg = '以下のID表記を統合します:\n';
+  for (var i = 0; i < issue.ids.length; i++) {
+    var mark = issue.ids[i] === issue.targetId ? ' ★(ターゲット)' : '';
+    msg += '  ' + issue.ids[i] + mark + '\n';
+  }
+  msg += '\n全ての測定データ・予約を ' + issue.targetId + ' に移行します。\nよろしいですか？';
+
+  confirmAsync('ID統合確認', msg).then(function(ok) {
+    if (!ok) return;
+    doMergeGroup(issue);
+  });
+}
+
+/* ---- 統合実行 ---- */
+
+async function doMergeGroup(issue) {
+  var sourceIds = [];
+  for (var i = 0; i < issue.ids.length; i++) {
+    if (issue.ids[i] !== issue.targetId) {
+      sourceIds.push(issue.ids[i]);
+    }
+  }
+
+  var merged = 0;
+  var errors = 0;
+
+  for (var si = 0; si < sourceIds.length; si++) {
+    try {
+      await mergePatientInto(sourceIds[si], issue.targetId);
+      merged++;
+    } catch (e) {
+      console.error('merge error:', sourceIds[si], e);
+      errors++;
+    }
+  }
+
+  if (errors > 0) {
+    toast('統合完了: ' + merged + '件, エラー: ' + errors + '件');
+  } else {
+    toast('統合完了: ' + merged + '件の患者を ' + issue.targetId + ' に統合しました');
+  }
+
+  // 再分析
+  await runCleanupCheck();
+}
+
+/**
+ * sourceId の患者データを全て targetId に移行する
+ */
+async function mergePatientInto(sourceId, targetId) {
+  // 1. 測定データを移行
+  var sourceReadings = await getReadingsByPatient(sourceId);
+  for (var i = 0; i < sourceReadings.length; i++) {
+    var r = sourceReadings[i];
+    // 同日のデータが既にターゲット側にあればスキップ（ターゲット優先）
+    var existingTarget = await getReadingByDate(targetId, r.date);
+    if (existingTarget) {
+      // ターゲット側に既存データあり → ソースを削除
+      await deleteReading(r.id);
+      continue;
+    }
+    // ソースの読みを削除し、新しいpatientIdで作成
+    var newReading = {
+      patientId: targetId,
+      date: r.date,
+      systolic: r.systolic || 0,
+      diastolic: r.diastolic || 0,
+      meanArterial: r.meanArterial || 0,
+      note: r.note || '',
+      avgSbp: r.avgSbp || 0,
+      avgDbp: r.avgDbp || 0,
+      minSbp: r.minSbp || 0,
+      minDbp: r.minDbp || 0,
+      maxSbp: r.maxSbp || 0,
+      maxDbp: r.maxDbp || 0,
+      createdAt: r.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await deleteReading(r.id);
+    await putReading(newReading);
+  }
+
+  // 2. 月間サマリーを移行
+  var summaries = await getMonthlySummariesByPatient(sourceId);
+  for (var i = 0; i < summaries.length; i++) {
+    var s = summaries[i];
+    // ターゲット側に同月サマリーがあればスキップ
+    var existing = await getMonthlySummary(targetId, s.year, s.month);
+    if (!existing) {
+      s.patientId = targetId;
+      await putMonthlySummary(s);
+    }
+    await deleteMonthlySummary(sourceId, s.year, s.month);
+  }
+
+  // 3. 予約を移行
+  var appointments = await getAppointmentsByPatient(sourceId);
+  for (var i = 0; i < appointments.length; i++) {
+    var a = appointments[i];
+    a.patientId = targetId;
+    // 同一患者・同一天の予約があればスキップ
+    var allTargetApps = await getAppointmentsByPatient(targetId);
+    var dup = false;
+    for (var j = 0; j < allTargetApps.length; j++) {
+      if (allTargetApps[j].appointmentDate === a.appointmentDate && allTargetApps[j].status === a.status) {
+        dup = true;
+        break;
+      }
+    }
+    if (!dup) {
+      a.updatedAt = new Date().toISOString();
+      await putAppointment(a);
+    } else {
+      await deleteAppointment(a.id);
+    }
+  }
+
+  // 4. ソース患者の名前をコピー（ターゲットに名前がない場合のみ）
+  var sourcePat = await getPatient(sourceId);
+  var targetPat = await getPatient(targetId);
+  if (!targetPat) {
+    // ターゲット患者がいなければ作成
+    if (sourcePat) {
+      sourcePat.id = targetId;
+      sourcePat.updatedAt = new Date().toISOString();
+      await putPatient(sourcePat);
+    }
+  } else if (sourcePat && sourcePat.name && sourcePat.name.trim() && (!targetPat.name || !targetPat.name.trim())) {
+    targetPat.name = sourcePat.name;
+    targetPat.updatedAt = new Date().toISOString();
+    await putPatient(targetPat);
+  }
+
+  // 5. ソース患者を削除
+  // 読み・サマリー・予約は既に移行済みなので、cascade不要
+  await prom(tx('patients', 'readwrite').delete(sourceId));
+}
+
+/* ---- 名前の一括適用 ---- */
+
+function confirmApplyName(issue, correctName) {
+  var msg = '以下の患者の名前を「' + correctName + '」に統一します:\n';
+  for (var i = 0; i < issue.patients.length; i++) {
+    msg += '  ' + issue.patients[i].id + ' (' + esc(issue.patients[i].name || '(なし)') + ')\n';
+  }
+  msg += '\nよろしいですか？';
+
+  confirmAsync('名前統一確認', msg).then(function(ok) {
+    if (!ok) return;
+    doApplyName(issue, correctName);
+  });
+}
+
+async function doApplyName(issue, correctName) {
+  var updated = 0;
+  for (var i = 0; i < issue.patients.length; i++) {
+    var p = issue.patients[i];
+    if ((p.name || '').trim() !== correctName) {
+      p.name = correctName;
+      p.updatedAt = new Date().toISOString();
+      await putPatient(p);
+      updated++;
+    }
+  }
+  toast('名前を統一しました: ' + updated + '件を「' + correctName + '」に更新');
+  await runCleanupCheck();
+}
+
+/* ---- 名前なし患者に名前を登録 ---- */
+
+async function handleAssignName(patientId, name) {
+  try {
+    var p = await getPatient(patientId);
+    if (!p) { toast('患者が見つかりません'); return; }
+    p.name = name;
+    p.updatedAt = new Date().toISOString();
+    await putPatient(p);
+    toast('患者 ' + patientId + ' の名前を「' + name + '」に設定しました');
+    await runCleanupCheck();
+  } catch (e) {
+    console.error('handleAssignName error:', e);
+    toast('エラー: ' + e.message);
+  }
+}
+
+/* ---- 名前なし患者（データなし）の削除 ---- */
+
+function confirmDeletePatient(patientId) {
+  confirmAsync('患者削除確認',
+    '患者 ' + patientId + ' を削除します（測定データなし）。\nよろしいですか？'
+  ).then(function(ok) {
+    if (!ok) return;
+    doDeletePatient(patientId);
+  });
+}
+
+async function doDeletePatient(patientId) {
+  try {
+    await deletePatient(patientId);
+    toast('患者 ' + patientId + ' を削除しました');
+    await runCleanupCheck();
+  } catch (e) {
+    console.error('doDeletePatient error:', e);
+    toast('削除エラー: ' + e.message);
+  }
 }
 </script>
 </body>

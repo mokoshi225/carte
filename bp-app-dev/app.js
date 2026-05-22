@@ -1,5 +1,5 @@
 /* =================================================================
-   app.js — メインアプリケーションロジック v2.2.0
+   app.js — メインアプリケーションロジック v2.3.0
    ================================================================= */
 
 currentPatientId = null;
@@ -208,11 +208,16 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v2.2.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '2.2.0';
+  $('header-info').textContent = 'v2.3.0 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.3.0';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '2.2.0';
-  startEmrFollow();
+  $('app-version-footer').textContent = '2.3.0';
+
+  var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
+  for (var i = 0; i < emrBtns.length; i++) {
+    var btn = $(emrBtns[i]);
+    if (btn) btn.addEventListener('click', readEmrPatient);
+  }
 }
 
 // Synchronous DB open wrapper (runs inside async init)
@@ -1966,55 +1971,38 @@ function parseBackupJSON(text) {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  EMR AUTO-FOLLOW
+//  EMR MANUAL READ (button-triggered, no auto-polling)
 // ═══════════════════════════════════════════════════════════
 
-var _emrLastId = null;
-var _emrPollTimer = null;
 var _emrConnected = false;
-var _emrEnabled = true;
 
-function startEmrFollow() {
-  if (window.location.protocol === 'file:') {
+function readEmrPatient() {
+  var old = document.getElementById('emr-script');
+  if (old) old.parentNode.removeChild(old);
+
+  var s = document.createElement('script');
+  s.id = 'emr-script';
+  s.src = 'emr-patient.js?t=' + Date.now();
+  s.onload = function() {
+    var data = window.EMR_PATIENT;
+    if (data && data.patientId) {
+      updateEmrStatus(true);
+      var id = String(data.patientId).trim();
+      var name = data.patientName || '';
+      navigateToPatientAuto(id, name);
+    } else {
+      updateEmrStatus(false);
+      toast('EMRデータが見つかりません');
+    }
+  };
+  s.onerror = function() {
     updateEmrStatus(false);
-    return;
-  }
-  pollEmr();
+    toast('EMR接続エラー（emr-watcherが起動していません）');
+  };
+  document.body.appendChild(s);
 }
 
-async function pollEmr() {
-  if (!_emrEnabled) return;
-  try {
-    var resp = await fetch('emr-patient.json?t=' + Date.now());
-    if (!resp.ok) {
-      updateEmrStatus(false);
-      _emrPollTimer = setTimeout(pollEmr, 1500);
-      return;
-    }
-    var data = await resp.json();
-    if (!data || !data.patientId) {
-      updateEmrStatus(false);
-      _emrPollTimer = setTimeout(pollEmr, 1500);
-      return;
-    }
-    updateEmrStatus(true);
-    var id = String(data.patientId).trim();
-    if (id && id !== _emrLastId) {
-      _emrLastId = id;
-      navigateToPatientAuto(id);
-    }
-  } catch (e) {
-    updateEmrStatus(false);
-    if (_emrConnected) {
-      _emrEnabled = false;
-      setTimeout(function() { _emrEnabled = true; pollEmr(); }, 30000);
-      return;
-    }
-  }
-  _emrPollTimer = setTimeout(pollEmr, 1500);
-}
-
-async function navigateToPatientAuto(id) {
+async function navigateToPatientAuto(id, name) {
   if (!/^\d{8}$/.test(id)) {
     toast('EMR患者IDの形式が不正です: ' + id);
     return;
@@ -2024,7 +2012,7 @@ async function navigateToPatientAuto(id) {
     if (!patient) {
       await putPatient({
         id: id,
-        name: '',
+        name: name || '',
         gender: '',
         birthDate: '',
         memo: '（EMR連携 自動作成）',
@@ -2035,7 +2023,9 @@ async function navigateToPatientAuto(id) {
     currentView = 'all';
     showScreen('patient');
     await renderPatientPage();
-    toast('EMR連携: 患者 ' + id + ' を開きました');
+    var label = id;
+    if (name) label += ' ' + name;
+    toast('EMR連携: 患者 ' + label + ' を開きました');
   } catch (e) {
     console.error('navigateToPatientAuto error:', e);
   }
