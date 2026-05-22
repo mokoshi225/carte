@@ -567,14 +567,17 @@ input, select { font-family: inherit }
            <label for="inp-date">日付</label>
            <input type="date" id="inp-date">
          </div>
-         <div class="form-row form-row-compact">
-           <label for="inp-sbp">受診SBP</label>
-           <input type="number" id="inp-sbp" class="short" min="50" max="300" placeholder="---">
-           <span class="unit">mmHg</span>
-           <label for="inp-dbp">受診DBP</label>
-           <input type="number" id="inp-dbp" class="short" min="30" max="200" placeholder="---">
-           <span class="unit">mmHg</span>
-         </div>
+          <div class="form-row form-row-compact">
+            <label for="inp-sbp">受診SBP</label>
+            <input type="number" id="inp-sbp" class="short" min="50" max="300" placeholder="---">
+            <span class="unit">mmHg</span>
+            <label for="inp-dbp">受診DBP</label>
+            <input type="number" id="inp-dbp" class="short" min="30" max="200" placeholder="---">
+            <span class="unit">mmHg</span>
+            <label for="inp-weight">体重</label>
+            <input type="number" id="inp-weight" class="short" min="20" max="300" step="0.1" placeholder="---">
+            <span class="unit">kg</span>
+          </div>
          <div class="form-row form-row-compact">
            <label>家庭SBP平均</label>
            <input type="number" id="inp-avg-sbp" class="short" min="50" max="300" placeholder="---">
@@ -609,6 +612,7 @@ input, select { font-family: inherit }
           </div>
           <div class="form-row">
             <button class="btn-register" id="btn-register">📋 登録（Enter）</button>
+            <button class="btn btn-primary" id="btn-emr-copy">📋 所見をコピー</button>
             <span id="register-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
           </div>
         </div>
@@ -678,12 +682,13 @@ input, select { font-family: inherit }
          <div class="daily-list">
            <table>
              <thead><tr>
-               <th>日付</th>
-               <th>受診SBP</th><th>受診DBP</th>
-               <th>SBP平均</th><th>DBP平均</th>
-               <th>SBP最小</th><th>DBP最小</th>
-               <th>SBP最大</th><th>DBP最大</th>
-               <th>操作</th>
+                <th>日付</th>
+                <th>受診SBP</th><th>受診DBP</th>
+                <th>SBP平均</th><th>DBP平均</th>
+                <th>SBP最小</th><th>DBP最小</th>
+                <th>SBP最大</th><th>DBP最大</th>
+                <th>体重</th>
+                <th>操作</th>
              </tr></thead>
              <tbody id="daily-body"></tbody>
            </table>
@@ -710,8 +715,9 @@ input, select { font-family: inherit }
                                          <tr><td>v2.2.0</td><td>2026-05-21</td><td>SOAP出力を最終登録血圧値ベースに変更（登録後もSOAPに反映）。サマリーを編集＋差分追記方式に全面改修：現在のサマリーを編集して「更新」で差分のみSOAPのAに追記、プロブレムごとの経過記載に対応</td></tr>
                     <tr><td>v2.1.0</td><td>2026-05-21</td><td>SOAP記録機能。S（主訴）入力欄、A（評価サマリー）累積追記、SOAP出力コピー。登録時・編集時にS項目を保存/読込対応</td></tr>
                     <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
+                    <tr><td>v1.4.0</td><td>2026-05-15</td><td>体重入力フィールドを追加、電子カルテ所見文字列生成機能を追加、CSV出力に体重カラムを追加</td></tr>
                     <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
-                    <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
+                    <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr> (体重入力フィールドとEMR所見コピー機能を追加)
                   <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
                   <tr><td>v1.0.0</td><td>—</td><td>初版（日次血圧測定＋月間サマリー＋警戒ライン）</td></tr>
                </tbody>
@@ -770,8 +776,8 @@ input, select { font-family: inherit }
        </div>
 
        <!-- バージョン情報 -->
-       <div class="version-footer">
-           <small>📋 v<span id="app-version-footer">2.3.0</span> | 💊 Blood Pressure Monitor</small>
+        <div class="version-footer">
+            <small>📋 v<span id="app-version-footer">2.3.0</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
@@ -1415,11 +1421,11 @@ function parseCSV(text) {
  * @returns {string} BOM付きUTF-8 CSV
  */
 function recordsToCSV(records) {
-  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ\n';
+  let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ,体重\n';
   records.forEach(r => {
     const name = r.name ? `"${r.name}"` : '';
     const note = r.note ? `"${r.note}"` : '';
-    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note}\n`;
+    csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note},${r.weight || 0}\n`;
   });
   return csv;
 }
@@ -1560,9 +1566,17 @@ async function init() {
    var btnReg = $('btn-register');
    if (btnReg) btnReg.addEventListener('click', registerReading);
 
+   // Event: EMR copy
+   var btnEmr = $('btn-emr-copy');
+   if (btnEmr) btnEmr.addEventListener('click', generateEMRText);
+
    var inpDbp = $('inp-dbp');
    if (inpDbp) inpDbp.addEventListener('keydown', function(e) {
-     if (e.key === 'Enter') { e.preventDefault(); registerReading(); }
+     if (e.key === 'Enter') { e.preventDefault(); var w = $('inp-weight'); if (w) w.focus(); }
+   });
+   var inpWeight = $('inp-weight');
+   if (inpWeight) inpWeight.addEventListener('keydown', function(e) {
+     if (e.key === 'Enter') { e.preventDefault(); var m = $('inp-memo'); if (m) m.focus(); }
    });
    var inpMemo = $('inp-memo');
    if (inpMemo) inpMemo.addEventListener('keydown', function(e) {
@@ -1577,7 +1591,7 @@ async function init() {
      if (e.key === 'Enter') { e.preventDefault(); var d = $('inp-dbp'); if (d) d.focus(); }
    });
 
-   // Event: 受診時血圧表示トグル
+    // Event: 受診時血圧表示トグル
     var chkVisit = $('chk-show-visit');
     if (chkVisit) chkVisit.addEventListener('change', function() {
       if (currentPatientId && currentView === 'all') renderView();
@@ -2041,7 +2055,7 @@ function renderDailyListFromData(readings) {
   var body = $('daily-body');
   if (!body) return;
   if (!readings || readings.length === 0) {
-    body.innerHTML = '<tr><td colspan="10" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+    body.innerHTML = '<tr><td colspan="11" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
     return;
   }
   readings.sort(function(a, b) { return b.date.localeCompare(a.date); });
@@ -2049,6 +2063,7 @@ function renderDailyListFromData(readings) {
   for (var i = 0; i < readings.length; i++) {
     var r = readings[i];
     function n(v) { return v > 0 ? v : '-'; }
+    function w(v) { return v > 0 ? v : '-'; }
     html += '<tr>' +
       '<td>' + r.date + '</td>' +
       '<td class="bp-val">' + n(r.systolic) + '</td>' +
@@ -2059,6 +2074,7 @@ function renderDailyListFromData(readings) {
       '<td class="bp-val">' + n(r.minDbp) + '</td>' +
       '<td class="bp-val">' + n(r.maxSbp) + '</td>' +
       '<td class="bp-val">' + n(r.maxDbp) + '</td>' +
+      '<td class="bp-val">' + w(r.weight) + '</td>' +
       '<td style="text-align:right;white-space:nowrap">' +
       '<button class="btn btn-sm btn-secondary" data-edit="' + r.id + '">編集</button> ' +
       '<button class="btn btn-sm btn-danger" data-del="' + r.id + '">削除</button>' +
@@ -2106,9 +2122,11 @@ async function registerReading() {
    var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
    var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
    var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+   var wt = $('inp-weight');
    var m = $('inp-memo');
    if (!d || !sb || !db) return;
    var date = d.value, sbp = Number(sb.value), dbp = Number(db.value);
+   var weight = wt ? Number(wt.value) : 0;
    var memo = m ? m.value.trim() : '';
    if (!date) { toast('日付は必須です'); return; }
    if (sbp > 0 && (sbp < 50 || sbp > 300)) { toast('収縮期血圧の範囲が不正です'); return; }
@@ -2127,7 +2145,8 @@ async function registerReading() {
      minSbp: Number(ns ? ns.value : 0) || 0,
      minDbp: Number(nd ? nd.value : 0) || 0,
      maxSbp: Number(xs ? xs.value : 0) || 0,
-     maxDbp: Number(xd ? xd.value : 0) || 0
+     maxDbp: Number(xd ? xd.value : 0) || 0,
+     weight: weight || 0
    };
 
    try {
@@ -2179,6 +2198,7 @@ async function registerReading() {
      if (as) as.value = ''; if (ad) ad.value = '';
      if (ns) ns.value = ''; if (nd) nd.value = '';
      if (xs) xs.value = ''; if (xd) xd.value = '';
+     if (wt) wt.value = '';
      if (m) m.value = '';
       editingId = null;
       var rs = $('register-status'); if (rs) rs.textContent = '';
@@ -2206,6 +2226,7 @@ async function editReading(id) {
     var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
     var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
     var sj = $('inp-subjective');
+    var wt = $('inp-weight'); (体重入力フィールドとEMR所見コピー機能を追加)
     if (d) d.value = r.date;
     if (sb) sb.value = r.systolic || '';
     if (db) db.value = r.diastolic || '';
@@ -2215,6 +2236,7 @@ async function editReading(id) {
     if (nd) nd.value = r.minDbp || '';
     if (xs) xs.value = r.maxSbp || '';
     if (xd) xd.value = r.maxDbp || '';
+    if (wt) wt.value = r.weight || '';
     if (m) m.value = r.note || '';
     if (sj) sj.value = r.subjective || '';
     var rs = $('register-status'); if (rs) rs.textContent = '📝 編集中';
@@ -2241,7 +2263,7 @@ async function exportCSV() {
   var patient = await getPatient(currentPatientId);
   if (readings.length === 0) { toast('データがありません'); return; }
   readings.sort(function(a, b) { return a.date.localeCompare(b.date); });
-  var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,メモ\n';
+  var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,体重,メモ\n';
   for (var i = 0; i < readings.length; i++) {
     var r = readings[i];
     var name = patient ? patient.name.replace(/"/g, '""') : '';
@@ -2250,6 +2272,7 @@ async function exportCSV() {
       (r.avgSbp || 0) + ',' + (r.avgDbp || 0) + ',' +
       (r.minSbp || 0) + ',' + (r.minDbp || 0) + ',' +
       (r.maxSbp || 0) + ',' + (r.maxDbp || 0) + ',' +
+      (r.weight || 0) + ',' +
       '"' + (r.note || '').replace(/"/g, '""') + '"\n';
   }
   var today = fmtDate(new Date());
@@ -2370,7 +2393,66 @@ function updateDataStat() {
    });
 }
 
+// ═══════════════════════════════════════════════════════════
+//  EMR TEXT GENERATION
+// ═══════════════════════════════════════════════════════════
 
+function generateEMRText() {
+  var d = $('inp-date'), sb = $('inp-sbp'), db = $('inp-dbp');
+  var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
+  var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
+  var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+  var wt = $('inp-weight');
+  if (!d) { toast('日付が入力されていません'); return; }
+  var date = d.value;
+  if (!date) { toast('日付が入力されていません'); return; }
+
+  var parts = date.split('-');
+  var dateStr = parts.join('/');
+
+  function v(el) { return el && el.value && Number(el.value) > 0 ? el.value : '-'; }
+  function bpPair(s, d) {
+    var sv = v(s), dv = v(d);
+    return sv + '/' + dv;
+  }
+
+  var clinicBP = bpPair(sb, db);
+  var homeAvg  = '家庭' + bpPair(as, ad);
+  var homeMin  = bpPair(ns, nd);
+  var homeMax  = bpPair(xs, xd);
+  var homeRange = homeMin + '-' + homeMax;
+  var weight = v(wt);
+
+  var line1 = dateStr;
+  var line2 = clinicBP + ',' + homeAvg + ',' + homeRange + ',' + weight;
+
+  var text = line1 + '\n' + line2;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function() {
+      toast('所見をクリップボードにコピーしました');
+    }).catch(function() {
+      fallbackCopy(text);
+    });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed'; ta.style.left = '-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    toast('所見をクリップボードにコピーしました');
+  } catch (e) {
+    toast('コピーに失敗しました。手動でコピーしてください。\n' + text);
+  }
+  document.body.removeChild(ta);
+}
 
 // ═══════════════════════════════════════════════════════════
 //  APPOINTMENT
