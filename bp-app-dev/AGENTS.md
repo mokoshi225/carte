@@ -14,7 +14,8 @@ bp-app-dev/
 ├── db.js        ← IndexedDB layer: patients, readings, monthly_summaries
 ├── chart.js     ← Canvas 2D graphing: 8-item time-series chart
 ├── csv.js       ← CSV parse/serialize + JSON backup/restore
-└── app.js       ← Main application logic (init, UI, CRUD, navigation)
+├── app.js       ← Main application logic (init, UI, CRUD, navigation)
+└── cleanup.js   ← データクレンジングモジュール（不整合検出・編集）
 ```
 
 ## WHERE TO LOOK
@@ -31,6 +32,9 @@ bp-app-dev/
 | Visit input form fields | app.js + index.html |
 | CSS layout / colors / fonts | style.css |
 | DOM element IDs used by JS | index.html |
+| Data cleanup logic / merge | cleanup.js |
+| Data cleanup screen HTML | index.html（screen-cleanup） |
+| Data cleanup styles | style.css（.cleanup-*） |
 
 ## CONVENTIONS
 
@@ -40,6 +44,10 @@ bp-app-dev/
 - **Null checks everywhere**: `$('id')` returns null if element missing; every access is guarded.
 - **Compound index keys** are arrays: `[patientId, date]` — never pipe-string.
 - **DB version**: Must be integer. Increment to trigger `onupgradeneeded`.
+- **コード変更前に `failure.md` を読むこと** — 過去の障害とその対策を把握してから作業すること。
+- **コードに修正を加えたら、バージョン情報を更新すること**:
+  - `app.js` 内の `$('header-info').textContent` 、`$('app-version')`、`$('app-version-footer')` のバージョン文字列
+  - `index.html` のバージョン履歴テーブルに新しい行を追加（日付・変更内容）
 
 ## ANTI-PATTERNS
 
