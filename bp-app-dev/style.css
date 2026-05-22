@@ -372,6 +372,64 @@ input, select { font-family: inherit }
   color: #fff;
 }
 
+/* ===== Data Cleanup Screen ===== */
+.cleanup-empty {
+  padding: 16px; background: #f8f9fb; border-radius: 6px;
+  color: #7f8c8d; font-size: .9em; text-align: center;
+}
+.cleanup-section-title {
+  font-size: 1em; color: #2c3e50; margin-bottom: 4px;
+  display: flex; align-items: center; gap: 8px;
+}
+.cleanup-section-title .cleanup-count {
+  background: #e74c3c; color: #fff; font-size: .78em;
+  padding: 0 8px; border-radius: 10px; line-height: 1.8;
+}
+.cleanup-desc { font-size: .82em; color: #7f8c8d; margin-bottom: 12px }
+.cleanup-card {
+  border: 1px solid #e0e4e8; border-radius: 6px;
+  margin-bottom: 8px; background: #fff;
+}
+.cleanup-card-header {
+  padding: 10px 14px; background: #f8f9fb;
+  border-bottom: 1px solid #e0e4e8;
+  font-size: .88em; border-radius: 6px 6px 0 0;
+}
+.cleanup-card-body { padding: 10px 14px }
+.cleanup-pat-row {
+  padding: 4px 0; font-size: .88em;
+  display: flex; align-items: center; gap: 8px;
+}
+.cleanup-pat-row code {
+  background: #ecf0f1; padding: 2px 8px;
+  border-radius: 3px; font-size: .9em;
+}
+.cleanup-pat-name { color: #2c3e50 }
+.cleanup-badge-target {
+  background: #27ae60; color: #fff; font-size: .72em;
+  padding: 1px 8px; border-radius: 8px;
+}
+.cleanup-card-action {
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.cleanup-hint {
+  font-size: .78em; color: #95a5a6;
+}
+.cleanup-name-select {
+  padding: 4px 8px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .88em; background: #fff;
+}
+.cleanup-name-input {
+  padding: 6px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .9em; width: 200px;
+}
+.cleanup-name-input:focus {
+  outline: none; border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+}
+
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .form-row { flex-direction: column; align-items: flex-start; gap: 4px }

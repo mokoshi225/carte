@@ -26,6 +26,7 @@
         <div class="btn-group">
            <button class="btn btn-primary" id="btn-id-enter">開 始</button>
            <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
+           <button class="btn" id="btn-data-cleanup" style="background:#e74c3c;color:#fff">🔍 データクレンジング</button>
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
        <div class="version-info">
@@ -175,8 +176,9 @@
            <div style="margin-top:10px;overflow-x:auto">
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
-               <tbody>
-                    <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
+                <tbody>
+                     <tr><td>v2.1.0</td><td>2026-05-21</td><td>データクレンジング機能追加。IDフォーマット混在検出・統合、名前不一致の一括修正、名前なし患者の氏名登録・削除。ビルドの$&バグ修正</td></tr>
+                     <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
                     <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
                     <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
                   <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
@@ -278,6 +280,28 @@
         <button id="btn-export-appt-csv">📤 予約CSV出力</button>
         <span class="stat" id="cal-stat"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Data Cleanup Screen -->
+  <div id="screen-cleanup" style="display:none">
+    <div class="header">
+      <h1>🔍 データクレンジング</h1>
+      <span class="info" id="cleanup-header-info">患者データの不整合を検出・修正</span>
+    </div>
+    <div class="content">
+      <div class="nav-bar">
+        <span style="font-weight:600">🔍 データ整合性チェック</span>
+        <button class="btn btn-primary btn-sm" id="btn-cleanup-refresh" style="margin-left:auto">🔄 再チェック</button>
+        <button class="btn btn-secondary btn-sm" id="btn-cleanup-back">🏠 戻る</button>
+      </div>
+      <div style="margin-bottom:12px">
+        <span id="cleanup-status" style="color:#7f8c8d;font-size:.88em"></span>
+        <div id="cleanup-summary" style="font-size:.95em;padding:8px 12px;background:#f8f9fb;border-radius:6px;margin-top:8px"></div>
+      </div>
+      <div id="cleanup-fmt-issues"></div>
+      <div id="cleanup-name-conflicts" style="margin-top:16px"></div>
+      <div id="cleanup-noname" style="margin-top:16px"></div>
     </div>
   </div>
 
