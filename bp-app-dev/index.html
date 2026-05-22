@@ -26,11 +26,10 @@
         <div class="btn-group">
            <button class="btn btn-primary" id="btn-id-enter">開 始</button>
            <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
-           <button class="btn" id="btn-data-cleanup" style="background:#e74c3c;color:#fff">🔍 データクレンジング</button>
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
        <div class="version-info">
-         <small>         バージョン <span id="app-version">2.0.0</span> | <span id="app-build-date"></span></small>
+         <small>         バージョン <span id="app-version">2.1.0</span> | <span id="app-build-date"></span></small>
        </div>
       <div style="margin-top:24px">
         <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
@@ -104,15 +103,49 @@
            <input type="number" id="inp-max-dbp" class="short" min="30" max="200" placeholder="---">
            <span class="unit">mmHg</span>
          </div>
-         <div class="form-row">
-           <label for="inp-memo">メモ</label>
-           <input type="text" id="inp-memo" class="memo-input" placeholder="任意">
-         </div>
-         <div class="form-row">
-           <button class="btn-register" id="btn-register">📋 登録（Enter）</button>
-           <span id="register-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
-         </div>
-       </div>
+          <div class="form-row">
+            <label for="inp-memo">メモ</label>
+            <input type="text" id="inp-memo" class="memo-input" placeholder="任意">
+          </div>
+          <div class="form-row">
+            <label for="inp-subjective">S（主訴）</label>
+            <textarea id="inp-subjective" rows="2" placeholder="本日の症状、訴えなど（任意）" class="soap-textarea"></textarea>
+          </div>
+          <div class="form-row">
+            <button class="btn-register" id="btn-register">📋 登録（Enter）</button>
+            <span id="register-status" style="font-size:.82em;margin-left:8px;color:#27ae60"></span>
+          </div>
+        </div>
+
+      <!-- 📋 A（評価サマリー） -->
+      <div class="form-section" id="section-assessment">
+        <h3>📋 A（評価サマリー）<span style="font-weight:400;font-size:.78em;color:#7f8c8d"> — プロブレムごとに編集・差分追記</span></h3>
+        <div class="form-row">
+          <label for="inp-summary-current">現在のサマリー（編集して「更新」ボタンを押すと差分が追記されます）</label>
+          <textarea id="inp-summary-current" rows="4" placeholder="例：
+高血圧：安定。降圧薬継続。
+糖尿病：HbA1c 6.8。食事指導継続。
+脂質異常症：LDL改善傾向。" class="soap-textarea"></textarea>
+        </div>
+        <div class="form-row">
+          <button class="btn btn-primary" id="btn-update-summary">📝 サマリーを更新</button>
+          <span id="summary-status" style="font-size:.82em;color:#27ae60"></span>
+        </div>
+        <details style="margin-top:8px">
+          <summary style="cursor:pointer;font-size:.88em;color:#555"><strong>📋 サマリー追記履歴</strong></summary>
+          <pre id="summary-history" style="background:#f9f9f9;border:1px solid #ddd;border-radius:4px;padding:8px;font-size:.85em;margin-top:6px;white-space:pre-wrap"></pre>
+        </details>
+      </div>
+
+      <!-- 📋 SOAP出力 -->
+      <div class="form-section" id="section-soap-output">
+        <h3>📋 SOAP出力 <span style="font-weight:400;font-size:.78em;color:#7f8c8d"> — 電子カルテに貼り付け</span></h3>
+        <pre id="soap-output"></pre>
+        <div class="form-row" style="margin-top:8px">
+          <button class="btn-register" id="btn-copy-soap">📋 SOAPをコピー</button>
+          <span id="soap-status" style="font-size:.82em;color:#27ae60"></span>
+        </div>
+      </div>
 
       <!-- 📅 予約・処方セクション -->
       <div class="form-section" id="section-appointment">
@@ -176,9 +209,10 @@
            <div style="margin-top:10px;overflow-x:auto">
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
-                <tbody>
-                     <tr><td>v2.1.0</td><td>2026-05-21</td><td>データクレンジング機能追加。IDフォーマット混在検出・統合、名前不一致の一括修正、名前なし患者の氏名登録・削除。ビルドの$&バグ修正</td></tr>
-                     <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
+               <tbody>
+                                        <tr><td>v2.2.0</td><td>2026-05-21</td><td>SOAP出力を最終登録血圧値ベースに変更（登録後もSOAPに反映）。サマリーを編集＋差分追記方式に全面改修：現在のサマリーを編集して「更新」で差分のみSOAPのAに追記、プロブレムごとの経過記載に対応</td></tr>
+                    <tr><td>v2.1.0</td><td>2026-05-21</td><td>SOAP記録機能。S（主訴）入力欄、A（評価サマリー）累積追記、SOAP出力コピー。登録時・編集時にS項目を保存/読込対応</td></tr>
+                    <tr><td>v2.0.0</td><td>2026-05-18</td><td>予約管理システム統合。IndexedDBにappointmentsストア追加、患者ページに次回来院日・処方日数設定、月間カレンダービュー、来院済み自動マーク、予約CSV出力</td></tr>
                     <tr><td>v1.3.0</td><td>2026-05-15</td><td>折れ線グラフのライン調整（平均=太字、最小/最大=薄色+細線）、年区切り線（毎年1月）を追加</td></tr>
                     <tr><td>v1.2.0</td><td>2026-05-15</td><td>日付入力フォームのデフォルト値を本日に設定</td></tr>
                   <tr><td>v1.1.0</td><td>2026-05-15</td><td>受診時記録モードに特化。月ビュー・月間サマリー削除、グラフを8項目折れ線に刷新、警戒ライン等を全削除、受診時SBP/DBP表示トグル追加、入力フォーム・一覧・CSVを8項目対応</td></tr>
@@ -240,7 +274,7 @@
 
        <!-- バージョン情報 -->
        <div class="version-footer">
-           <small>📋 v<span id="app-version-footer">2.0.0</span> | 💊 Blood Pressure Monitor</small>
+           <small>📋 v<span id="app-version-footer">2.1.0</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
@@ -280,28 +314,6 @@
         <button id="btn-export-appt-csv">📤 予約CSV出力</button>
         <span class="stat" id="cal-stat"></span>
       </div>
-    </div>
-  </div>
-
-  <!-- Data Cleanup Screen -->
-  <div id="screen-cleanup" style="display:none">
-    <div class="header">
-      <h1>🔍 データクレンジング</h1>
-      <span class="info" id="cleanup-header-info">患者データの不整合を検出・修正</span>
-    </div>
-    <div class="content">
-      <div class="nav-bar">
-        <span style="font-weight:600">🔍 データ整合性チェック</span>
-        <button class="btn btn-primary btn-sm" id="btn-cleanup-refresh" style="margin-left:auto">🔄 再チェック</button>
-        <button class="btn btn-secondary btn-sm" id="btn-cleanup-back">🏠 戻る</button>
-      </div>
-      <div style="margin-bottom:12px">
-        <span id="cleanup-status" style="color:#7f8c8d;font-size:.88em"></span>
-        <div id="cleanup-summary" style="font-size:.95em;padding:8px 12px;background:#f8f9fb;border-radius:6px;margin-top:8px"></div>
-      </div>
-      <div id="cleanup-fmt-issues"></div>
-      <div id="cleanup-name-conflicts" style="margin-top:16px"></div>
-      <div id="cleanup-noname" style="margin-top:16px"></div>
     </div>
   </div>
 

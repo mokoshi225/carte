@@ -62,3 +62,73 @@
 
 - `$&` 以外にも `$1`〜`$99`（キャプチャグループ参照）、`$``（マッチ前）、`$'`（マッチ後）、`$_`（入力全体）、`$+`（最後にキャプチャされたグループ）も同様の原因になります
 - 本件は `cleanup.js` の `pid.replace(/[."\\\/\[\]]/g, '\\$&')` がトリガーでした
+
+---
+
+## 障害#002: `file://` プロトコルでの `fetch()` 呼び出しによるセキュリティエラー
+
+### 発生日
+2026-05-21
+
+### 症状
+- Chrome / Edge で `bp-app.html` を `file://` 経由で開くと、コンソールに以下のエラーが表示される：
+  ```
+  Unsafe attempt to load URL file://... from frame with URL file://.... 'file:' URLs are treated as unique security origins.
+  ```
+- EMR連携が機能しない（これは仕様通りだが、エラーメッセージがユーザーを混乱させる）
+- `pollEmr()` が1.5秒間隔で無限リトライし、コンソールにエラーを出し続ける
+
+### 原因
+
+**根本原因**: Chrome は `file://` オリジンを「独自のセキュリティオリジン (unique security origin)」として扱い、`fetch()` / `XMLHttpRequest` による同一ディレクトリ内のファイルへのアクセスをブロックする。これはブラウザのセキュリティポリシーであり、回避不可。
+
+**トリガー**: `startEmrFollow()` → `pollEmr()` 内の `fetch('emr-patient.json?t=' + Date.now())` が `file://` 環境で呼び出された。
+
+**結果**:
+- `fetch()` が Chrome にブロックされる
+- `catch` ブロックでエラーは捕捉されるが、`setTimeout(pollEmr, 1500)` で無限にリトライし続ける
+- コンソールにエラーメッセージが1.5秒ごとに表示され、アプリが正常に動作していないように見える
+
+### 対策
+
+#### 実施した修正
+
+1. **`startEmrFollow()` に file:// プロトコルチェックを追加** (`bp-app-dev/app.js`):
+   ```javascript
+   function startEmrFollow() {
+     if (window.location.protocol === 'file:') {
+       updateEmrStatus(false);
+       return; // ← fetch を呼ばずに完全停止
+     }
+     pollEmr();
+   }
+   ```
+
+2. **`pollEmr()` のリトライロジックを改善**:
+   - 初回の連続エラー時には30秒間リトライを停止するバックオフを追加
+   - `_emrEnabled` フラグで一時停止を制御
+   ```javascript
+   } catch (e) {
+     updateEmrStatus(false);
+     if (_emrConnected) {
+       // 一度も成功したことがない場合はリトライ回数を制限
+       _emrEnabled = false;
+       setTimeout(function() { _emrEnabled = true; pollEmr(); }, 30000);
+       return;
+     }
+   }
+   ```
+
+#### 再発防止策
+
+1. **`file://` 環境で `fetch()` を使ってはならない** — AGENTS.md に明記済みだが、コードレビューでも確認する
+2. **新しくネットワークアクセスを追加する場合は `file://` 対応を必ず考慮する**
+3. **JSで `fetch()`・`XMLHttpRequest` を使うコードは `failure.md` の本項を参照すること**
+4. **コード変更後は必ず `file://` でも動作確認を行うこと**
+
+### 備考
+
+- IndexedDB は `file://` 環境でも正常に動作する（Chrome 90+）
+- EMR連携機能 (`emr-patient.json` のポーリング) は本来、EMR Watcher ソフトウェアと組み合わせて HTTP サーバー経由で使用することを想定
+- `file://` では EMR連携は利用不可だが、血圧モニター本体の機能（患者管理・血圧記録・SOAP出力）は全て正常に動作する
+- WSL 経由 (`file://wsl.localhost/...`) でも同様の制限がかかる

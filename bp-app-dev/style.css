@@ -355,6 +355,34 @@ input, select { font-family: inherit }
 .version-history td:nth-child(2) { white-space: nowrap; color: #7f8c8d; font-size: .85em }
 .version-history td:nth-child(3) { text-align: left; font-size: .85em; line-height: 1.5 }
 
+/* ===== SOAP Section ===== */
+.soap-textarea {
+  width: 100%; padding: 8px 10px; border: 1px solid #bdc3c7;
+  border-radius: 4px; font-size: .95em; font-family: inherit;
+  line-height: 1.6; resize: vertical; background: #fff;
+}
+.soap-textarea:focus {
+  outline: none; border-color: #3498db;
+  box-shadow: 0 0 0 2px rgba(52,152,219,.15);
+}
+#summary-history {
+  background: #f9f9f9; border: 1px solid #e0e4e8; border-radius: 4px;
+  padding: 10px; font-size: .85em; line-height: 1.7;
+  white-space: pre-wrap; max-height: 250px; overflow-y: auto;
+}
+#soap-output {
+  background: #fafbfc; border: 1px solid #e0e4e8; border-radius: 4px;
+  padding: 12px; font-size: .88em; line-height: 1.7;
+  white-space: pre-wrap; overflow-x: auto; max-height: 300px;
+  overflow-y: auto; font-family: inherit;
+}
+#soap-output:empty::before {
+  content: '（データを入力するとSOAP出力が生成されます）';
+  color: #95a5a6;
+}
+#section-assessment .form-row:first-of-type {
+  flex-direction: column; align-items: stretch;
+}
 /* ===== EMR Status ===== */
 .emr-status {
   font-size: .78em;
