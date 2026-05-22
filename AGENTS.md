@@ -1,6 +1,6 @@
 # AGENTS.md — Blood Pressure Monitor
 
-**Generated:** 2026-05-21
+**Generated:** 2026-05-22
 **Commit:** cc16b64
 **Branch:** main
 
@@ -46,6 +46,42 @@ carte/
 - **コードに修正を加えたら、バージョン情報を更新すること**:
   - `bp-app-dev/app.js` 内の `$('header-info').textContent` 、`$('app-version')`、`$('app-version-footer')` のバージョン文字列
   - `bp-app-dev/index.html` のバージョン履歴テーブルに新しい行を追加（日付・変更内容）
+
+## DEVELOPMENT WORKFLOW
+
+### ブランチ戦略（git worktree）
+
+このプロジェクトでは `git worktree` による同時並行開発を行う。
+
+```
+main ──┬── worktree A（feature X）── rebase ──→ merge
+       ├── worktree B（feature Y）── rebase ──→ merge
+       ├── worktree C（bugfix Z） ── rebase ──→ merge
+       └── …
+```
+
+- 各ワークツリーは `git worktree add <path> <branch>` で `main` から分岐する。
+- 開発が完了したワークツリーから順に `main` にマージする。
+- `main` は常に最新の統合ブランチとして維持する。
+
+### コンフリクト対処ポリシー
+
+`main` が先行して進んでいる場合、以下の手順で対処する：
+
+1. **rebase 前提**: マージコミットを作らず、常に `git rebase main` でワークツリーのコミットを `main` の先頭に乗せ替える。
+2. **コンフリクト発生時**:
+   - `failure.md` の関連障害記録を確認する。
+   - `main` の変更を尊重しつつ、ワークツリー側の変更意図を維持する。
+   - コンフリクトの内容を行単位で分析し、両方の変更が正しく残るよう手動解決する。
+   - 解決後は `git rebase --continue` で再開する。行き詰まったら `git rebase --abort` して方針を再検討する。
+3. **fast-forward merge**: コンフリクト解決後、`main` に切り替えて `git merge --ff-only <branch>` で反映する。
+
+### 注意点
+
+- 同一ファイルでも**別の行**を変更しているなら rebase は自動成功する。
+- 同じ関数の**同じ行**を変更している場合のみコンフリクトが発生する。その場合は main の変更をベースに、ワークツリーの変更を再適用する形で解決する。
+- コンフリクト解決後は必ずビルド（`build.bat` / `node /tmp/build.js`）してJS構文チェックを通すこと。
+- `main` ブランチは別ワークツリーでチェックアウト中の場合がある。その場合は `git push . HEAD:main` は使えず、`main` ワークツリーに移動してマージ操作を行う。
 
 ## ビルド注意
 
