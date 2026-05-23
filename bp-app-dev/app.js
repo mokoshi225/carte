@@ -201,6 +201,9 @@ async function init() {
   var btnUpdSum = $('btn-update-summary');
   if (btnUpdSum) btnUpdSum.addEventListener('click', handleUpdateSummary);
 
+  var summaryTa = $('inp-summary-current');
+  if (summaryTa) summaryTa.addEventListener('input', function() { autoResizeTextarea(this); });
+
   // Event: SOAP copy
   var btnCopySoap = $('btn-copy-soap');
   if (btnCopySoap) btnCopySoap.addEventListener('click', copySoapOutput);
@@ -224,10 +227,10 @@ async function init() {
     initIdScreen();
   }
 
-  $('header-info').textContent = 'v2.3.0 | ' + new Date().toLocaleDateString('ja-JP');
-  $('app-version').textContent = '2.3.0';
+  $('header-info').textContent = 'v2.3.1 | ' + new Date().toLocaleDateString('ja-JP');
+  $('app-version').textContent = '2.3.1';
   $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-  $('app-version-footer').textContent = '2.3.0';
+  $('app-version-footer').textContent = '2.3.1';
 
   var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
   for (var i = 0; i < emrBtns.length; i++) {
@@ -2130,6 +2133,12 @@ function updateEmrStatus(connected) {
 //  ASSESSMENT — 編集＋差分追記
 // ═══════════════════════════════════════════════════════════
 
+function autoResizeTextarea(el) {
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 var _summaryPrevText = '';
 
 function lineDiff(oldText, newText) {
@@ -2155,6 +2164,7 @@ async function renderAssessmentSection() {
     var patient = await getPatient(currentPatientId);
     var summary = (patient && patient.summary) || '';
     textarea.value = summary;
+    autoResizeTextarea(textarea);
     _summaryPrevText = summary;
 
     if (historyEl) {

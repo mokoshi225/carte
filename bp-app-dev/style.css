@@ -360,6 +360,10 @@ input, select { font-family: inherit }
   width: 100%; padding: 8px 10px; border: 1px solid #bdc3c7;
   border-radius: 4px; font-size: .95em; font-family: inherit;
   line-height: 1.6; resize: vertical; background: #fff;
+  overflow: hidden; min-height: 42px;
+}
+.soap-textarea.soap-textarea-sm {
+  min-height: 42px;
 }
 .soap-textarea:focus {
   outline: none; border-color: #3498db;
