@@ -24,6 +24,8 @@ carte/
 ├── bp-graph.png           ← Screenshot
 ├── failure.md             ← 障害記録（コード変更前に読むこと）
 └── bp-app-dev/            ← Source modules (see bp-app-dev/AGENTS.md)
+                            全モジュール IIFE + BPApp 名前空間でカプセル化
+                            state.js: 共有状態 / soap.js: SOAP出力
 ```
 
 ## WHERE TO LOOK
