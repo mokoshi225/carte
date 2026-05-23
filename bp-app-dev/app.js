@@ -1127,12 +1127,10 @@ BPApp.App = (function () {
             }
           }
 
-          // 患者名
+          // 患者名（全表示、truncation廃止）
           if (dayAppts.length > 0) {
             var names = dayAppts.map(function (a) { return patientCache[a.patientId] || a.patientId; });
-            var displayNames = names.slice(0, 2);
-            if (names.length > 2) displayNames.push('+' + (names.length - 2));
-            label += '<br><span class="cal-appt-names">' + displayNames.join('<br>') + '</span>';
+            label += '<br><span class="cal-appt-names">' + names.join('<br>') + '</span>';
           }
 
           // 28日後予測
@@ -1394,6 +1392,7 @@ BPApp.App = (function () {
 
     var pid = sel.value;
     if (!pid) { toast('患者を選択してください'); return; }
+
 
     var today = new Date();
     today.setHours(0, 0, 0, 0);
