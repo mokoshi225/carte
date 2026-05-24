@@ -28,6 +28,7 @@
         <div class="btn-group">
            <button class="btn btn-primary" id="btn-id-enter">開 始</button>
            <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
+           <button class="btn" id="btn-excel-import" style="background:#8e44ad;color:#fff">📥 Excel取込</button>
            <button class="btn" id="btn-data-cleanup" style="background:#e74c3c;color:#fff">🔍 データクレンジング</button>
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
@@ -247,7 +248,8 @@
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                 <tbody>
-			<tr><td>v3.2.1</td><td>2026-05-24</td><td>fix: データクレンジング機能のUI導線（screen-cleanup・ボタン・イベントハンドラ）がマージ時に消失していたのを復元</td></tr>
+ 			<tr><td>v3.3.0</td><td>2026-05-25</td><td>Excel予約取込機能追加：TSVパース・プレビュー・仮患者登録・EMR読込時自動マッチング提案・手動紐付け</td></tr>
+ 			<tr><td>v3.2.1</td><td>2026-05-24</td><td>fix: データクレンジング機能のUI導線（screen-cleanup・ボタン・イベントハンドラ）がマージ時に消失していたのを復元</td></tr>
 			<tr><td>v3.2.0</td><td>2026-05-24</td><td>デモデータ機能拡張：3年分の月次血圧データ（36件/患者）と降圧薬データ（1-3剤を1-6ヶ月毎に変更）を生成するよう強化</td></tr>
 			<tr><td>v3.1.0</td><td>2026-05-24</td><td>降圧薬管理機能追加：medicationsストア新設、グラフ下部に薬剤バー表示、服用タイミング対応、CSV/バックアップ対応</td></tr>
 			<tr><td>v3.0.1</td><td>2026-05-24</td><td>fix: 開発用 index.html に個別スクリプトタグ追加（ビルド時に自動除去）。build.bat のファイル一覧を修正（state.js/soap.js欠落を修正）</td></tr>
@@ -421,6 +423,56 @@
     <div id="appt-detail-body" style="font-size:.9em;margin-bottom:16px"></div>
     <div class="btn-group" style="justify-content:flex-end">
       <button class="btn modal-close" id="appt-detail-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- Excel取込モーダル -->
+<div class="modal-overlay" id="modal-excel-import" style="display:none">
+  <div class="modal" style="max-width:700px">
+    <h3>📥 Excel予約取込</h3>
+    <div id="excel-import-body" style="font-size:.9em;margin-bottom:16px">
+      <p style="color:#7f8c8d;margin-bottom:12px">
+        Excelの予約表をタブ区切りテキストとしてコピーし、下のテキストエリアに貼り付けてください。
+      </p>
+      <p style="font-size:.82em;color:#95a5a6;margin-bottom:12px">
+        想定フォーマット: <code>日数&lt;tab&gt;日付&lt;tab&gt;曜日&lt;tab&gt;患者名&lt;tab&gt;患者名&lt;tab&gt;患者名&lt;tab&gt;患者名</code><br>
+        例: <code>1	2026-05-25	月	山田太郎	鈴木花子</code>
+      </p>
+      <textarea id="inp-excel-tsv" rows="10" style="width:100%;padding:8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.9em;font-family:monospace;box-sizing:border-box" placeholder="Excelの予約表を貼り付け..."></textarea>
+      <div class="btn-group" style="margin-top:10px">
+        <button class="btn btn-primary" id="btn-excel-preview">🔍 プレビュー</button>
+        <span id="excel-parse-status" style="font-size:.82em;color:#7f8c8d;margin-left:8px"></span>
+      </div>
+      <div id="excel-preview-area" style="margin-top:12px;display:none">
+        <h4 style="font-size:.92em;margin-bottom:8px">📋 取込予定データ</h4>
+        <div style="max-height:300px;overflow-y:auto;border:1px solid #e0e4e8;border-radius:4px">
+          <table class="summary-table" id="excel-preview-table">
+            <thead><tr><th>日付</th><th>患者名</th></tr></thead>
+            <tbody id="excel-preview-body"></tbody>
+          </table>
+        </div>
+        <p id="excel-preview-summary" style="font-size:.85em;color:#7f8c8d;margin-top:8px"></p>
+        <div class="btn-group" style="margin-top:12px">
+          <button class="btn btn-primary" id="btn-excel-commit" style="background:#27ae60">📥 取込実行</button>
+          <span id="excel-commit-status" style="font-size:.82em;color:#27ae60;margin-left:8px"></span>
+        </div>
+      </div>
+    </div>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="btn modal-close" id="excel-import-close">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- EMRマッチング提案モーダル -->
+<div class="modal-overlay" id="modal-emr-match" style="display:none">
+  <div class="modal" style="max-width:520px">
+    <h3>🔄 EMR患者マッチング</h3>
+    <div id="emr-match-body" style="font-size:.9em;margin-bottom:16px"></div>
+    <div class="btn-group" style="justify-content:flex-end">
+      <button class="btn btn-secondary modal-close" id="emr-match-skip">スキップ</button>
+      <button class="btn btn-primary" id="emr-match-confirm">🔄 紐付ける</button>
     </div>
   </div>
 </div>

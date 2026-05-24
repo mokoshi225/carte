@@ -112,7 +112,19 @@ BPApp.Cleanup = (function () {
         }
       }
 
-      renderCleanupResults(fmtIssues, nameConflicts, noNamePats);
+      // 検出4: Excel取込未マッチ患者
+      var excelPats = [];
+      for (var i = 0; i < patients.length; i++) {
+        if (patients[i].source === 'excel') {
+          var appts = await getAppointmentsByPatient(patients[i].id);
+          excelPats.push({
+            patient: patients[i],
+            appointmentCount: appts.length
+          });
+        }
+      }
+
+      renderCleanupResults(fmtIssues, nameConflicts, noNamePats, excelPats);
 
       if (statusEl) statusEl.textContent = '';
     } catch (e) {
@@ -123,20 +135,23 @@ BPApp.Cleanup = (function () {
 
   /* ---- 結果表示 ---- */
 
-  function renderCleanupResults(fmtIssues, nameConflicts, noNamePats) {
+  function renderCleanupResults(fmtIssues, nameConflicts, noNamePats, excelPats) {
     var summaryEl = $('cleanup-summary');
     var fmtEl = $('cleanup-fmt-issues');
     var nameEl = $('cleanup-name-conflicts');
     var nonameEl = $('cleanup-noname');
     if (!summaryEl || !fmtEl || !nameEl || !nonameEl) return;
 
-    var total = fmtIssues.length + nameConflicts.length + noNamePats.length;
+    if (!excelPats) excelPats = [];
+
+    var total = fmtIssues.length + nameConflicts.length + noNamePats.length + excelPats.length;
 
     summaryEl.innerHTML =
       '<strong>検出結果</strong>: ' +
       'IDフォーマット混在 ' + fmtIssues.length + '件 / ' +
       '名前不一致 ' + nameConflicts.length + '件 / ' +
-      '名前なし ' + noNamePats.length + '件';
+      '名前なし ' + noNamePats.length + '件 / ' +
+      'Excel未マッチ ' + excelPats.length + '件';
 
     if (total === 0) {
       fmtEl.innerHTML = '<div class="cleanup-empty">✅ 問題は見つかりませんでした</div>';
@@ -292,6 +307,58 @@ BPApp.Cleanup = (function () {
         confirmDeletePatient(pid);
       });
     });
+
+    // セクション4: Excel取込未マッチ患者
+    var excelEl = $('cleanup-noname'); // reuse noname container sibling or separate
+    // We'll append after noname using a different approach: add a new div
+    var existingExcelSection = document.getElementById('cleanup-excel-section');
+    if (existingExcelSection) existingExcelSection.parentNode.removeChild(existingExcelSection);
+
+    if (excelPats.length > 0) {
+      var exHtml = '';
+      for (var i = 0; i < excelPats.length; i++) {
+        (function (item) {
+          var p = item.patient;
+          var apptCount = item.appointmentCount;
+          exHtml +=
+            '<div class="cleanup-card">' +
+            '<div class="cleanup-card-header">📥 ID: <code>' + esc(p.id) + '</code> — ' + esc(p.name) +
+            '（予約' + apptCount + '件）</div>' +
+            '<div class="cleanup-card-body">' +
+            '<div class="cleanup-card-action">' +
+            '<span style="font-size:.82em;color:#7f8c8d">EMR読込時に自動マッチングを試みます。手動で紐付ける場合は患者IDを入力：</span>' +
+            '<div style="margin-top:6px;display:flex;gap:8px;align-items:center">' +
+            '<input type="text" class="cleanup-excel-target-id" data-excel-pid="' + esc(p.id) + '" placeholder="EMR患者ID（8桁）" style="padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:.88em;width:160px"> ' +
+            '<button class="btn btn-primary btn-sm" data-excel-merge="' + esc(p.id) + '">🔄 紐付け</button> ' +
+            '<button class="btn btn-danger btn-sm" data-excel-delete="' + esc(p.id) + '">🗑 削除</button>' +
+            '</div></div></div></div>';
+        })(excelPats[i]);
+      }
+      var excelSection = document.createElement('div');
+      excelSection.id = 'cleanup-excel-section';
+      excelSection.innerHTML =
+        '<h3 class="cleanup-section-title" style="margin-top:16px">📥 Excel取込未マッチ患者 <span class="cleanup-count">' + excelPats.length + '</span></h3>' +
+        '<p class="cleanup-desc">Excelから取り込んだ仮患者です。EMR読込時に自動マッチングを提案します。手動でEMR患者に紐付けるか、削除してください。</p>' +
+        exHtml;
+      nonameEl.parentNode.appendChild(excelSection);
+
+      excelSection.querySelectorAll('[data-excel-merge]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var excelPid = this.dataset.excelMerge;
+          var inp = document.querySelector('.cleanup-excel-target-id[data-excel-pid="' + excelPid.replace(/[."\\\/\[\]]/g, '\\$&') + '"]');
+          var targetId = inp ? inp.value.trim() : '';
+          if (!targetId) { toast('EMR患者IDを入力してください'); return; }
+          confirmExcelMerge(excelPid, targetId);
+        });
+      });
+
+      excelSection.querySelectorAll('[data-excel-delete]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var pid = this.dataset.excelDelete;
+          confirmDeletePatient(pid);
+        });
+      });
+    }
   }
 
   /* ---- ID統合の確認 ---- */
@@ -419,6 +486,30 @@ BPApp.Cleanup = (function () {
     await prom(tx('patients', 'readwrite').delete(sourceId));
   }
 
+  /* ---- Excel取込患者の手動紐付け ---- */
+
+  function confirmExcelMerge(excelPid, targetId) {
+    confirmAsync('Excel患者紐付け確認',
+      'Excel取込患者 ' + excelPid + ' を EMR患者 ' + targetId + ' に紐付けます。\n' +
+      '予約データが全て移行されます。よろしいですか？'
+    ).then(function (ok) {
+      if (!ok) return;
+      doExcelMerge(excelPid, targetId);
+    });
+  }
+
+  async function doExcelMerge(excelPid, targetId) {
+    try {
+      await reassignPatientAppointments(excelPid, targetId);
+      await deletePatient(excelPid);
+      toast('患者 ' + excelPid + ' を ' + targetId + ' に紐付けました');
+      await runCleanupCheck();
+    } catch (e) {
+      console.error('doExcelMerge error:', e);
+      toast('紐付けエラー: ' + e.message);
+    }
+  }
+
   /* ---- 名前の一括適用 ---- */
 
   function confirmApplyName(issue, correctName) {
@@ -502,6 +593,8 @@ BPApp.Cleanup = (function () {
   window.handleAssignName = handleAssignName;
   window.confirmDeletePatient = confirmDeletePatient;
   window.doDeletePatient = doDeletePatient;
+  window.confirmExcelMerge = confirmExcelMerge;
+  window.doExcelMerge = doExcelMerge;
 
   /* ---- 公開API ---- */
 

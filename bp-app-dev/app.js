@@ -181,6 +181,22 @@ BPApp.App = (function () {
     var btnDemo = $('btn-demo-data');
     if (btnDemo) btnDemo.addEventListener('click', initDemoData);
 
+    // Event: Excel Import
+    var btnExcelImport = $('btn-excel-import');
+    if (btnExcelImport) btnExcelImport.addEventListener('click', openExcelImport);
+    var btnExcelPreview = $('btn-excel-preview');
+    if (btnExcelPreview) btnExcelPreview.addEventListener('click', handleExcelPreview);
+    var btnExcelCommit = $('btn-excel-commit');
+    if (btnExcelCommit) btnExcelCommit.addEventListener('click', handleExcelCommit);
+    var btnExcelClose = $('excel-import-close');
+    if (btnExcelClose) btnExcelClose.addEventListener('click', closeExcelImport);
+
+    // Event: EMR Match modal
+    var btnEmrMatchConfirm = $('emr-match-confirm');
+    if (btnEmrMatchConfirm) btnEmrMatchConfirm.addEventListener('click', handleEmrMatchConfirm);
+    var btnEmrMatchSkip = $('emr-match-skip');
+    if (btnEmrMatchSkip) btnEmrMatchSkip.addEventListener('click', handleEmrMatchSkip);
+
     // Event: Data Cleanup
     var btnCleanup = $('btn-data-cleanup');
     if (btnCleanup) btnCleanup.addEventListener('click', openDataCleanup);
@@ -205,10 +221,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.2.1 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.2.1';
+    $('header-info').textContent = 'v3.3.0 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.3.0';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.2.1';
+    $('app-version-footer').textContent = '3.3.0';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -897,14 +913,34 @@ BPApp.App = (function () {
           memo: '（EMR連携 自動作成）',
           createdAt: new Date().toISOString()
         });
+        patient = await getPatient(id);
       }
-      currentPatientId = id;
-      currentView = 'all';
-      showScreen('patient');
-      await renderPatientPage();
-      var label = id;
-      if (name) label += ' ' + name;
-      toast('EMR連携: 患者 ' + label + ' を開きました');
+
+      // Check for matching Excel-imported patients
+      var patName = patient.name || name || '';
+      if (patName) {
+        try {
+          var excelPats = await getPatientsBySource('excel');
+          var matches = [];
+          for (var i = 0; i < excelPats.length; i++) {
+            var score = _matchScore(patName, excelPats[i].name);
+            if (score >= 70) {
+              var appts = await getAppointmentsByPatient(excelPats[i].id);
+              matches.push({ patient: excelPats[i], score: score, apptCount: appts.length });
+            }
+          }
+          if (matches.length > 0) {
+            matches.sort(function (a, b) { return b.score - a.score; });
+            _emrMatchState = { excelPatients: matches, emrId: id, emrName: patName };
+            showEmrMatchModal(matches, id, patName);
+            return; // Wait for user decision in modal
+          }
+        } catch (e2) {
+          console.error('Excel matching check error:', e2);
+        }
+      }
+
+      _finishEmrNavigation(id, name);
     } catch (e) {
       console.error('navigateToPatientAuto error:', e);
     }
@@ -919,6 +955,314 @@ BPApp.App = (function () {
       if (el) { el.textContent = text; el.className = cls; }
     }
     _emrConnected = connected;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+      EXCEL IMPORT — helpers
+     ═══════════════════════════════════════════════════════ */
+
+  var _emrMatchState = null;
+
+  function _excelPatientId(name) {
+    var hash = 0;
+    for (var i = 0; i < name.length; i++) {
+      hash = ((hash << 5) - hash) + name.charCodeAt(i);
+      hash |= 0;
+    }
+    return '_x_' + Math.abs(hash).toString(36).padStart(6, '0');
+  }
+
+  function _normalizeNameForMatch(name) {
+    return (name || '').replace(/[\s　]/g, '');
+  }
+
+  function _levenshtein(a, b) {
+    var m = [], i, j;
+    for (i = 0; i <= b.length; i++) m[i] = [i];
+    for (j = 0; j <= a.length; j++) m[0][j] = j;
+    for (i = 1; i <= b.length; i++) {
+      for (j = 1; j <= a.length; j++) {
+        m[i][j] = b.charAt(i - 1) === a.charAt(j - 1)
+          ? m[i - 1][j - 1]
+          : Math.min(m[i - 1][j - 1] + 1, Math.min(m[i][j - 1] + 1, m[i - 1][j] + 1));
+      }
+    }
+    return m[b.length][a.length];
+  }
+
+  function _matchScore(name1, name2) {
+    var n1 = _normalizeNameForMatch(name1);
+    var n2 = _normalizeNameForMatch(name2);
+    if (!n1 || !n2) return 0;
+    if (n1 === n2) return 100;
+    if (n1.indexOf(n2) !== -1 || n2.indexOf(n1) !== -1) return 85;
+    var dist = _levenshtein(n1, n2);
+    if (dist <= 1) return 90;
+    if (dist <= 2) return 75;
+    return 0;
+  }
+
+  /* ═══════════════════════════════════════════════════════
+      EXCEL IMPORT — TSV Parser
+     ═══════════════════════════════════════════════════════ */
+
+  function _parseDateFlexible(str) {
+    // YYYY-MM-DD or YYYY/MM/DD
+    var m = str.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
+    if (m) {
+      var y = parseInt(m[1], 10), mo = parseInt(m[2], 10), d = parseInt(m[3], 10);
+      if (y >= 2000 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      }
+    }
+    // M/D/YYYY or M/D
+    m = str.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/);
+    if (m) {
+      var mo = parseInt(m[1], 10), d = parseInt(m[2], 10);
+      var y = m[3] ? parseInt(m[3], 10) : new Date().getFullYear();
+      if (y < 100) y += 2000;
+      if (y >= 2000 && y <= 2100 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+        return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      }
+    }
+    return null;
+  }
+
+  function parseExcelTSV(text) {
+    if (!text || !text.trim()) return null;
+    var lines = text.split(/\r?\n/);
+    var rows = [];
+    var nameSet = {};
+
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      if (/^日数/.test(line)) continue; // skip header
+
+      var cols = line.split('\t');
+      if (cols.length < 4) continue;
+
+      var dateStr = cols[1].trim();
+      var date = _parseDateFlexible(dateStr);
+      if (!date) continue;
+
+      var names = [];
+      for (var j = 3; j < cols.length; j++) {
+        var name = cols[j].trim();
+        if (name) names.push(name);
+      }
+      if (names.length === 0) continue;
+
+      for (var k = 0; k < names.length; k++) nameSet[names[k]] = true;
+      rows.push({ date: date, names: names });
+    }
+
+    if (rows.length === 0) return null;
+
+    var uniqueNames = Object.keys(nameSet);
+    var patients = [];
+    var patientMap = {};
+    for (var i = 0; i < uniqueNames.length; i++) {
+      var pid = _excelPatientId(uniqueNames[i]);
+      patients.push({ id: pid, name: uniqueNames[i] });
+      patientMap[uniqueNames[i]] = pid;
+    }
+
+    var appointments = [];
+    for (var i = 0; i < rows.length; i++) {
+      for (var k = 0; k < rows[i].names.length; k++) {
+        var name = rows[i].names[k];
+        appointments.push({
+          date: rows[i].date,
+          patientId: patientMap[name],
+          patientName: name
+        });
+      }
+    }
+
+    return { patients: patients, appointments: appointments, rows: rows.length };
+  }
+
+  /* ═══════════════════════════════════════════════════════
+      EXCEL IMPORT — UI
+     ═══════════════════════════════════════════════════════ */
+
+  function openExcelImport() {
+    _excelImportData = null;
+    var ta = $('inp-excel-tsv');
+    if (ta) ta.value = '';
+    var preview = $('excel-preview-area');
+    if (preview) preview.style.display = 'none';
+    var status = $('excel-parse-status');
+    if (status) status.textContent = '';
+    var commitStatus = $('excel-commit-status');
+    if (commitStatus) commitStatus.textContent = '';
+    showModal('excel-import');
+    setTimeout(function () { if (ta) ta.focus(); }, 100);
+  }
+
+  function closeExcelImport() {
+    hideModal('excel-import');
+  }
+
+  function renderExcelPreview(parsed) {
+    var body = $('excel-preview-body');
+    var preview = $('excel-preview-area');
+    var summary = $('excel-preview-summary');
+    var status = $('excel-parse-status');
+    if (!body || !preview) return;
+
+    var appts = parsed.appointments.slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
+
+    var html = '';
+    for (var i = 0; i < appts.length; i++) {
+      html += '<tr><td>' + esc(appts[i].date) + '</td><td>' + esc(appts[i].patientName) + '</td></tr>';
+    }
+    body.innerHTML = html;
+    preview.style.display = '';
+
+    if (status) status.textContent = parsed.appointments.length + '件のデータを検出';
+    if (summary) {
+      summary.textContent = '患者 ' + parsed.patients.length + '人、予約 ' + parsed.appointments.length + '件（' + parsed.rows + '日分）を取込予定';
+    }
+  }
+
+  function handleExcelPreview() {
+    var ta = $('inp-excel-tsv');
+    if (!ta) return;
+    var text = ta.value;
+    if (!text.trim()) { toast('Excelデータを貼り付けてください'); return; }
+
+    var parsed = parseExcelTSV(text);
+    if (!parsed || parsed.appointments.length === 0) {
+      toast('有効な予約データが見つかりませんでした');
+      return;
+    }
+
+    _excelImportData = parsed;
+    renderExcelPreview(parsed);
+  }
+
+  async function handleExcelCommit() {
+    if (!_excelImportData) { toast('先にプレビューを実行してください'); return; }
+
+    var commitStatus = $('excel-commit-status');
+    if (commitStatus) commitStatus.textContent = '取込中...';
+
+    try {
+      var created = 0;
+      for (var i = 0; i < _excelImportData.patients.length; i++) {
+        var p = _excelImportData.patients[i];
+        var existing = await getPatient(p.id);
+        if (!existing) {
+          await putPatient({
+            id: p.id,
+            name: p.name,
+            source: 'excel',
+            memo: '（Excel取込: 要EMRマッチング）',
+            createdAt: new Date().toISOString()
+          });
+          created++;
+        }
+      }
+
+      var apptCreated = 0, skipped = 0;
+      for (var i = 0; i < _excelImportData.appointments.length; i++) {
+        var a = _excelImportData.appointments[i];
+        var existingApps = await getAppointmentsByDate(a.date);
+        var dup = false;
+        for (var j = 0; j < existingApps.length; j++) {
+          if (existingApps[j].patientId === a.patientId && existingApps[j].status === 'scheduled') {
+            dup = true;
+            break;
+          }
+        }
+        if (!dup) {
+          await putAppointment({
+            patientId: a.patientId,
+            appointmentDate: a.date,
+            status: 'scheduled',
+            medicationDays: 0,
+            medicationNote: '（Excel取込）',
+            createdAt: new Date().toISOString()
+          });
+          apptCreated++;
+        } else {
+          skipped++;
+        }
+      }
+
+      var msg = '取込完了: 患者' + created + '人（新規） / 予約' + apptCreated + '件登録';
+      if (skipped > 0) msg += ' / ' + skipped + '件スキップ';
+      if (commitStatus) commitStatus.textContent = '✅ ' + msg;
+      toast(msg);
+      _excelImportData = null;
+    } catch (e) {
+      console.error('handleExcelCommit error:', e);
+      if (commitStatus) commitStatus.textContent = '❌ エラー: ' + e.message;
+      toast('取込エラー: ' + e.message);
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════
+      EXCEL IMPORT — EMR Matching
+     ═══════════════════════════════════════════════════════ */
+
+  function showEmrMatchModal(matches, emrId, emrName) {
+    var body = $('emr-match-body');
+    if (!body) return;
+
+    var html = '<p>EMRで読み込んだ患者 <strong>' + esc(emrId) + ' ' + esc(emrName) + '</strong> に、以下のExcel取込データがマッチしました。</p>';
+    html += '<table class="summary-table" style="margin-top:12px"><thead><tr><th>Excelの名前</th><th>一致度</th><th>予約件数</th></tr></thead><tbody>';
+    for (var i = 0; i < matches.length; i++) {
+      var m = matches[i];
+      html += '<tr><td>' + esc(m.patient.name) + '</td><td>' + m.score + '%</td><td>' + (m.apptCount || 0) + '件</td></tr>';
+    }
+    html += '</tbody></table>';
+    html += '<p style="font-size:.82em;color:#7f8c8d;margin-top:8px">紐付けると、Excelからの予約がこの患者さんに移行されます。</p>';
+
+    body.innerHTML = html;
+    showModal('emr-match');
+  }
+
+  async function handleEmrMatchConfirm() {
+    if (!_emrMatchState) return;
+    var state = _emrMatchState;
+    _emrMatchState = null;
+    hideModal('emr-match');
+
+    try {
+      for (var i = 0; i < state.excelPatients.length; i++) {
+        var ep = state.excelPatients[i].patient;
+        await reassignPatientAppointments(ep.id, state.emrId);
+        await deletePatient(ep.id);
+      }
+      toast('Excel取込データをEMR患者に紐付けました');
+    } catch (e) {
+      console.error('handleEmrMatchConfirm error:', e);
+      toast('マッチングエラー: ' + e.message);
+    }
+
+    _finishEmrNavigation(state.emrId, state.emrName);
+  }
+
+  function handleEmrMatchSkip() {
+    if (!_emrMatchState) return;
+    var id = _emrMatchState.emrId;
+    var name = _emrMatchState.emrName;
+    _emrMatchState = null;
+    hideModal('emr-match');
+    _finishEmrNavigation(id, name);
+  }
+
+  function _finishEmrNavigation(id, name) {
+    currentPatientId = id;
+    currentView = 'all';
+    showScreen('patient');
+    renderPatientPage();
+    var label = id;
+    if (name) label += ' ' + name;
+    toast('EMR連携: 患者 ' + label + ' を開きました');
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -2292,6 +2636,17 @@ BPApp.App = (function () {
   window.initDemoData = initDemoData;
   window.exportAppointmentsCSV = exportAppointmentsCSV;
   window.renderPasteView = renderPasteView;
+  window.parseExcelTSV = parseExcelTSV;
+  window.openExcelImport = openExcelImport;
+  window.closeExcelImport = closeExcelImport;
+  window.handleExcelPreview = handleExcelPreview;
+  window.renderExcelPreview = renderExcelPreview;
+  window.handleExcelCommit = handleExcelCommit;
+  window.showEmrMatchModal = showEmrMatchModal;
+  window.handleEmrMatchConfirm = handleEmrMatchConfirm;
+  window.handleEmrMatchSkip = handleEmrMatchSkip;
+  window._matchScore = _matchScore;
+  window._excelPatientId = _excelPatientId;
   window.handleParseVisit = handleParseVisit;
   window.parseVisitData = parseVisitData;
   window.renderVisitPreview = renderVisitPreview;

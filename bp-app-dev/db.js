@@ -278,6 +278,36 @@ BPApp.DB = (function () {
     return prom(tx('appointments', 'readwrite').put(a));
   }
 
+  /* ---- Excel取込・マッチング関連 ---- */
+
+  async function getPatientsBySource(source) {
+    const all = await getAllPatients();
+    return all.filter(p => p.source === source);
+  }
+
+  async function getAppointmentsByPatientIds(patientIds) {
+    const all = await getAllAppointments();
+    return all.filter(a => patientIds.includes(a.patientId));
+  }
+
+  async function reassignPatientAppointments(fromPatientId, toPatientId) {
+    const appts = await getAppointmentsByPatient(fromPatientId);
+    for (const a of appts) {
+      a.patientId = toPatientId;
+      a.updatedAt = new Date().toISOString();
+      // Check for duplicate on target
+      const targetAppts = await getAppointmentsByPatient(toPatientId);
+      const dup = targetAppts.some(ta =>
+        ta.appointmentDate === a.appointmentDate && ta.status === a.status
+      );
+      if (!dup) {
+        await prom(tx('appointments', 'readwrite').put(a));
+      } else {
+        await deleteAppointment(a.id);
+      }
+    }
+  }
+
   /* ---- 日付設定 ---- */
 
   async function getDaySetting(date) {
@@ -336,6 +366,9 @@ BPApp.DB = (function () {
   window.prom = prom;
   window.getPatient = getPatient;
   window.getAllPatients = getAllPatients;
+  window.getPatientsBySource = getPatientsBySource;
+  window.getAppointmentsByPatientIds = getAppointmentsByPatientIds;
+  window.reassignPatientAppointments = reassignPatientAppointments;
   window.putPatient = putPatient;
   window.deletePatient = deletePatient;
   window.getReadingsByPatient = getReadingsByPatient;
@@ -376,6 +409,9 @@ BPApp.DB = (function () {
     openDB: openDB,
     getPatient: getPatient,
     getAllPatients: getAllPatients,
+    getPatientsBySource: getPatientsBySource,
+    getAppointmentsByPatientIds: getAppointmentsByPatientIds,
+    reassignPatientAppointments: reassignPatientAppointments,
     putPatient: putPatient,
     deletePatient: deletePatient,
     getReadingsByPatient: getReadingsByPatient,

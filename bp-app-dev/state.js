@@ -20,6 +20,7 @@ var _calAppointments = [];
 var toastTimer = null;
 var _summaryPrevText = '';
 var _parsedVisitRecords = null;
+var _excelImportData = null; // {patients:[], appointments:[]} for preview before commit
 var _emrConnected = false;
 
 /* ═══════════════════════════════════════════════════════
