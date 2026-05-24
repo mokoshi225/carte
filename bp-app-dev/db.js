@@ -60,10 +60,25 @@
  * @property {string} updatedAt - 更新日時
  */
 
+/**
+ * @typedef {Object} MedicationData
+ * @property {number} [id] - 自動採番ID
+ * @property {string} patientId - 患者ID
+ * @property {string} drugName - 薬剤名
+ * @property {number} dosage - 用量
+ * @property {string} dosageUnit - 単位（"mg"等）
+ * @property {string} timing - 服用タイミング（"朝", "夕", "朝食後", "就寝前"等）
+ * @property {string} startDate - 開始日 YYYY-MM-DD
+ * @property {string|null} endDate - 中止日 YYYY-MM-DD（null=継続中）
+ * @property {string} [note] - メモ
+ * @property {string} createdAt - 作成日時
+ * @property {string} updatedAt - 更新日時
+ */
+
 BPApp.DB = (function () {
 
   const DB_NAME = 'BloodPressureDB';
-  const DB_VERSION = 4;
+  const DB_VERSION = 5;
   let db = null;
 
   /** DB オープン */
@@ -94,6 +109,11 @@ BPApp.DB = (function () {
         }
         if (!d.objectStoreNames.contains('daySettings')) {
           d.createObjectStore('daySettings', { keyPath: 'date' });
+        }
+        if (!d.objectStoreNames.contains('medications')) {
+          const ms = d.createObjectStore('medications', { keyPath: 'id', autoIncrement: true });
+          ms.createIndex('byPatient', 'patientId', { unique: false });
+          ms.createIndex('byPatientDate', ['patientId', 'startDate'], { unique: false });
         }
       };
       req.onsuccess = () => { db = req.result; resolve(db); };
@@ -134,6 +154,7 @@ BPApp.DB = (function () {
     await prom(tx('patients', 'readwrite').delete(id));
     const readings = await getReadingsByPatient(id);
     for (const r of readings) await deleteReading(r.id);
+    await deleteMedicationsByPatient(id);
   }
 
   /* ---- 測定データ ---- */
@@ -277,6 +298,37 @@ BPApp.DB = (function () {
     return prom(tx('daySettings', 'readwrite').delete(date));
   }
 
+  /* ---- 薬剤データ ---- */
+
+  async function getMedicationsByPatient(patientId) {
+    return prom(tx('medications', 'readonly').index('byPatient').getAll(patientId));
+  }
+
+  async function getMedication(id) {
+    return prom(tx('medications', 'readonly').get(id));
+  }
+
+  async function putMedication(m) {
+    m.updatedAt = new Date().toISOString();
+    if (!m.createdAt) m.createdAt = m.updatedAt;
+    return prom(tx('medications', 'readwrite').put(m));
+  }
+
+  async function deleteMedication(id) {
+    return prom(tx('medications', 'readwrite').delete(id));
+  }
+
+  async function getAllMedications() {
+    return prom(tx('medications', 'readonly').getAll());
+  }
+
+  async function deleteMedicationsByPatient(patientId) {
+    const all = await getMedicationsByPatient(patientId);
+    for (const m of all) {
+      await prom(tx('medications', 'readwrite').delete(m.id));
+    }
+  }
+
   /* ---- グローバル公開（後方互換性） ---- */
 
   window.openDB = openDB;
@@ -311,6 +363,12 @@ BPApp.DB = (function () {
   window.putDaySetting = putDaySetting;
   window.getDaySettingsByDateRange = getDaySettingsByDateRange;
   window.deleteDaySetting = deleteDaySetting;
+  window.getMedicationsByPatient = getMedicationsByPatient;
+  window.getMedication = getMedication;
+  window.putMedication = putMedication;
+  window.deleteMedication = deleteMedication;
+  window.getAllMedications = getAllMedications;
+  window.deleteMedicationsByPatient = deleteMedicationsByPatient;
 
   /* ---- 公開API ---- */
 
@@ -344,7 +402,13 @@ BPApp.DB = (function () {
     getDaySetting: getDaySetting,
     putDaySetting: putDaySetting,
     getDaySettingsByDateRange: getDaySettingsByDateRange,
-    deleteDaySetting: deleteDaySetting
+    deleteDaySetting: deleteDaySetting,
+    getMedicationsByPatient: getMedicationsByPatient,
+    getMedication: getMedication,
+    putMedication: putMedication,
+    deleteMedication: deleteMedication,
+    getAllMedications: getAllMedications,
+    deleteMedicationsByPatient: deleteMedicationsByPatient
   };
 
 })();

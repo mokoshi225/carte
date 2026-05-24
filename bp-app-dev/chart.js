@@ -27,13 +27,107 @@ BPApp.Chart = (function () {
   }
 
   /**
-   * 全期間ビュー：8項目の折れ線グラフを描画
-   * 警戒線・平均線・レンジ表示は一切なし
+   * 薬剤バー描画
    */
-  function drawAllPeriodGraph(canvas, readings) {
+  function drawMedicationBars(ctx, medications, firstDate, lastDate, pad, pw, W, H) {
+    const medList = medications || [];
+    if (medList.length === 0) return;
+
+    const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
+    const dayToX = (d) => pad.left + (d / totalDays) * pw;
+
+    const MED_COLORS = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e'];
+
+    function nameColor(name) {
+      var hash = 0;
+      for (var i = 0; i < name.length; i++) hash += name.charCodeAt(i);
+      return MED_COLORS[hash % MED_COLORS.length];
+    }
+
+    var barAreaTop = H - medList.length * 20 - 8;
+    var barH = 16;
+
+    medList.forEach(function(m, idx) {
+      var startDt = new Date(m.startDate + 'T00:00:00');
+      var endDt = m.endDate ? new Date(m.endDate + 'T00:00:00') : lastDate;
+
+      var dOffStart = Math.max(0, Math.round((startDt - firstDate) / 86400000));
+      var dOffEnd = Math.min(totalDays, Math.round((endDt - firstDate) / 86400000));
+
+      var barX = dayToX(dOffStart);
+      var barW = dayToX(dOffEnd) - barX;
+      var barY = barAreaTop + idx * 20;
+
+      if (barW < 1) return;
+
+      var color = nameColor(m.drugName);
+
+      // バー本体（角丸）
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.65;
+      var r = Math.min(3, barH / 2);
+      ctx.beginPath();
+      ctx.moveTo(barX + r, barY);
+      ctx.lineTo(barX + barW - r, barY);
+      ctx.quadraticCurveTo(barX + barW, barY, barX + barW, barY + r);
+      ctx.lineTo(barX + barW, barY + barH - r);
+      ctx.quadraticCurveTo(barX + barW, barY + barH, barX + barW - r, barY + barH);
+      ctx.lineTo(barX + r, barY + barH);
+      ctx.quadraticCurveTo(barX, barY + barH, barX, barY + barH - r);
+      ctx.lineTo(barX, barY + r);
+      ctx.quadraticCurveTo(barX, barY, barX + r, barY);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+
+      // 開始マーカー（白丸）
+      ctx.beginPath();
+      ctx.arc(barX, barY + barH / 2, 3, 0, Math.PI * 2);
+      ctx.fillStyle = '#fff';
+      ctx.fill();
+
+      // ラベル
+      var label = m.drugName + ' ' + m.dosage + m.dosageUnit + ' ' + m.timing;
+      ctx.fillStyle = '#fff';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+
+      var maxLabelW = barW - 8;
+      if (maxLabelW > 14) {
+        while (ctx.measureText(label + '…').width > maxLabelW && label.length > 1) {
+          label = label.slice(0, -1);
+        }
+        if (ctx.measureText(label + '…').width <= maxLabelW && label.length < (m.drugName + ' ' + m.dosage + m.dosageUnit + ' ' + m.timing).length) {
+          label += '…';
+        }
+        ctx.fillText(label, barX + 4, barY + barH / 2 + 1);
+      }
+
+      // 継続中マーク
+      if (!m.endDate) {
+        ctx.fillStyle = color;
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('▶', barX + barW + 2, barY + barH / 2 + 1);
+      }
+    });
+  }
+
+  /**
+   * 全期間ビュー：8項目の折れ線グラフを描画 + 下部に薬剤バー
+   */
+  function drawAllPeriodGraph(canvas, readings, medications) {
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.parentElement.getBoundingClientRect();
-    const W = rect.width, H = 500;
+    const W = rect.width;
+
+    // 薬剤バー領域
+    const medList = medications || [];
+    const medBarH = medList.length > 0 ? medList.length * 20 + 25 : 0;
+    const H = 500 + medBarH;
+
     canvas.width = W * dpr; canvas.height = H * dpr;
     canvas.style.height = H + 'px'; canvas.style.width = '100%';
     const ctx = canvas.getContext('2d');
@@ -55,21 +149,44 @@ BPApp.Chart = (function () {
     const valid = readings.filter(function(r) {
       return activeItems.some(function(item) { return r[item.key] && r[item.key] > 0; });
     });
-    if (valid.length === 0) {
-      ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText('データがありません', W / 2, H / 2);
-      canvas._graphData = { items: BP_ITEMS, readings: [] };
-      return;
+
+    // 日付範囲を決定（readings→medications→なし）
+    let firstDate, lastDate;
+    if (valid.length > 0) {
+      valid.sort((a, b) => a.date.localeCompare(b.date));
+      firstDate = new Date(valid[0].date + 'T00:00:00');
+      lastDate = new Date(valid[valid.length - 1].date + 'T00:00:00');
+    } else if (medList.length > 0) {
+      var allDates = [];
+      medList.forEach(function(m) {
+        if (m.startDate) allDates.push(m.startDate);
+        if (m.endDate) allDates.push(m.endDate);
+      });
+      if (allDates.length > 0) {
+        allDates.sort();
+        firstDate = new Date(allDates[0] + 'T00:00:00');
+        lastDate = new Date(allDates[allDates.length - 1] + 'T00:00:00');
+        // 1ヶ月の余裕をもたせる
+        var tmpEnd = new Date(lastDate);
+        tmpEnd.setMonth(tmpEnd.getMonth() + 1);
+        lastDate = tmpEnd;
+        var tmpStart = new Date(firstDate);
+        tmpStart.setMonth(tmpStart.getMonth() - 1);
+        firstDate = tmpStart;
+      }
     }
 
-    valid.sort((a, b) => a.date.localeCompare(b.date));
+    if (!firstDate || !lastDate) {
+      ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('データがありません', W / 2, H / 2);
+      canvas._graphData = { items: BP_ITEMS, readings: [], medications: medList };
+      return;
+    }
 
     // Y軸範囲：60-150に固定
     const yMin = 60, yMax = 150;
 
     // 日付→X座標のマッピング（日数ベース）
-    const firstDate = new Date(valid[0].date + 'T00:00:00');
-    const lastDate = new Date(valid[valid.length - 1].date + 'T00:00:00');
     const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
     const dayToX = (d) => pad.left + (d / totalDays) * pw;
 
@@ -207,12 +324,15 @@ BPApp.Chart = (function () {
       }
     });
 
-    canvas._graphData = { items: activeItems, readings: valid, seriesData, W, H, pad };
+    // 下部に薬剤バーを描画
+    drawMedicationBars(ctx, medList, firstDate, lastDate, pad, pw, W, H);
+
+    canvas._graphData = { items: activeItems, readings: valid, seriesData, W, H, pad, medications: medList };
   }
 
   // メイン描画関数
-  function drawGraph(canvas, readings) {
-    drawAllPeriodGraph(canvas, readings);
+  function drawGraph(canvas, readings, medications) {
+    drawAllPeriodGraph(canvas, readings, medications);
   }
 
   // ツールチップ
@@ -287,6 +407,8 @@ BPApp.Chart = (function () {
     BP_ITEMS: BP_ITEMS,
     GRAPH: GRAPH,
     drawGraph: drawGraph,
+    drawAllPeriodGraph: drawAllPeriodGraph,
+    drawMedicationBars: drawMedicationBars,
     setupTooltip: setupTooltip
   };
 

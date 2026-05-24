@@ -191,6 +191,26 @@
         </div>
       </div>
 
+      <!-- 💊 降圧薬 -->
+      <div class="form-section" id="section-medication">
+        <h3>💊 降圧薬 <span style="font-weight:400;font-size:.78em;color:#7f8c8d">— 服用期間をグラフ下部に表示</span></h3>
+        <div class="form-row med-add-row">
+          <input type="text" id="med-drug-name" placeholder="薬剤名" class="med-input-name">
+          <input type="number" id="med-dosage" class="med-input-dose" min="0.1" step="0.5" placeholder="用量">
+          <select id="med-dosage-unit" class="med-select"><option value="mg">mg</option><option value="μg">μg</option></select>
+          <select id="med-timing" class="med-select">
+            <option value="朝">朝</option><option value="夕">夕</option>
+            <option value="朝食後">朝食後</option><option value="夕食後">夕食後</option>
+            <option value="就寝前">就寝前</option><option value="朝・夕">朝・夕</option>
+          </select>
+          <input type="date" id="med-start-date" class="med-input-date" placeholder="開始日">
+          <input type="date" id="med-end-date" class="med-input-date" placeholder="中止日（継続中は空欄）">
+          <button class="btn-register" id="btn-add-medication" style="padding:7px 16px;font-size:.85em;white-space:nowrap">＋ 追加</button>
+        </div>
+        <div id="medication-list" style="margin-top:8px"></div>
+        <span id="medication-status" style="font-size:.82em;color:#27ae60"></span>
+      </div>
+
       <div class="form-section" id="section-daily-list">
          <h3>📅 受診データ一覧</h3>
          <div class="daily-list">
@@ -224,7 +244,9 @@
            <div style="margin-top:10px;overflow-x:auto">
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
-               <tbody>
+                <tbody>
+			<tr><td>v3.2.0</td><td>2026-05-24</td><td>デモデータ機能拡張：3年分の月次血圧データ（36件/患者）と降圧薬データ（1-3剤を1-6ヶ月毎に変更）を生成するよう強化</td></tr>
+			<tr><td>v3.1.0</td><td>2026-05-24</td><td>降圧薬管理機能追加：medicationsストア新設、グラフ下部に薬剤バー表示、服用タイミング対応、CSV/バックアップ対応</td></tr>
 			<tr><td>v3.0.0</td><td>2026-05-23</td><td>IIFEモジュール化。state.js/soap.js分割。JSDoc型定義追加。全モジュールをIIFE+公開API方式に刷新</td></tr>
 			<tr><td>v2.4.0</td><td>2026-05-23</td><td>カレンダーセルにすべての予約患者名を表示（truncation廃止）</td></tr>
                        <tr><td>v2.3.1</td><td>2026-05-23</td><td>評価サマリーのテキストエリアを内容量に応じて自動拡張（auto-resize）</td></tr>

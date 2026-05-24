@@ -154,6 +154,18 @@ BPApp.App = (function () {
     var btnExportAppt = $('btn-export-appt-csv');
     if (btnExportAppt) btnExportAppt.addEventListener('click', exportAppointmentsCSV);
 
+    // Event: Medication
+    var btnAddMed = $('btn-add-medication');
+    if (btnAddMed) btnAddMed.addEventListener('click', handleAddMedication);
+
+    // Enter key in medication fields saves
+    ['med-drug-name', 'med-dosage', 'med-start-date', 'med-end-date'].forEach(function (id) {
+      var el = $(id);
+      if (el) el.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') { e.preventDefault(); handleAddMedication(); }
+      });
+    });
+
     // Event: Summary update
     var btnUpdSum = $('btn-update-summary');
     if (btnUpdSum) btnUpdSum.addEventListener('click', handleUpdateSummary);
@@ -185,10 +197,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.0.0 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.0.0';
+    $('header-info').textContent = 'v3.2.0 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.2.0';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.0.0';
+    $('app-version-footer').textContent = '3.2.0';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -344,6 +356,7 @@ BPApp.App = (function () {
         inpDate.value = fmtDate(new Date());
       }
       await renderAppointmentSection();
+      await renderMedicationSection();
       await renderAssessmentSection();
       updateSoapOutput();
     } catch (e) {
@@ -391,8 +404,9 @@ BPApp.App = (function () {
     try {
       var readings = await getReadingsByPatient(currentPatientId);
       readings.sort(function (a, b) { return a.date.localeCompare(b.date); });
+      var medications = await getMedicationsByPatient(currentPatientId);
       var canvas = $('graph');
-      if (canvas) { drawAllPeriodGraph(canvas, readings); setupTooltip(canvas); }
+      if (canvas) { drawAllPeriodGraph(canvas, readings, medications); setupTooltip(canvas); }
     } catch (e) { console.error('renderAllPeriodView:', e); }
 
     var legendEl = $('legend');
@@ -641,6 +655,22 @@ BPApp.App = (function () {
         (r.weight || 0) + ',' +
         '"' + (r.note || '').replace(/"/g, '""') + '"\n';
     }
+    // 降圧薬データを追記
+    var meds = await getMedicationsByPatient(currentPatientId);
+    if (meds && meds.length > 0) {
+      csv += '\n降圧薬\n';
+      csv += '薬剤名,用量,単位,タイミング,開始日,中止日\n';
+      meds.sort(function (a, b) { return a.startDate.localeCompare(b.startDate); });
+      for (var mi = 0; mi < meds.length; mi++) {
+        var m = meds[mi];
+        csv += '"' + (m.drugName || '').replace(/"/g, '""') + '",' +
+          (m.dosage || 0) + ',' +
+          (m.dosageUnit || 'mg') + ',' +
+          '"' + (m.timing || '').replace(/"/g, '""') + '",' +
+          (m.startDate || '') + ',' +
+          (m.endDate || '') + '\n';
+      }
+    }
     var today = fmtDate(new Date());
     downloadFile(csv, 'bp_' + currentPatientId + '_' + today + '.csv');
     toast('CSVエクスポート完了');
@@ -696,7 +726,8 @@ BPApp.App = (function () {
     var patients = await getAllPatients();
     var readings = await getAllReadings();
     var appointments = await getAllAppointments();
-    downloadFile(backupToJSON({ patients: patients, readings: readings, appointments: appointments }),
+    var medications = await getAllMedications();
+    downloadFile(backupToJSON({ patients: patients, readings: readings, appointments: appointments, medications: medications }),
       'bp_backup_' + fmtDate(new Date()) + '.json', 'application/json');
     toast('バックアップ完了');
   }
@@ -716,6 +747,7 @@ BPApp.App = (function () {
           if (data.patients) for (var i = 0; i < data.patients.length; i++) await putPatient(data.patients[i]);
           if (data.readings) for (var j = 0; j < data.readings.length; j++) await putReading(data.readings[j]);
           if (data.appointments) for (var k = 0; k < data.appointments.length; k++) await putAppointment(data.appointments[k]);
+          if (data.medications) for (var l = 0; l < data.medications.length; l++) await putMedication(data.medications[l]);
           toast('復元完了');
           currentPatientId = null;
           showScreen('id');
@@ -993,6 +1025,164 @@ BPApp.App = (function () {
       console.error(e);
       toast('エラー: ' + e.message);
     }
+  }
+
+  /* ═══════════════════════════════════════════════════════
+      降圧薬
+     ═══════════════════════════════════════════════════════ */
+
+  var _editingMedId = null;
+
+  async function renderMedicationSection() {
+    var container = $('medication-list');
+    if (!container) return;
+    try {
+      var meds = await getMedicationsByPatient(currentPatientId);
+    } catch (e) { return; }
+    if (!meds || meds.length === 0) {
+      container.innerHTML = '<span style="color:#bdc3c7;font-size:.85em">登録された降圧薬はありません</span>';
+      return;
+    }
+    // 開始日順にソート
+    meds.sort(function (a, b) { return a.startDate.localeCompare(b.startDate); });
+
+    var MED_COLORS = ['#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22', '#34495e'];
+    function nameColor(name) {
+      var hash = 0;
+      for (var i = 0; i < name.length; i++) hash += name.charCodeAt(i);
+      return MED_COLORS[hash % MED_COLORS.length];
+    }
+
+    var html = '<table class="med-table"><thead><tr>' +
+      '<th></th><th>薬剤名</th><th>用量</th><th>タイミング</th><th>開始日</th><th>中止日</th><th>操作</th></tr></thead><tbody>';
+    for (var i = 0; i < meds.length; i++) {
+      var m = meds[i];
+      var color = nameColor(m.drugName);
+      var endLabel = m.endDate ? esc(m.endDate) : '<span class="med-active">→ 継続中</span>';
+      html += '<tr>' +
+        '<td><span class="med-color-dot" style="background:' + color + '"></span></td>' +
+        '<td>' + esc(m.drugName) + '</td>' +
+        '<td>' + (m.dosage || '') + m.dosageUnit + '</td>' +
+        '<td>' + esc(m.timing || '') + '</td>' +
+        '<td>' + esc(m.startDate) + '</td>' +
+        '<td>' + endLabel + '</td>' +
+        '<td>' +
+        '<button class="btn btn-sm btn-secondary" data-med-edit="' + m.id + '" style="margin-right:4px">編集</button>' +
+        '<button class="btn btn-sm btn-danger" data-med-del="' + m.id + '">削除</button>' +
+        '</td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    container.querySelectorAll('[data-med-edit]').forEach(function (btn) {
+      btn.addEventListener('click', function () { editMedication(Number(this.dataset.medEdit)); });
+    });
+    container.querySelectorAll('[data-med-del]').forEach(function (btn) {
+      btn.addEventListener('click', function () { deleteMedicationConfirm(Number(this.dataset.medDel)); });
+    });
+  }
+
+  function getMedFormData() {
+    var drugName = $('med-drug-name'); var dosage = $('med-dosage');
+    var unit = $('med-dosage-unit'); var timing = $('med-timing');
+    var startDate = $('med-start-date'); var endDate = $('med-end-date');
+    if (!drugName || !dosage || !startDate) return null;
+    var name = drugName.value.trim();
+    if (!name) { toast('薬剤名を入力してください'); return null; }
+    var sd = startDate.value;
+    if (!sd) { toast('開始日を入力してください'); return null; }
+    return {
+      drugName: name,
+      dosage: Number(dosage.value) || 0,
+      dosageUnit: unit ? unit.value : 'mg',
+      timing: timing ? timing.value : '朝',
+      startDate: sd,
+      endDate: endDate ? endDate.value || null : null
+    };
+  }
+
+  function clearMedForm() {
+    var drugName = $('med-drug-name'); var dosage = $('med-dosage');
+    var startDate = $('med-start-date'); var endDate = $('med-end-date');
+    if (drugName) drugName.value = '';
+    if (dosage) dosage.value = '';
+    if (startDate) startDate.value = '';
+    if (endDate) endDate.value = '';
+    _editingMedId = null;
+    var btn = $('btn-add-medication');
+    if (btn) btn.textContent = '＋ 追加';
+    var status = $('medication-status');
+    if (status) status.textContent = '';
+  }
+
+  async function handleAddMedication() {
+    var data = getMedFormData();
+    if (!data) return;
+
+    var med = {
+      patientId: currentPatientId,
+      drugName: data.drugName,
+      dosage: data.dosage,
+      dosageUnit: data.dosageUnit,
+      timing: data.timing,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      createdAt: new Date().toISOString()
+    };
+
+    try {
+      if (_editingMedId) {
+        var existing = await getMedication(_editingMedId);
+        if (existing) {
+          med.id = _editingMedId;
+          med.createdAt = existing.createdAt;
+        }
+      }
+      await putMedication(med);
+      toast(_editingMedId ? '降圧薬を更新しました' : '降圧薬を追加しました');
+      clearMedForm();
+      await renderMedicationSection();
+      renderView();
+    } catch (e) {
+      console.error('handleAddMedication error:', e);
+      toast('保存エラー: ' + e.message);
+    }
+  }
+
+  async function editMedication(id) {
+    try {
+      var m = await getMedication(id);
+      if (!m) return;
+      _editingMedId = id;
+      var drugName = $('med-drug-name'); var dosage = $('med-dosage');
+      var unit = $('med-dosage-unit'); var timing = $('med-timing');
+      var startDate = $('med-start-date'); var endDate = $('med-end-date');
+      if (drugName) drugName.value = m.drugName;
+      if (dosage) dosage.value = m.dosage || '';
+      if (unit) unit.value = m.dosageUnit || 'mg';
+      if (timing) timing.value = m.timing || '朝';
+      if (startDate) startDate.value = m.startDate;
+      if (endDate) endDate.value = m.endDate || '';
+      var btn = $('btn-add-medication');
+      if (btn) btn.textContent = '📝 更新';
+      var status = $('medication-status');
+      if (status) status.textContent = '編集中…';
+      if (drugName) { drugName.focus(); drugName.select(); drugName.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+    } catch (e) {
+      console.error('editMedication:', e);
+    }
+  }
+
+  function deleteMedicationConfirm(id) {
+    confirmAsync('削除確認', 'この降圧薬を削除しますか？').then(function (ok) {
+      if (!ok) return;
+      deleteMedication(id).then(function () {
+        toast('降圧薬を削除しました');
+        clearMedForm();
+        renderMedicationSection();
+        renderView();
+      }).catch(function (e) { console.error(e); });
+    });
   }
 
   /* ═══════════════════════════════════════════════════════
@@ -1437,7 +1627,7 @@ BPApp.App = (function () {
 
   async function initDemoData() {
     var ok = await confirmAsync('デモデータ投入',
-      '患者DEMO-001〜003、カレンダー用の日付設定・予約データを作成します。\n続行しますか？');
+      '患者DEMO-001〜003を作成し、3年分の月次血圧データ（36件/患者）・降圧薬データを生成します。\n続行しますか？');
     if (!ok) return;
 
     var today = new Date();
@@ -1453,16 +1643,204 @@ BPApp.App = (function () {
       return r;
     }
 
+    function addMonths(d, n) {
+      var r = new Date(d);
+      r.setMonth(r.getMonth() + n);
+      return r;
+    }
+
+    // Deterministic pseudo-random noise (0-1)
+    function noise(seed) {
+      var x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    }
+
     try {
+      // ── Patient master ──
       var demoPats = [
         { id: 'DEMO-001', name: '山田太郎', gender: '男', birthDate: '1965-03-15', memo: '高血圧' },
         { id: 'DEMO-002', name: '鈴木花子', gender: '女', birthDate: '1978-07-22', memo: '経過観察' },
         { id: 'DEMO-003', name: '佐藤健一', gender: '男', birthDate: '1955-11-08', memo: '糖尿病合併' }
       ];
+
+      // 既存デモデータがあれば削除して再作成
+      for (var pi = 0; pi < demoPats.length; pi++) {
+        var exist = await getPatient(demoPats[pi].id);
+        if (exist) {
+          await deletePatient(demoPats[pi].id);
+        }
+      }
+
       for (var pi = 0; pi < demoPats.length; pi++) {
         await putPatient(demoPats[pi]);
       }
 
+      // ── 患者プロファイル（ベース血圧・季節変動・治療傾向） ──
+      var profiles = {
+        'DEMO-001': {
+          // 高血圧、治療で徐々に改善
+          homeSbp: function (m) {
+            var base = 145 + m * (-20 / 35); // 145→125
+            var seas = 3 * Math.cos((m + 3) * Math.PI / 6);
+            return Math.round(base + seas + (noise(m * 7 + 1) - 0.5) * 6);
+          },
+          homeDbp: function (m) {
+            var base = 90 + m * (-12 / 35); // 90→78
+            var seas = 2 * Math.cos((m + 3) * Math.PI / 6);
+            return Math.round(base + seas + (noise(m * 7 + 2) - 0.5) * 4);
+          },
+          weight: 75, coatSbp: 8, coatDbp: 5
+        },
+        'DEMO-002': {
+          // 軽度高血圧、安定
+          homeSbp: function (m) {
+            var base = 132 + m * (-4 / 35);
+            var seas = 2 * Math.cos((m + 3) * Math.PI / 6);
+            return Math.round(base + seas + (noise(m * 7 + 10) - 0.5) * 5);
+          },
+          homeDbp: function (m) {
+            var base = 84 + m * (-3 / 35);
+            var seas = 1.5 * Math.cos((m + 3) * Math.PI / 6);
+            return Math.round(base + seas + (noise(m * 7 + 11) - 0.5) * 3);
+          },
+          weight: 58, coatSbp: 5, coatDbp: 3
+        },
+        'DEMO-003': {
+          // 糖尿病合併、変動大
+          homeSbp: function (m) {
+            var base = 140 + m * (-10 / 35);
+            var seas = 3 * Math.cos((m + 3) * Math.PI / 6);
+            return Math.round(base + seas + (noise(m * 7 + 20) - 0.5) * 8);
+          },
+          homeDbp: function (m) {
+            var base = 87 + m * (-5 / 35);
+            var seas = 2 * Math.cos((m + 3) * Math.PI / 6);
+            return Math.round(base + seas + (noise(m * 7 + 21) - 0.5) * 5);
+          },
+          weight: 68, coatSbp: 7, coatDbp: 4
+        }
+      };
+
+      // ── 降圧薬スケジュール ──
+      var medSchedules = {
+        'DEMO-001': [
+          { start: -35, end: -18, drugs: [
+            { name: 'アムロジピン', dose: 5, unit: 'mg', timing: '朝' }
+          ]},
+          { start: -18, end: -6, drugs: [
+            { name: 'アムロジピン', dose: 5, unit: 'mg', timing: '朝' },
+            { name: 'オルメサルタン', dose: 20, unit: 'mg', timing: '朝' }
+          ]},
+          { start: -6, end: 0, drugs: [
+            { name: 'シルニジピン', dose: 10, unit: 'mg', timing: '朝' },
+            { name: 'オルメサルタン', dose: 20, unit: 'mg', timing: '夕' },
+            { name: 'インダパミド', dose: 1, unit: 'mg', timing: '朝' }
+          ]}
+        ],
+        'DEMO-002': [
+          { start: -35, end: -12, drugs: [
+            { name: 'テルミサルタン', dose: 40, unit: 'mg', timing: '朝' }
+          ]},
+          { start: -12, end: 0, drugs: [
+            { name: 'テルミサルタン', dose: 40, unit: 'mg', timing: '朝' },
+            { name: 'アムロジピン', dose: 2.5, unit: 'mg', timing: '朝' }
+          ]}
+        ],
+        'DEMO-003': [
+          { start: -35, end: -18, drugs: [
+            { name: 'アジルサルタン', dose: 20, unit: 'mg', timing: '朝' }
+          ]},
+          { start: -18, end: -6, drugs: [
+            { name: 'アジルサルタン', dose: 20, unit: 'mg', timing: '朝' },
+            { name: 'アムロジピン', dose: 5, unit: 'mg', timing: '朝' }
+          ]},
+          { start: -6, end: 0, drugs: [
+            { name: 'ユニシア（アジルサルタン/アムロジピン）', dose: 1, unit: '錠', timing: '朝' },
+            { name: 'ビソプロロール', dose: 2.5, unit: 'mg', timing: '朝' }
+          ]}
+        ]
+      };
+
+      // ── 36ヶ月分の月次血圧データを生成 ──
+      var readingCount = 0;
+      for (var pi = 0; pi < demoPats.length; pi++) {
+        var pid = demoPats[pi].id;
+        var prof = profiles[pid];
+        for (var m = -35; m <= 0; m++) {
+          var ym = today.getMonth() + m;
+          var yy = today.getFullYear() + Math.floor(ym / 12);
+          var mm = ((ym % 12) + 12) % 12;
+          var dayOffset = Math.floor(noise(m * 13 + pi * 100) * 18);
+          var dd = Math.min(10 + dayOffset, 28);
+          var dateStr = yy + '-' + pad2(mm + 1) + '-' + pad2(dd);
+
+          var haSbp = prof.homeSbp(m);
+          var haDbp = prof.homeDbp(m);
+          var loSbp = Math.max(80, Math.round(haSbp - 8 - noise(m * 3 + pi * 100 + 1) * 8));
+          var loDbp = Math.max(50, Math.round(haDbp - 5 - noise(m * 3 + pi * 100 + 2) * 5));
+          var hiSbp = Math.round(haSbp + 8 + noise(m * 3 + pi * 100 + 3) * 8);
+          var hiDbp = Math.round(haDbp + 5 + noise(m * 3 + pi * 100 + 4) * 5);
+          var vSbp = Math.round(haSbp + prof.coatSbp + (noise(m * 3 + pi * 100 + 5) - 0.5) * 6);
+          var vDbp = Math.round(haDbp + prof.coatDbp + (noise(m * 3 + pi * 100 + 6) - 0.5) * 4);
+          var wt = Math.round((prof.weight + (noise(m * 3 + pi * 100 + 7) - 0.5) * 2) * 10) / 10;
+
+          // 既存の同日データがあれば削除（安全策）
+          var existRead = await getReadingByDate(pid, dateStr);
+          if (existRead) {
+            await deleteReading(existRead.id);
+          }
+
+          await putReading({
+            patientId: pid,
+            date: dateStr,
+            systolic: vSbp,
+            diastolic: vDbp,
+            meanArterial: Math.round((vSbp + vDbp * 2) / 3),
+            avgSbp: haSbp,
+            avgDbp: haDbp,
+            minSbp: loSbp,
+            minDbp: loDbp,
+            maxSbp: hiSbp,
+            maxDbp: hiDbp,
+            weight: wt,
+            createdAt: new Date().toISOString()
+          });
+          readingCount++;
+        }
+      }
+
+      // ── 降圧薬データを生成 ──
+      var medCount = 0;
+      for (var pi = 0; pi < demoPats.length; pi++) {
+        var pid = demoPats[pi].id;
+        var sched = medSchedules[pid];
+        for (var si = 0; si < sched.length; si++) {
+          var period = sched[si];
+          var sd = addMonths(today, period.start);
+          sd.setDate(1);
+          var ed = null;
+          if (period.end < 0) {
+            ed = addMonths(today, period.end);
+            ed.setDate(0); // 前月末日
+          }
+          for (var di = 0; di < period.drugs.length; di++) {
+            var drug = period.drugs[di];
+            await putMedication({
+              patientId: pid,
+              drugName: drug.name,
+              dosage: drug.dose,
+              dosageUnit: drug.unit,
+              timing: drug.timing,
+              startDate: fmtYMD(sd),
+              endDate: ed ? fmtYMD(ed) : null,
+              createdAt: new Date().toISOString()
+            });
+            medCount++;
+          }
+        }
+      }
+
+      // ── 日付設定（カレンダー表示用） ──
       var dsList = [
         { offset: 1,  flags: { isHoliday: false, isBusinessTrip: false, isLimited: false, isClosed: false }, busyLevel: 1, note: '混雑見込み' },
         { offset: 3,  flags: { isHoliday: false, isBusinessTrip: false, isLimited: true, isClosed: false }, busyLevel: 2, note: '激混み＋予約制限' },
@@ -1503,6 +1881,7 @@ BPApp.App = (function () {
         });
       }
 
+      // ── 予約データ ──
       var apptData = [
         { pid: 'DEMO-001', offset: -7,  days: 28, note: '定期処方', status: 'done' },
         { pid: 'DEMO-002', offset: -14, days: 14, note: '経過観察', status: 'done' },
@@ -1525,7 +1904,7 @@ BPApp.App = (function () {
         });
       }
 
-      toast('デモデータを投入しました: 患者3件, 日付設定12件, 予約5件');
+      toast('デモデータを投入しました: 患者3件, 血圧データ' + readingCount + '件, 降圧薬' + medCount + '件, 日付設定' + (dsList.length + nmDsList.length) + '件, 予約' + apptData.length + '件');
     } catch (e) {
       console.error('initDemoData error:', e);
       toast('デモデータ投入エラー: ' + e.message);
@@ -1897,6 +2276,11 @@ BPApp.App = (function () {
   window._renderDaySettingSection = _renderDaySettingSection;
   window.handleSaveDaySetting = handleSaveDaySetting;
   window.handleCalendarCreateAppointment = handleCalendarCreateAppointment;
+  window.renderMedicationSection = renderMedicationSection;
+  window.handleAddMedication = handleAddMedication;
+  window.editMedication = editMedication;
+  window.deleteMedicationConfirm = deleteMedicationConfirm;
+  window.clearMedForm = clearMedForm;
   window.initDemoData = initDemoData;
   window.exportAppointmentsCSV = exportAppointmentsCSV;
   window.renderPasteView = renderPasteView;

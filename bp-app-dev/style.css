@@ -479,6 +479,26 @@ input, select { font-family: inherit }
   box-shadow: 0 0 0 2px rgba(52,152,219,.15);
 }
 
+/* ===== Medication Section ===== */
+.med-add-row {
+  display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.med-input-name { width: 130px; padding: 7px 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: .88em }
+.med-input-dose { width: 65px; padding: 7px 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: .88em }
+.med-select { padding: 7px 4px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: .85em; background: #fff }
+.med-input-date { width: 130px; padding: 6px 8px; border: 1px solid #bdc3c7; border-radius: 4px; font-size: .85em }
+.med-table { width: 100%; border-collapse: collapse; margin-top: 4px }
+.med-table th, .med-table td {
+  padding: 6px 8px; text-align: center; border: 1px solid #e0e4e8; font-size: .84em;
+}
+.med-table th { background: #ecf0f1; font-weight: 600 }
+.med-table td { background: #fff }
+.med-table .med-color-dot {
+  display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; vertical-align: middle;
+}
+.med-active { color: #27ae60; font-weight: 600; font-size: .82em }
+
 /* ===== Responsive ===== */
 @media (max-width: 640px) {
   .form-row { flex-direction: column; align-items: flex-start; gap: 4px }
