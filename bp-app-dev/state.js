@@ -117,10 +117,11 @@ function hideModal(id) { var el = $('modal-' + id); if (el) el.style.display = '
 
 /** 画面切替 */
 function showScreen(id) {
-  var a = $('screen-id'), b = $('screen-patient'), c = $('screen-calendar');
+  var a = $('screen-id'), b = $('screen-patient'), c = $('screen-calendar'), d = $('screen-cleanup');
   if (a) a.style.display = id === 'id' ? '' : 'none';
   if (b) b.style.display = id === 'patient' ? '' : 'none';
   if (c) c.style.display = id === 'calendar' ? '' : 'none';
+  if (d) d.style.display = id === 'cleanup' ? '' : 'none';
 }
 
 /** 要素の表示/非表示 */

@@ -28,6 +28,7 @@
         <div class="btn-group">
            <button class="btn btn-primary" id="btn-id-enter">開 始</button>
            <button class="btn" id="btn-calendar-top" style="background:#27ae60;color:#fff">📅 予約カレンダー</button>
+           <button class="btn" id="btn-data-cleanup" style="background:#e74c3c;color:#fff">🔍 データクレンジング</button>
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
        <div class="version-info">
@@ -245,7 +246,8 @@
            <div style="margin-top:10px;overflow-x:auto">
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
-               <tbody>
+                <tbody>
+			<tr><td>v3.2.1</td><td>2026-05-24</td><td>fix: データクレンジング機能のUI導線（screen-cleanup・ボタン・イベントハンドラ）がマージ時に消失していたのを復元</td></tr>
 			<tr><td>v3.2.0</td><td>2026-05-24</td><td>デモデータ機能拡張：3年分の月次血圧データ（36件/患者）と降圧薬データ（1-3剤を1-6ヶ月毎に変更）を生成するよう強化</td></tr>
 			<tr><td>v3.1.0</td><td>2026-05-24</td><td>降圧薬管理機能追加：medicationsストア新設、グラフ下部に薬剤バー表示、服用タイミング対応、CSV/バックアップ対応</td></tr>
 			<tr><td>v3.0.1</td><td>2026-05-24</td><td>fix: 開発用 index.html に個別スクリプトタグ追加（ビルド時に自動除去）。build.bat のファイル一覧を修正（state.js/soap.js欠落を修正）</td></tr>
@@ -359,6 +361,30 @@
         <button id="btn-export-appt-csv">📤 予約CSV出力</button>
         <span class="stat" id="cal-stat"></span>
       </div>
+    </div>
+  </div>
+
+  <!-- Data Cleanup Screen -->
+  <div id="screen-cleanup" style="display:none">
+    <div class="header">
+      <h1>🔍 データクレンジング</h1>
+      <span class="info" id="cleanup-header-info">患者データの不整合を検出・修正</span>
+      <span id="emr-status-cleanup" class="emr-status disconnected">○ EMR未接続</span>
+      <button class="emr-btn" id="emr-btn-cleanup" title="カルテから患者情報を読み込む">EMR読込</button>
+    </div>
+    <div class="content">
+      <div class="nav-bar">
+        <span style="font-weight:600">🔍 データ整合性チェック</span>
+        <button class="btn btn-primary btn-sm" id="btn-cleanup-refresh" style="margin-left:auto">🔄 再チェック</button>
+        <button class="btn btn-secondary btn-sm" id="btn-cleanup-back">🏠 戻る</button>
+      </div>
+      <div style="margin-bottom:12px">
+        <span id="cleanup-status" style="color:#7f8c8d;font-size:.88em"></span>
+        <div id="cleanup-summary" style="font-size:.95em;padding:8px 12px;background:#f8f9fb;border-radius:6px;margin-top:8px"></div>
+      </div>
+      <div id="cleanup-fmt-issues"></div>
+      <div id="cleanup-name-conflicts" style="margin-top:16px"></div>
+      <div id="cleanup-noname" style="margin-top:16px"></div>
     </div>
   </div>
 

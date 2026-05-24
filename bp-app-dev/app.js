@@ -181,6 +181,14 @@ BPApp.App = (function () {
     var btnDemo = $('btn-demo-data');
     if (btnDemo) btnDemo.addEventListener('click', initDemoData);
 
+    // Event: Data Cleanup
+    var btnCleanup = $('btn-data-cleanup');
+    if (btnCleanup) btnCleanup.addEventListener('click', openDataCleanup);
+    var btnCleanupBack = $('btn-cleanup-back');
+    if (btnCleanupBack) btnCleanupBack.addEventListener('click', closeCleanup);
+    var btnCleanupRefresh = $('btn-cleanup-refresh');
+    if (btnCleanupRefresh) btnCleanupRefresh.addEventListener('click', runCleanupCheck);
+
     // Init screen: check if patients exist and auto-navigate
     try {
       var patients = await getAllPatients();
@@ -197,10 +205,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.2.0 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.2.0';
+    $('header-info').textContent = 'v3.2.1 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.2.1';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.2.0';
+    $('app-version-footer').textContent = '3.2.1';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
