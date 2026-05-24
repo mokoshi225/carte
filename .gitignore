@@ -3,3 +3,7 @@ node_modules/
 Thumbs.db
 *.log
 test-results/
+
+# Build artifacts (rebuild via build.bat or node /tmp/build.js)
+bp-app.html
+bp-app-built.html

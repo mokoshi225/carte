@@ -1,19 +1,18 @@
 # AGENTS.md — Blood Pressure Monitor
 
 **Generated:** 2026-05-24
-**Commit:** 47d4e1e
+**Commit:** f6831f3
 **Branch:** main
 
 ## OVERVIEW
 
-Offline blood pressure tracking web app for clinic use. Single HTML file (`bp-app.html`) runs entirely in browser via `file://` protocol. No server, no install, no network.
+Offline blood pressure tracking web app for clinic use. 開発は `bp-app-dev/index.html` をブラウザで直接開く。
+USB配布時は `node /tmp/build.js` で `bp-app.html` を生成する。No server, no install, no network.
 
 ## STRUCTURE
 
 ```
 carte/
-├── bp-app.html            ← Distribution: single-file build (USB-ready)
-├── bp-app-built.html      ← Previous build artifact
 ├── build.bat              ← Windows build: concatenates bp-app-dev/ into bp-app.html
 ├── build-companion.bat    ← EMR Watcher コンパイルスクリプト
 ├── emr-watcher-v2.5.cs    ← EMR Watcher C# ソース（UIAで監視）
@@ -23,16 +22,21 @@ carte/
 ├── capture-bp.js          ← Playwright capture script
 ├── bp-graph.png           ← Screenshot
 ├── failure.md             ← 障害記録（コード変更前に読むこと）
+├── reset-db.html          ← IndexedDBリセットツール
+├── serve-wt               ← ワークツリーHTTPサーバー起動スクリプト
 └── bp-app-dev/            ← Source modules (see bp-app-dev/AGENTS.md)
                             全モジュール IIFE + BPApp 名前空間でカプセル化
                             state.js: 共有状態 / soap.js: SOAP出力
 ```
 
+- `bp-app.html` はビルド成果物（.gitignore対象）。USB配布時に `node /tmp/build.js` で生成する。
+
 ## WHERE TO LOOK
 
 | Task | Location | Notes |
 |------|----------|-------|
-| Distribution build | `bp-app.html` | USB-deployable single file |
+| Development | `bp-app-dev/index.html` | ブラウザで直接開く（file://可） |
+| Distribution build | `bp-app.html` | USB-deployable single file（git管理外） |
 | Source code | `bp-app-dev/` | Split modules, rebuild via build.bat |
 | EMR Watcher (C#) | `emr-watcher-v2.5.cs` | 「カルテ・オーダー入力」のみUIA監視 |
 | EMR Watcher ビルド | `build-companion.bat` | CSC.exe で emr-watcher をコンパイル |
@@ -47,7 +51,7 @@ carte/
 - No external dependencies (zero npm/CDN).
 - `file://` protocol compatible: no ES modules, **no `fetch()` to other origins**（障害#002参照）.
 - `fetch()` または `XMLHttpRequest` を使うコードを追加する場合は `failure.md` の障害#002を確認し、`file://` 対応を考慮すること。
-- Version tracked in `bp-app.html` footer + visible version history section.
+- Version tracked in `bp-app-dev/index.html` footer + `bp-app-dev/index.html` のバージョン履歴セクション。
 - **コード変更前に `failure.md` を読むこと** — 過去の障害とその対策を把握してから作業すること。
 - **コードに修正を加えたら、バージョン情報を更新すること**:
   - `bp-app-dev/app.js` 内の `$('header-info').textContent` 、`$('app-version')`、`$('app-version-footer')` のバージョン文字列
@@ -121,3 +125,4 @@ node /tmp/build.js                 # Linux: rebuild bp-app.html
 - `bp-app-built.html` is a stale build artifact — `bp-app.html` is the current build target.
 - Data stored in browser IndexedDB (`BloodPressureDB`). Not shared across machines.
 - USB distribution workflow: copy `bp-app.html` only.
+- `bp-app.html` と `bp-app-built.html` は .gitignore 対象。クローン後は `node /tmp/build.js` でビルドすること。

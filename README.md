@@ -14,20 +14,29 @@
 
 ## クイックスタート
 
-### 方法1：単一HTMLファイル（推奨・USB配布向け）
+### 方法1：開発モード（推奨）
 
-1. **`bp-app.html`** をUSBメモリにコピー
-2. 電子カルテ端末で `bp-app.html` をダブルクリック
-3. Chrome / Edge で開く
-4. 患者IDを入力 → Enter → 使い始める
+1. `bp-app-dev/index.html` をブラウザで開く
+2. 患者IDを入力 → Enter → 使い始める
+3. コードを編集すれば即座に反映される（リロードのみ）
 
-### 方法2：開発用（モジュール分割版）
+### 方法2：単一HTMLファイル（USB配布向け）
 
-`bp-app-dev/` 内のファイルを編集し、`build.bat` で単一HTMLに結合できます。
+USB配布用の単一ファイル `bp-app.html` はビルドして生成する：
+
+```bash
+node /tmp/build.js          # Linux
+# または
+build.bat                   # Windows (PowerShell)
+```
+
+生成された `bp-app.html` をUSBメモリにコピーし、電子カルテ端末でダブルクリックして開く。
+
+### ソース構成
 
 ```
 bp-app-dev/
-├── index.html   ← HTML構造
+├── index.html   ← HTML構造（開発時はこれを直接開く）
 ├── style.css    ← スタイル
 ├── state.js     ← 共有状態・定数・ユーティリティ
 ├── db.js        ← IndexedDB操作
@@ -36,10 +45,6 @@ bp-app-dev/
 ├── soap.js      ← SOAP出力・評価サマリー編集
 ├── app.js       ← メイン処理（初期化・画面遷移）
 └── cleanup.js   ← データクレンジング画面
-```
-
-```
-build.bat を実行 → bp-app.html が生成される
 ```
 
 ## 主な機能
