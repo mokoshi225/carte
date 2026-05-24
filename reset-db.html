@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head><meta charset="UTF-8"><title>DBリセット</title>
+<style>
+body{font-family:sans-serif;max-width:500px;margin:40px auto;padding:20px;text-align:center;line-height:1.6}
+button{padding:14px 32px;font-size:1.1em;background:#e74c3c;color:#fff;border:none;border-radius:8px;cursor:pointer}
+button:hover{background:#c0392b}
+.ok{color:#27ae60;font-weight:700}.err{color:#e74c3c}
+.hint{font-size:.85em;color:#7f8c8d;margin-top:16px}
+</style>
+</head>
+<body>
+<h1>🗑 IndexedDB リセット</h1>
+<p>血圧モニターのデータベース（<code>BloodPressureDB</code>）を削除します。</p>
+<p style="font-size:.88em;color:#e74c3c">⚠ すべての患者データ・測定データが消えます。必要なバックアップは先に取ってください。</p>
+<button id="btn-reset">🗑 データベースを削除する</button>
+<div id="status" style="margin-top:16px"></div>
+<div class="hint">削除後、自動的に <code>bp-app.html</code> に移動します</div>
+<script>
+document.getElementById('btn-reset').onclick = function() {
+  var s = document.getElementById('status');
+  s.innerHTML = '⏳ 削除中...';
+  s.className = '';
+  var btn = this;
+  btn.disabled = true;
+  btn.textContent = '⏳ 削除中...';
+
+  var req = indexedDB.deleteDatabase('BloodPressureDB');
+  req.onsuccess = function() {
+    s.innerHTML = '✅ データベースを削除しました。bp-app.html に移動します...';
+    s.className = 'ok';
+    setTimeout(function() { window.location.href = 'bp-app.html'; }, 1500);
+  };
+  req.onerror = function(e) {
+    s.innerHTML = '❌ 削除失敗: ' + e.target.error.message;
+    s.className = 'err';
+    btn.disabled = false;
+    btn.textContent = '🗑 再試行';
+  };
+  req.onblocked = function() {
+    s.innerHTML = '⚠ 他のタブでデータベースが開かれています。タブを閉じてから再試行してください。';
+    s.className = 'err';
+    btn.disabled = false;
+    btn.textContent = '🗑 再試行';
+  };
+};
+</script>
+</body>
+</html>
