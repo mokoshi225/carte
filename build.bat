@@ -15,7 +15,8 @@ powershell -NoProfile -Command ^
   "  $html = [System.IO.File]::ReadAllText('%DIR%\index.html');" ^
   "  $css  = [System.IO.File]::ReadAllText('%DIR%\style.css');" ^
   "  $js   = '';" ^
-  "  foreach($f in @('db.js','chart.js','csv.js','app.js','cleanup.js')) {" ^
+  "  $html = $html -replace '<!-- DEV_SCRIPTS -->[\s\S]*?<!-- END_DEV_SCRIPTS -->\s*', '';" ^
+  "  foreach($f in @('state.js','db.js','chart.js','csv.js','soap.js','app.js','cleanup.js')) {" ^
   "    $js += [Environment]::NewLine + [System.IO.File]::ReadAllText(\"%DIR%\" + \"\\\" + $f);" ^
   "  }" ^
   "  $html = $html -replace '<link rel=\"stylesheet\" href=\"style.css\">', \"<style>`n\" + $css + \"`n</style>\";" ^

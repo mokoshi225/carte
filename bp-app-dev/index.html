@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>💊 血圧モニター（開発版）</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>💊</text></svg>">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -30,7 +31,7 @@
            <button class="btn btn-secondary" id="btn-demo-data">📦 デモデータ</button>
          </div>
        <div class="version-info">
-         <small>         バージョン <span id="app-version">2.3.0</span> | <span id="app-build-date"></span></small>
+         <small>         バージョン <span id="app-version">3.0.1</span> | <span id="app-build-date"></span></small>
        </div>
       <div style="margin-top:24px">
         <h3 style="font-size:.92em;margin-bottom:8px;color:#7f8c8d">▾ 最近の患者</h3>
@@ -244,9 +245,10 @@
            <div style="margin-top:10px;overflow-x:auto">
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
-                <tbody>
+               <tbody>
 			<tr><td>v3.2.0</td><td>2026-05-24</td><td>デモデータ機能拡張：3年分の月次血圧データ（36件/患者）と降圧薬データ（1-3剤を1-6ヶ月毎に変更）を生成するよう強化</td></tr>
 			<tr><td>v3.1.0</td><td>2026-05-24</td><td>降圧薬管理機能追加：medicationsストア新設、グラフ下部に薬剤バー表示、服用タイミング対応、CSV/バックアップ対応</td></tr>
+			<tr><td>v3.0.1</td><td>2026-05-24</td><td>fix: 開発用 index.html に個別スクリプトタグ追加（ビルド時に自動除去）。build.bat のファイル一覧を修正（state.js/soap.js欠落を修正）</td></tr>
 			<tr><td>v3.0.0</td><td>2026-05-23</td><td>IIFEモジュール化。state.js/soap.js分割。JSDoc型定義追加。全モジュールをIIFE+公開API方式に刷新</td></tr>
 			<tr><td>v2.4.0</td><td>2026-05-23</td><td>カレンダーセルにすべての予約患者名を表示（truncation廃止）</td></tr>
                        <tr><td>v2.3.1</td><td>2026-05-23</td><td>評価サマリーのテキストエリアを内容量に応じて自動拡張（auto-resize）</td></tr>
@@ -316,7 +318,7 @@
 
        <!-- バージョン情報 -->
         <div class="version-footer">
-            <small>📋 v<span id="app-version-footer">2.3.0</span> | 💊 Blood Pressure Monitor</small>
+            <small>📋 v<span id="app-version-footer">3.0.1</span> | 💊 Blood Pressure Monitor</small>
         </div>
      </div>
    </div>
@@ -397,9 +399,18 @@
   </div>
 </div>
 
-<!-- Scripts (single bundle placeholder) -->
+<!-- DEV_SCRIPTS: 開発時は個別スクリプト、ビルド時に削除される -->
+<script src="state.js"></script>
+<script src="db.js"></script>
+<script src="chart.js"></script>
+<script src="csv.js"></script>
+<script src="soap.js"></script>
+<script src="app.js"></script>
+<script src="cleanup.js"></script>
+<!-- END_DEV_SCRIPTS -->
+<!-- Scripts (single bundle placeholder) — replaced by build.bat / build.js -->
 <script id="app-bundle">
-// PLACEHOLDER — replaced by build.bat / rebuild.js
+// PLACEHOLDER — replaced by build.bat / build.js
 </script>
 </body>
 </html>
