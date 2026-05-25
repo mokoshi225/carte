@@ -221,10 +221,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.3.0 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.3.0';
+    $('header-info').textContent = 'v3.3.1 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.3.1';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.3.0';
+    $('app-version-footer').textContent = '3.3.1';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -1794,7 +1794,7 @@ BPApp.App = (function () {
         }
       }
 
-      html += '<table class="summary-table"><thead><tr><th>患者ID</th><th>氏名</th><th>処方日数</th><th>操作</th></tr></thead><tbody>';
+      html += '<div class="appt-list-scroll"><table class="summary-table"><thead><tr><th>患者ID</th><th>氏名</th><th>処方日数</th><th>操作</th></tr></thead><tbody>';
       for (var i = 0; i < appts.length; i++) {
         var a = appts[i];
         var pid = esc(a.patientId);
@@ -1806,7 +1806,7 @@ BPApp.App = (function () {
           '<td><button class="btn btn-sm btn-primary" data-nav-pid="' + esc(a.patientId) + '">📊 血圧</button></td>' +
           '</tr>';
       }
-      html += '</tbody></table>';
+      html += '</tbody></table></div>';
     }
 
     html += '<div style="margin-top:' + (appts && appts.length > 0 ? '16px;padding-top:16px;border-top:2px solid #e0e4e8' : '0') + '">';

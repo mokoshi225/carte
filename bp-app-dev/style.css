@@ -421,6 +421,68 @@ input, select { font-family: inherit }
   background: #bdc3c7;
 }
 
+/* ===== Appointment Detail Modal (P0+P1) ===== */
+.modal-appt-detail {
+  max-width: 720px !important;
+  width: 90vw;
+  padding: 0 !important;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+.modal-appt-detail .modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e4e8;
+  flex-shrink: 0;
+}
+.modal-appt-detail .modal-header h3 {
+  margin: 0;
+  font-size: 1em;
+}
+.modal-close-btn {
+  background: none;
+  border: none;
+  font-size: 1.3em;
+  color: #7f8c8d;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+  transition: background .15s, color .15s;
+}
+.modal-close-btn:hover {
+  background: #ecf0f1;
+  color: #2c3e50;
+}
+.modal-appt-detail .modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+.appt-list-scroll {
+  max-height: 45vh;
+  overflow-y: auto;
+  border: 1px solid #e0e4e8;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+.appt-list-scroll .summary-table {
+  margin: 0;
+  border: none;
+}
+.appt-list-scroll .summary-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.appt-list-scroll .summary-table thead th {
+  background: #ecf0f1;
+  border-top: none;
+}
+
 /* ===== Data Cleanup Screen ===== */
 .cleanup-empty {
   padding: 16px; background: #f8f9fb; border-radius: 6px;
