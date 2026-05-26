@@ -1,11 +1,16 @@
 // ===================================================================
-//  emr-watcher-v2.5.cs — SSI e-カルテ 患者情報 常時監視 Companion
+//  emr-watcher-v2.6.cs — SSI e-カルテ 患者情報 常時監視 Companion
 //  コンパイル: build-companion.bat をダブルクリック
 //  動作:
 //    1. 常時稼働（バックグラウンド、最小化推奨）
 //    2. 1秒ごとに「カルテ・オーダー入力」ウィンドウをUIAで検出
 //    3. 検出後ファイル書出（2回連続確認で整合性保証）
 //    4. bp-app.html の [EMR読込] ボタンで読み込む
+//
+//  v2.6 (2026-05-26): pnlKanHd コンテナ経由の高速検索に最適化。
+//    従来は window.FindAll(TreeScope.Descendants) を3回実行（合計18秒）。
+//    TreeScope.Children で TopInformationContainer → pnlKanHd と2段階で
+//    辿る方式に変更。全子孫走査を回避しミリ秒で完了。
 // ===================================================================
 
 using System;
@@ -143,18 +148,151 @@ class EmrWatcher
     }
 
     // Scan a window's UIA elements for patient ID (8 digits) and name (via known AutomationIds).
+    //
+    // 最適化: 3階層の Children 検索で pnlKanHd に到達する（全子孫走査なし）。
+    //   Window → TopInformationContainer → pnlKanHd → lblKanCode / lblKjName
+    // 各階層で同レベルの要素だけをチェックするためミリ秒で完了する。
+    // 従来は window.FindAll(TreeScope.Descendants, ...) を3回実行していたため
+    // 大規模なUIAツリーで1回あたり5〜7秒、合計18秒かかっていた。
     static PatientInfo ScanWindowForPatient(AutomationElement window)
     {
         try
         {
-            // Phase 1: search known label AutomationIds across all descendants
-            //   lblKanCode = patient ID (8 digits)
-            //   lblKjName  = patient name (kanji)
-            //   lblBirth   = birth date
+            // Phase 1: Walk 3 levels via Children (not Descendants) to reach pnlKanHd.
+            // This avoids traversing the entire UIA tree (hundreds of elements).
+            //
+            //   window.Children → TopInformationContainer
+            //   TopInformationContainer.Children → pnlKanHd
+            //   pnlKanHd.Children/Descendants → lblKanCode, lblKjName, lblBirth
+            AutomationElement kanHd = null;
+            try
+            {
+                var topInfoEls = window.FindAll(TreeScope.Children,
+                    new PropertyCondition(AutomationElement.AutomationIdProperty,
+                        "TopInformationContainer"));
+                if (topInfoEls != null && topInfoEls.Count > 0)
+                {
+                    var kanHdEls = topInfoEls[0].FindAll(TreeScope.Children,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty, "pnlKanHd"));
+                    if (kanHdEls != null && kanHdEls.Count > 0)
+                        kanHd = kanHdEls[0];
+                }
+            }
+            catch { }
+
+            if (kanHd != null)
+            {
+                // Phase 2: Search within pnlKanHd only — very fast (small subtree, ~10 elements)
+                string foundName = null;
+                string foundId = null;
+
+                // lblKjName (patient name in kanji)
+                try
+                {
+                    var nameEls = kanHd.FindAll(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty, "lblKjName"));
+                    if (nameEls != null && nameEls.Count > 0)
+                    {
+                        string txt = nameEls[0].Current.Name;
+                        if (!string.IsNullOrEmpty(txt)) foundName = txt.Trim();
+                        Log("ScanWindow: lblKjName = \"" + (foundName ?? "") + "\"");
+                    }
+                }
+                catch { }
+
+                // lblKanCode (patient ID, 8 digits) — PRIMARY ID source
+                try
+                {
+                    var idEls = kanHd.FindAll(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty, "lblKanCode"));
+                    if (idEls != null && idEls.Count > 0)
+                    {
+                        string txt = idEls[0].Current.Name;
+                        if (!string.IsNullOrEmpty(txt))
+                        {
+                            string trimmed = txt.Trim();
+                            if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
+                            {
+                                foundId = trimmed;
+                                Log("ScanWindow: lblKanCode = \"" + foundId + "\"");
+                            }
+                        }
+                    }
+                }
+                catch { }
+
+                // lblBirth (birth date, for logging)
+                try
+                {
+                    var birthEls = kanHd.FindAll(TreeScope.Descendants,
+                        new PropertyCondition(AutomationElement.AutomationIdProperty, "lblBirth"));
+                    if (birthEls != null && birthEls.Count > 0)
+                    {
+                        string txt = birthEls[0].Current.Name;
+                        if (!string.IsNullOrEmpty(txt))
+                            Log("ScanWindow: lblBirth = \"" + txt.Trim() + "\"");
+                    }
+                }
+                catch { }
+
+                // Fallback within kanHd: if lblKanCode not found, scan Text elements for 8-digit IDs
+                if (foundId == null)
+                {
+                    try
+                    {
+                        var textEls = kanHd.FindAll(TreeScope.Descendants,
+                            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text));
+                        foreach (AutomationElement el in textEls)
+                        {
+                            string txt = null;
+                            try { txt = el.Current.Name; } catch { continue; }
+                            if (string.IsNullOrEmpty(txt)) continue;
+                            string trimmed = txt.Trim();
+                            if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
+                            {
+                                foundId = trimmed;
+                                Log("ScanWindow: fallback ID (in pnlKanHd) = \"" + foundId + "\"");
+                                break;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                if (foundId != null)
+                {
+                    // Clean up name: take only the first line if multi-line
+                    if (!string.IsNullOrEmpty(foundName))
+                    {
+                        int nl = foundName.IndexOf('\n');
+                        if (nl >= 0) foundName = foundName.Substring(0, nl).Trim();
+                    }
+                    return new PatientInfo { Id = foundId, Name = foundName ?? "" };
+                }
+            }
+
+            // Phase 3: Fallback — full-window scan if pnlKanHd not found
+            // (for compatibility with different EMR versions / layouts)
+            Log("ScanWindow: pnlKanHd not found, falling back to full-window scan");
+            return ScanWindowFullFallback(window);
+        }
+        catch (Exception ex)
+        {
+            Log("ScanWindowForPatient error: " + ex.Message);
+            return null;
+        }
+    }
+
+    // Original full-window scan as fallback (slower but compatible).
+    // Used when pnlKanHd container is not found (e.g. different EMR version).
+    static PatientInfo ScanWindowFullFallback(AutomationElement window)
+    {
+        try
+        {
             string foundName = null;
             string foundId = null;
 
-            // Search for lblKjName (patient name label)
+            // Search for lblKjName
             try
             {
                 var nameEls = window.FindAll(TreeScope.Descendants,
@@ -163,12 +301,11 @@ class EmrWatcher
                 {
                     string txt = nameEls[0].Current.Name;
                     if (!string.IsNullOrEmpty(txt)) foundName = txt.Trim();
-                    Log("ScanWindow: lblKjName = \"" + (foundName ?? "") + "\"");
                 }
             }
             catch { }
 
-            // Search for lblKanCode (patient ID label) — PRIMARY ID source
+            // Search for lblKanCode
             try
             {
                 var idEls = window.FindAll(TreeScope.Descendants,
@@ -180,32 +317,13 @@ class EmrWatcher
                     {
                         string trimmed = txt.Trim();
                         if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
-                        {
                             foundId = trimmed;
-                            Log("ScanWindow: lblKanCode = \"" + foundId + "\"");
-                        }
                     }
                 }
             }
             catch { }
 
-            // Search for lblBirth (birth date label, for logging)
-            try
-            {
-                var birthEls = window.FindAll(TreeScope.Descendants,
-                    new PropertyCondition(AutomationElement.AutomationIdProperty, "lblBirth"));
-                if (birthEls != null && birthEls.Count > 0)
-                {
-                    string txt = birthEls[0].Current.Name;
-                    if (!string.IsNullOrEmpty(txt))
-                        Log("ScanWindow: lblBirth = \"" + txt.Trim() + "\"");
-                }
-            }
-            catch { }
-
-            // Phase 2: Fallback — if lblKanCode AutomationId not found,
-            // walk up from lblKjName to the patient info header container (pnlKanHd)
-            // and search all Text elements for 8-digit IDs.
+            // Fallback: walk up from lblKjName to find ID in parent container
             if (foundId == null && foundName != null)
             {
                 try
@@ -214,7 +332,6 @@ class EmrWatcher
                         new PropertyCondition(AutomationElement.AutomationIdProperty, "lblKjName"));
                     if (nameEls != null && nameEls.Count > 0)
                     {
-                        // Walk up: lblKjName → flpName → pnlKanHd
                         AutomationElement parent = TreeWalker.ControlViewWalker.GetParent(nameEls[0]);
                         AutomationElement grandparent = (parent != null)
                             ? TreeWalker.ControlViewWalker.GetParent(parent) : null;
@@ -231,7 +348,6 @@ class EmrWatcher
                             if (trimmed.Length == 8 && Regex.IsMatch(trimmed, @"^\d{8}$"))
                             {
                                 foundId = trimmed;
-                                Log("ScanWindow: fallback ID = \"" + foundId + "\"");
                                 break;
                             }
                         }
@@ -242,7 +358,6 @@ class EmrWatcher
 
             if (foundId != null)
             {
-                // Clean up name: take only the first line if multi-line
                 if (!string.IsNullOrEmpty(foundName))
                 {
                     int nl = foundName.IndexOf('\n');
@@ -252,9 +367,8 @@ class EmrWatcher
             }
             return null;
         }
-        catch (Exception ex)
+        catch
         {
-            Log("ScanWindowForPatient error: " + ex.Message);
             return null;
         }
     }
