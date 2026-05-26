@@ -293,9 +293,18 @@ BPApp.DB = (function () {
   async function reassignPatientAppointments(fromPatientId, toPatientId) {
     const appts = await getAppointmentsByPatient(fromPatientId);
     for (const a of appts) {
+      // scheduled予約はターゲット側に既存の予約があれば追加しない（1患者1予約ルール）
+      if (a.status === 'scheduled') {
+        const targetAppts = await getAppointmentsByPatient(toPatientId);
+        const hasScheduled = targetAppts.some(ta => ta.status === 'scheduled');
+        if (hasScheduled) {
+          await deleteAppointment(a.id);
+          continue;
+        }
+      }
       a.patientId = toPatientId;
       a.updatedAt = new Date().toISOString();
-      // Check for duplicate on target
+      // 日付＋ステータスの重複チェック
       const targetAppts = await getAppointmentsByPatient(toPatientId);
       const dup = targetAppts.some(ta =>
         ta.appointmentDate === a.appointmentDate && ta.status === a.status

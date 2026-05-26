@@ -221,10 +221,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.3.1 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.3.1';
+    $('header-info').textContent = 'v3.4.0 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.4.0';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.3.1';
+    $('app-version-footer').textContent = '3.4.0';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -1212,16 +1212,28 @@ BPApp.App = (function () {
     var body = $('emr-match-body');
     if (!body) return;
 
-    var html = '<p>EMRで読み込んだ患者 <strong>' + esc(emrId) + ' ' + esc(emrName) + '</strong> に、以下のExcel取込データがマッチしました。</p>';
-    html += '<table class="summary-table" style="margin-top:12px"><thead><tr><th>Excelの名前</th><th>一致度</th><th>予約件数</th></tr></thead><tbody>';
+    var html = '<p>EMRで読み込んだ患者 <strong>' + esc(emrId) + ' ' + esc(emrName) + '</strong> にマッチするExcel取込データが複数見つかりました。紐付ける患者を選択してください。</p>';
+    html += '<table class="summary-table" style="margin-top:12px"><thead><tr><th>選択</th><th>Excelの名前</th><th>一致度</th><th>予約件数</th></tr></thead><tbody>';
     for (var i = 0; i < matches.length; i++) {
       var m = matches[i];
-      html += '<tr><td>' + esc(m.patient.name) + '</td><td>' + m.score + '%</td><td>' + (m.apptCount || 0) + '件</td></tr>';
+      var checked = i === 0 ? ' checked' : '';
+      html += '<tr class="emr-match-row" data-idx="' + i + '" style="cursor:pointer">' +
+        '<td><input type="radio" name="emr-match-select" value="' + i + '"' + checked + '></td>' +
+        '<td>' + esc(m.patient.name) + '</td><td>' + m.score + '%</td><td>' + (m.apptCount || 0) + '件</td></tr>';
     }
     html += '</tbody></table>';
-    html += '<p style="font-size:.82em;color:#7f8c8d;margin-top:8px">紐付けると、Excelからの予約がこの患者さんに移行されます。</p>';
+    html += '<p style="font-size:.82em;color:#7f8c8d;margin-top:8px">紐付けると、選択したExcel患者の予約がEMRの患者さんに移行されます（その他はそのまま残ります）。</p>';
 
     body.innerHTML = html;
+
+    // 行クリックでラジオボタンを選択
+    body.querySelectorAll('.emr-match-row').forEach(function (row) {
+      row.addEventListener('click', function () {
+        var radio = this.querySelector('input[type="radio"]');
+        if (radio) radio.checked = true;
+      });
+    });
+
     showModal('emr-match');
   }
 
@@ -1231,13 +1243,20 @@ BPApp.App = (function () {
     _emrMatchState = null;
     hideModal('emr-match');
 
+    // 選択されたインデックスを取得
+    var selectedRadio = document.querySelector('input[name="emr-match-select"]:checked');
+    var idx = selectedRadio ? Number(selectedRadio.value) : 0;
+    if (isNaN(idx) || idx < 0 || idx >= state.excelPatients.length) {
+      toast('選択されたデータが不正です');
+      _finishEmrNavigation(state.emrId, state.emrName);
+      return;
+    }
+
     try {
-      for (var i = 0; i < state.excelPatients.length; i++) {
-        var ep = state.excelPatients[i].patient;
-        await reassignPatientAppointments(ep.id, state.emrId);
-        await deletePatient(ep.id);
-      }
-      toast('Excel取込データをEMR患者に紐付けました');
+      var ep = state.excelPatients[idx].patient;
+      await reassignPatientAppointments(ep.id, state.emrId);
+      await deletePatient(ep.id);
+      toast('選択したExcel取込データをEMR患者に紐付けました');
     } catch (e) {
       console.error('handleEmrMatchConfirm error:', e);
       toast('マッチングエラー: ' + e.message);
