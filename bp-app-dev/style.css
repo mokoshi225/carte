@@ -144,6 +144,7 @@ input, select { font-family: inherit }
   box-shadow: 0 0 0 2px rgba(52,152,219,.15);
 }
 .form-row input.short { width: 70px; flex: none }
+.form-row select.short { width: 96px; flex: none; padding: 7px 4px; font-size: .88em; border: 1px solid #bdc3c7; border-radius: 4px; background: #fff }
 .form-row .unit { font-size: .82em; color: #7f8c8d }
 .form-row .memo-input { width: 200px }
 .form-row-compact { margin-bottom: 4px; gap: 8px; }

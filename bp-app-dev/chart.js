@@ -1,6 +1,6 @@
 /* =================================================================
-   chart.js — Canvas 2D グラフ描画モジュール v3.0.0
-   8項目（受診SBP/DBP, 家庭平均/最小/最大SBP/DBP）の時系列折れ線
+   chart.js — Canvas 2D グラフ描画モジュール v3.5.0
+   血圧8項目 + 体重サブグラフ（自動スケール）+ 浮腫マーカー
    ================================================================= */
 
 BPApp.Chart = (function () {
@@ -17,19 +17,33 @@ BPApp.Chart = (function () {
   ];
 
   const GRAPH = {
-    padding: { top: 30, right: 20, bottom: 45, left: 50 },
+    padding: { top: 30, right: 20, bottom: 8, left: 50 },
     dotRadius: 3.5,
     lineWidth: 1.8,
+    // サブグラフ高さ
+    bpPlotH: 340,
+    weightH: 110,
+    edemaH: 50,
   };
+
+  /* ── Y座標変換 ── */
 
   function bpToY(bp, pad, plotH) {
     return pad.top + plotH - ((bp - 60) / (150 - 60)) * plotH;
   }
 
-  /**
-   * 薬剤バー描画
-   */
-  function drawMedicationBars(ctx, medications, firstDate, lastDate, pad, pw, W, H) {
+  function weightToY(weight, wtPlotH, wMin, wMax) {
+    var range = Math.max(wMax - wMin, 0.1);
+    return (1 - (weight - wMin) / range) * wtPlotH;
+  }
+
+  function edemaToY(edema, edPlotH) {
+    return (1 - edema / 4) * edPlotH;
+  }
+
+  /* ── 薬剤バー描画（Yオフセット対応版） ── */
+
+  function drawMedicationBars(ctx, medications, firstDate, lastDate, pad, pw, W, H, barTopY) {
     const medList = medications || [];
     if (medList.length === 0) return;
 
@@ -44,7 +58,6 @@ BPApp.Chart = (function () {
       return MED_COLORS[hash % MED_COLORS.length];
     }
 
-    var barAreaTop = H - medList.length * 20 - 8;
     var barH = 16;
 
     medList.forEach(function(m, idx) {
@@ -56,13 +69,12 @@ BPApp.Chart = (function () {
 
       var barX = dayToX(dOffStart);
       var barW = dayToX(dOffEnd) - barX;
-      var barY = barAreaTop + idx * 20;
+      var barY = barTopY + idx * 20;
 
       if (barW < 1) return;
 
       var color = nameColor(m.drugName);
 
-      // バー本体（角丸）
       ctx.fillStyle = color;
       ctx.globalAlpha = 0.65;
       var r = Math.min(3, barH / 2);
@@ -80,13 +92,11 @@ BPApp.Chart = (function () {
       ctx.fill();
       ctx.globalAlpha = 1.0;
 
-      // 開始マーカー（白丸）
       ctx.beginPath();
       ctx.arc(barX, barY + barH / 2, 3, 0, Math.PI * 2);
       ctx.fillStyle = '#fff';
       ctx.fill();
 
-      // ラベル
       var label = m.drugName + ' ' + m.dosage + m.dosageUnit + ' ' + m.timing;
       ctx.fillStyle = '#fff';
       ctx.font = '10px sans-serif';
@@ -104,7 +114,6 @@ BPApp.Chart = (function () {
         ctx.fillText(label, barX + 4, barY + barH / 2 + 1);
       }
 
-      // 継続中マーク
       if (!m.endDate) {
         ctx.fillStyle = color;
         ctx.font = 'bold 12px sans-serif';
@@ -115,42 +124,215 @@ BPApp.Chart = (function () {
     });
   }
 
-  /**
-   * 全期間ビュー：8項目の折れ線グラフを描画 + 下部に薬剤バー
-   */
+  /* ── 体重サブグラフ ── */
+
+  function drawWeightSubGraph(ctx, readings, firstDate, lastDate, totalDays, dayToX, pw, left, yOff, h) {
+    var valid = readings.filter(function(r) { return r.weight && r.weight > 0; });
+    if (valid.length === 0) return null;
+
+    var wMin = Infinity, wMax = -Infinity;
+    valid.forEach(function(r) {
+      if (r.weight < wMin) wMin = r.weight;
+      if (r.weight > wMax) wMax = r.weight;
+    });
+    if (wMin === Infinity) return null;
+
+    // マージン ±10%
+    var margin = (wMax - wMin) * 0.1 || 5;
+    wMin = Math.max(0, wMin - margin);
+    wMax = wMax + margin;
+
+    var wtPlotH = h - 4; // internal padding 2px top, 2px bottom
+    var wtLeft = left;
+    var wtRight = 40; // right axis width
+
+    // セクション背景
+    ctx.fillStyle = '#f8f9fb';
+    ctx.fillRect(wtLeft, yOff, pw + wtRight, h);
+
+    // 領域仕切り線
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(wtLeft, yOff);
+    ctx.lineTo(wtLeft + pw + wtRight, yOff);
+    ctx.stroke();
+
+    // グリッド（5本程度）
+    var wStep = Math.ceil((wMax - wMin) / 4 / 5) * 5 || 5;
+    if (wStep <= 0) wStep = 5;
+    for (var w = Math.ceil(wMin / wStep) * wStep; w <= wMax; w += wStep) {
+      var wy = yOff + 2 + weightToY(w, wtPlotH, wMin, wMax);
+      ctx.strokeStyle = '#e8ecef';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(wtLeft + 2, wy); ctx.lineTo(wtLeft + pw + wtRight - 2, wy); ctx.stroke();
+
+      ctx.fillStyle = '#95a5a6';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(w), wtLeft + pw + wtRight - 4, wy + 3);
+    }
+
+    // ラベル「体重」
+    ctx.save();
+    ctx.translate(wtLeft + pw + wtRight - 2, yOff + h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('kg', 0, 0);
+    ctx.restore();
+
+    // 折れ線
+    var pts = valid.map(function(r) {
+      var dt = new Date(r.date + 'T00:00:00');
+      var dOff = Math.round((dt - firstDate) / 86400000);
+      return {
+        x: dayToX(dOff),
+        y: yOff + 2 + weightToY(r.weight, wtPlotH, wMin, wMax),
+        weight: r.weight,
+        date: r.date,
+        reading: r
+      };
+    }).sort(function(a,b) { return a.x - b.x; });
+
+    var color = '#8e44ad';
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2.0;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (var i = 0; i < pts.length; i++) {
+      if (i === 0) ctx.moveTo(pts[i].x, pts[i].y);
+      else ctx.lineTo(pts[i].x, pts[i].y);
+    }
+    ctx.stroke();
+
+    // ドット
+    pts.forEach(function(p) {
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+    });
+
+    return { wMin: wMin, wMax: wMax, pts: pts };
+  }
+
+  /* ── 浮腫マーカー ── */
+
+  function drawEdemaMarkers(ctx, readings, firstDate, lastDate, totalDays, dayToX, pw, left, yOff, h) {
+    var valid = readings.filter(function(r) { return r.edema >= 0; });
+    if (valid.length === 0) return null;
+
+    var edPlotH = h - 4;
+    var edLeft = left;
+
+    // セクション背景
+    ctx.fillStyle = '#f8f9fb';
+    ctx.fillRect(edLeft, yOff, pw + 20, h);
+
+    // 領域仕切り線
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(edLeft, yOff);
+    ctx.lineTo(edLeft + pw + 20, yOff);
+    ctx.stroke();
+
+    // Y軸ラベル（0, 2, 4）
+    [0, 2, 4].forEach(function(v) {
+      var ey = yOff + 2 + edemaToY(v, edPlotH);
+      ctx.fillStyle = '#95a5a6';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(v, edLeft - 4, ey + 3);
+    });
+
+    // ラベル「浮腫」
+    ctx.save();
+    ctx.translate(edLeft - 2, yOff + h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('浮腫', 0, 0);
+    ctx.restore();
+
+    // 0-4 のベースライン
+    for (var level = 0; level <= 4; level++) {
+      var ly = yOff + 2 + edemaToY(level, edPlotH);
+      ctx.strokeStyle = (level === 0) ? '#e8ecef' : '#eee';
+      ctx.lineWidth = 0.5;
+      ctx.setLineDash(level === 0 ? [] : [2, 3]);
+      ctx.beginPath(); ctx.moveTo(edLeft + 2, ly); ctx.lineTo(edLeft + pw, ly); ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    var EDEMA_COLORS = {0:'#27ae60', 1:'#f1c40f', 2:'#e67e22', 3:'#e74c3c', 4:'#c0392b'};
+
+    var pts = [];
+    valid.forEach(function(r) {
+      if (r.edema < 0 || r.edema > 4) return;
+      var dt = new Date(r.date + 'T00:00:00');
+      var dOff = Math.round((dt - firstDate) / 86400000);
+      var ex = dayToX(dOff);
+      var ey = yOff + 2 + edemaToY(r.edema, edPlotH);
+      pts.push({ x: ex, y: ey, edema: r.edema, date: r.date, reading: r });
+
+      var color = EDEMA_COLORS[r.edema] || '#95a5a6';
+      var radius = 4 + r.edema * 1.5;
+
+      // マーカー（大きさと色で重症度表現）
+      ctx.beginPath();
+      ctx.arc(ex, ey, radius, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.globalAlpha = 0.8;
+      ctx.fill();
+      ctx.globalAlpha = 1.0;
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // 重症度ラベル
+      ctx.fillStyle = '#fff';
+      ctx.font = '7px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(r.edema, ex, ey);
+    });
+
+    return { pts: pts };
+  }
+
+  /* ── メイン描画 ── */
+
   function drawAllPeriodGraph(canvas, readings, medications) {
     const dpr = window.devicePixelRatio || 1;
     const rect = canvas.parentElement.getBoundingClientRect();
     const W = rect.width;
 
-    // 薬剤バー領域
-    const medList = medications || [];
-    const medBarH = medList.length > 0 ? medList.length * 20 + 25 : 0;
-    const H = 500 + medBarH;
-
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    canvas.style.height = H + 'px'; canvas.style.width = '100%';
-    const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-
-    const pad = GRAPH.padding;
-    const pw = W - pad.left - pad.right;
-    const ph = H - pad.top - pad.bottom;
-
-    ctx.clearRect(0, 0, W, H);
-
-    // チェックボックス：受診時血圧の表示/非表示
+    // トグル状態
     const showVisit = !document.getElementById('chk-show-visit') || document.getElementById('chk-show-visit').checked;
+    const showWeight = !document.getElementById('chk-show-weight') || document.getElementById('chk-show-weight').checked;
+    const showEdema = !document.getElementById('chk-show-edema') || document.getElementById('chk-show-edema').checked;
+
+    // 表示するBPアイテム
     const activeItems = showVisit
       ? BP_ITEMS
       : BP_ITEMS.filter(function(item) { return item.key !== 'systolic' && item.key !== 'diastolic'; });
 
-    // 有効なデータがあるレコードのみ抽出
+    // 有効レコード
     const valid = readings.filter(function(r) {
-      return activeItems.some(function(item) { return r[item.key] && r[item.key] > 0; });
+      return activeItems.some(function(item) { return r[item.key] && r[item.key] > 0; })
+        || (showWeight && r.weight > 0)
+        || (showEdema && r.edema >= 0);
     });
 
-    // 日付範囲を決定（readings→medications→なし）
+    // 日付範囲
+    const medList = medications || [];
     let firstDate, lastDate;
     if (valid.length > 0) {
       valid.sort((a, b) => a.date.localeCompare(b.date));
@@ -166,7 +348,6 @@ BPApp.Chart = (function () {
         allDates.sort();
         firstDate = new Date(allDates[0] + 'T00:00:00');
         lastDate = new Date(allDates[allDates.length - 1] + 'T00:00:00');
-        // 1ヶ月の余裕をもたせる
         var tmpEnd = new Date(lastDate);
         tmpEnd.setMonth(tmpEnd.getMonth() + 1);
         lastDate = tmpEnd;
@@ -176,6 +357,32 @@ BPApp.Chart = (function () {
       }
     }
 
+    const pad = GRAPH.padding;
+    const PLOT_LEFT = pad.left;
+    const PLOT_RIGHT = pad.right;
+
+    // レイアウト計算
+    const bpPlotH = showWeight || showEdema ? GRAPH.bpPlotH : 380;
+    const weightH = showWeight ? GRAPH.weightH : 0;
+    const edemaH = showEdema ? GRAPH.edemaH : 0;
+    const medBarH = medList.length > 0 ? medList.length * 20 + 25 : 0;
+    const gap = 4;
+
+    var bpSectionBottom = pad.top + bpPlotH;
+    var weightSectionTop = bpSectionBottom + gap;
+    var weightSectionBottom = weightSectionTop + weightH;
+    var edemaSectionTop = weightSectionBottom + (showWeight ? gap : 0);
+    var edemaSectionBottom = edemaSectionTop + edemaH;
+    var medBarTop = edemaSectionBottom + (showEdema ? gap : 0);
+
+    const H = medBarTop + medBarH;
+
+    canvas.width = W * dpr; canvas.height = H * dpr;
+    canvas.style.height = H + 'px'; canvas.style.width = '100%';
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
+
     if (!firstDate || !lastDate) {
       ctx.fillStyle = '#bdc3c7'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText('データがありません', W / 2, H / 2);
@@ -183,37 +390,38 @@ BPApp.Chart = (function () {
       return;
     }
 
-    // Y軸範囲：60-150に固定
     const yMin = 60, yMax = 150;
-
-    // 日付→X座標のマッピング（日数ベース）
     const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
-    const dayToX = (d) => pad.left + (d / totalDays) * pw;
+    const pw = W - PLOT_LEFT - PLOT_RIGHT;
+    const dayToX = (d) => PLOT_LEFT + (d / totalDays) * pw;
 
-    // グリッド（10刻み、1桁目5）
+    // ─── BP セクション ───
+
+    // グリッド
     for (let bp = 65; bp <= 145; bp += 10) {
-      const y = bpToY(bp, pad, ph);
+      const y = bpToY(bp, pad, bpPlotH);
       const isTarget = (bp === 125 || bp === 75);
       ctx.strokeStyle = isTarget ? '#e74c3c' : '#e8ecef';
       ctx.lineWidth = isTarget ? 1.0 : 0.5;
-      ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(PLOT_LEFT, y); ctx.lineTo(W - PLOT_RIGHT, y); ctx.stroke();
       ctx.fillStyle = isTarget ? '#e74c3c' : '#95a5a6';
       ctx.font = isTarget ? 'bold 11px sans-serif' : '11px sans-serif';
       ctx.textAlign = 'right';
-      ctx.fillText(bp, pad.left - 5, y + 4);
+      ctx.fillText(bp, PLOT_LEFT - 5, y + 4);
     }
 
     // Y軸ラベル
     ctx.save();
-    ctx.translate(14, H / 2); ctx.rotate(-Math.PI / 2);
+    ctx.translate(14, pad.top + bpPlotH / 2); ctx.rotate(-Math.PI / 2);
     ctx.fillStyle = '#7f8c8d'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('mmHg', 0, 0);
     ctx.restore();
 
-    // 年区切り線（1月1日）
+    // 年区切り線（全セクション共通）
     ctx.strokeStyle = '#d5d8dc';
     ctx.lineWidth = 0.8;
     ctx.setLineDash([3, 4]);
+    var allSectionBottom = medBarTop > 0 ? medBarTop : bpSectionBottom;
     for (let y = firstDate.getFullYear() + 1; y <= lastDate.getFullYear(); y++) {
       const jan1 = new Date(y, 0, 1);
       if (jan1 >= firstDate && jan1 <= lastDate) {
@@ -221,13 +429,13 @@ BPApp.Chart = (function () {
         const x = dayToX(dOff);
         ctx.beginPath();
         ctx.moveTo(x, pad.top);
-        ctx.lineTo(x, H - pad.bottom);
+        ctx.lineTo(x, allSectionBottom);
         ctx.stroke();
       }
     }
     ctx.setLineDash([]);
 
-    // 基準線（125/75, 135/85）
+    // 基準線
     const THRESHOLD_SETS = [
       { id: 'chk-threshold-12575', sbp: 125, dbp: 75, color: '#27ae60', label: '125/75' },
       { id: 'chk-threshold-13585', sbp: 135, dbp: 85, color: '#e67e22', label: '135/85' },
@@ -239,21 +447,20 @@ BPApp.Chart = (function () {
       ctx.lineWidth = 1.2;
       ctx.setLineDash([5, 4]);
       ctx.globalAlpha = 0.65;
-      var ySbp = bpToY(ts.sbp, pad, ph);
-      ctx.beginPath(); ctx.moveTo(pad.left, ySbp); ctx.lineTo(W - pad.right, ySbp); ctx.stroke();
+      var ySbp = bpToY(ts.sbp, pad, bpPlotH);
+      ctx.beginPath(); ctx.moveTo(PLOT_LEFT, ySbp); ctx.lineTo(W - PLOT_RIGHT, ySbp); ctx.stroke();
       ctx.fillStyle = ts.color; ctx.globalAlpha = 0.85;
       ctx.font = '10px sans-serif'; ctx.textAlign = 'right';
-      ctx.fillText(ts.sbp, W - pad.right - 4, ySbp + 3);
-      var yDbp = bpToY(ts.dbp, pad, ph);
-      ctx.beginPath(); ctx.moveTo(pad.left, yDbp); ctx.lineTo(W - pad.right, yDbp); ctx.stroke();
-      ctx.fillText(ts.dbp, W - pad.right - 4, yDbp + 3);
+      ctx.fillText(ts.sbp, W - PLOT_RIGHT - 4, ySbp + 3);
+      var yDbp = bpToY(ts.dbp, pad, bpPlotH);
+      ctx.beginPath(); ctx.moveTo(PLOT_LEFT, yDbp); ctx.lineTo(W - PLOT_RIGHT, yDbp); ctx.stroke();
+      ctx.fillText(ts.dbp, W - PLOT_RIGHT - 4, yDbp + 3);
       ctx.setLineDash([]);
       ctx.globalAlpha = 1.0;
     });
 
-    // 折れ線を描画（表示対象のみ）
+    // BP折れ線
     const seriesData = [];
-
     activeItems.forEach(function(item) {
       const pts = [];
       valid.forEach(r => {
@@ -263,14 +470,13 @@ BPApp.Chart = (function () {
           const dOff = Math.round((dt - firstDate) / 86400000);
           pts.push({
             x: dayToX(dOff),
-            y: bpToY(v, pad, ph),
+            y: bpToY(v, pad, bpPlotH),
             val: v,
             date: r.date,
             reading: r,
           });
         }
       });
-
       if (pts.length === 0) return;
 
       ctx.strokeStyle = item.color;
@@ -280,32 +486,45 @@ BPApp.Chart = (function () {
       ctx.beginPath();
       let started = false;
       for (let i = 0; i < pts.length; i++) {
-        if (!started) {
-          ctx.moveTo(pts[i].x, pts[i].y);
-          started = true;
-        } else {
-          ctx.lineTo(pts[i].x, pts[i].y);
-        }
+        if (!started) { ctx.moveTo(pts[i].x, pts[i].y); started = true; }
+        else { ctx.lineTo(pts[i].x, pts[i].y); }
       }
       ctx.stroke();
       if (item.opacity != null) ctx.globalAlpha = 1.0;
 
       if (item.opacity != null) ctx.globalAlpha = item.opacity;
       pts.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
-        ctx.fillStyle = item.color;
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.2;
-        ctx.stroke();
+        ctx.beginPath(); ctx.arc(p.x, p.y, GRAPH.dotRadius, 0, Math.PI * 2);
+        ctx.fillStyle = item.color; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
       });
       if (item.opacity != null) ctx.globalAlpha = 1.0;
 
       seriesData.push({ key: item.key, label: item.label, color: item.color, pts: pts });
     });
 
-    // X軸ラベル（年月日）
+    // ─── 体重サブグラフ ───
+    var weightData = null;
+    if (showWeight) {
+      weightData = drawWeightSubGraph(ctx, valid, firstDate, lastDate, totalDays, dayToX, pw, PLOT_LEFT, weightSectionTop, weightH);
+    }
+
+    // ─── 浮腫マーカー ───
+    var edemaData = null;
+    if (showEdema) {
+      edemaData = drawEdemaMarkers(ctx, valid, firstDate, lastDate, totalDays, dayToX, pw, PLOT_LEFT, edemaSectionTop, edemaH);
+    }
+
+    // ─── X軸ラベル（最下部の可視セクション直下） ───
+    var xLabelY;
+    if (showEdema) {
+      xLabelY = edemaSectionBottom + 12;
+    } else if (showWeight) {
+      xLabelY = weightSectionBottom + 12;
+    } else {
+      xLabelY = bpSectionBottom + 12;
+    }
+
     ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
     const labelStep = Math.max(1, Math.floor(totalDays / 12));
     let lastMonth = '';
@@ -313,29 +532,43 @@ BPApp.Chart = (function () {
       const dt = new Date(r.date + 'T00:00:00');
       const dOff = Math.round((dt - firstDate) / 86400000);
       if (dOff % labelStep === 0 || dOff === 0 || dOff === totalDays) {
+        ctx.fillText(r.date.slice(5), dayToX(dOff), xLabelY);
         const m = r.date.slice(0, 7);
-        ctx.fillText(r.date.slice(5), dayToX(dOff), H - pad.bottom + 16);
         if (m !== lastMonth) {
           ctx.fillStyle = '#7f8c8d'; ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(m.slice(0, 4) + '/' + m.slice(5, 7), dayToX(dOff), H - pad.bottom + 30);
+          ctx.fillText(m.slice(0, 4) + '/' + m.slice(5, 7), dayToX(dOff), xLabelY + 14);
           ctx.fillStyle = '#95a5a6'; ctx.font = '10px sans-serif';
           lastMonth = m;
         }
       }
     });
 
-    // 下部に薬剤バーを描画
-    drawMedicationBars(ctx, medList, firstDate, lastDate, pad, pw, W, H);
+    // ─── 薬剤バー ───
+    drawMedicationBars(ctx, medList, firstDate, lastDate, pad, pw, W, H, medBarTop);
 
-    canvas._graphData = { items: activeItems, readings: valid, seriesData, W, H, pad, medications: medList };
+    // ツールチップ用データ
+    canvas._graphData = {
+      items: activeItems,
+      readings: valid,
+      seriesData: seriesData,
+      W: W, H: H,
+      pad: pad,
+      medications: medList,
+      weightData: weightData,
+      edemaData: edemaData,
+      showWeight: showWeight,
+      showEdema: showEdema
+    };
   }
 
-  // メイン描画関数
+  /* ── 描画エントリ ── */
+
   function drawGraph(canvas, readings, medications) {
     drawAllPeriodGraph(canvas, readings, medications);
   }
 
-  // ツールチップ
+  /* ── ツールチップ ── */
+
   function setupTooltip(canvas) {
     let tt = null;
     canvas.addEventListener('mousemove', (e) => {
@@ -347,14 +580,15 @@ BPApp.Chart = (function () {
       const mx = e.clientX - rect.left;
 
       const pad = g.pad;
-      const pw = canvas.offsetWidth - pad.left - pad.right;
-      const firstDate = new Date(g.readings[0].date + 'T00:00:00');
-      const lastDate = new Date(g.readings[g.readings.length - 1].date + 'T00:00:00');
+      const allReadings = g.readings;
+      const firstDate = new Date(allReadings[0].date + 'T00:00:00');
+      const lastDate = new Date(allReadings[allReadings.length - 1].date + 'T00:00:00');
       const totalDays = Math.max(1, Math.round((lastDate - firstDate) / 86400000));
+      const pw = canvas.offsetWidth - pad.left - pad.right;
 
       let closest = null;
       let minDist = Infinity;
-      g.readings.forEach(r => {
+      allReadings.forEach(r => {
         const dt = new Date(r.date + 'T00:00:00');
         const dOff = Math.round((dt - firstDate) / 86400000);
         const x = pad.left + (dOff / totalDays) * pw;
@@ -365,13 +599,21 @@ BPApp.Chart = (function () {
       if (!closest || minDist > 20) return;
 
       var allItems = window.BP_ITEMS || BP_ITEMS;
-      let html = `<strong>${closest.date}</strong>`;
+      let html = '<strong>' + closest.date + '</strong>';
       allItems.forEach(function(item) {
         const v = closest[item.key];
         if (v && v > 0) {
-          html += `<br><span style="color:${item.color}">●</span> ${item.label}: ${v}`;
+          html += '<br><span style="color:' + item.color + '">●</span> ' + item.label + ': ' + v;
         }
       });
+      if (g.showWeight && closest.weight > 0) {
+        html += '<br><span style="color:#8e44ad">●</span> 体重: ' + closest.weight + 'kg';
+      }
+      if (g.showEdema && closest.edema >= 0) {
+        var edemaLabels = {0:'なし',1:'軽度(1+)',2:'中等度(2+)',3:'高度(3+)',4:'著明(4+)'};
+        var label = edemaLabels[closest.edema] || closest.edema;
+        html += '<br><span style="color:#e84393">●</span> 浮腫: ' + label;
+      }
 
       const dt = new Date(closest.date + 'T00:00:00');
       const dOff = Math.round((dt - firstDate) / 86400000);
@@ -381,8 +623,8 @@ BPApp.Chart = (function () {
       tt.style.cssText =
         'position:absolute;background:rgba(44,62,80,.92);color:#fff;padding:8px 12px;' +
         'border-radius:5px;font-size:12px;pointer-events:none;white-space:nowrap;' +
-        `left:${Math.min(tx + 14, canvas.parentElement.offsetWidth - 200)}px;` +
-        `top:${Math.max(e.clientY - rect.top - 10, 10)}px;` +
+        'left:' + Math.min(tx + 14, canvas.parentElement.offsetWidth - 200) + 'px;' +
+        'top:' + Math.max(e.clientY - rect.top - 10, 10) + 'px;' +
         'z-index:50;box-shadow:0 2px 8px rgba(0,0,0,.3);line-height:1.6';
       tt.innerHTML = html;
       canvas.parentElement.appendChild(tt);

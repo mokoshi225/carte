@@ -146,6 +146,12 @@ BPApp.Soap = (function () {
       oParts.push('受診時血圧');
       oParts.push((oSbp || '---') + '/' + (oDbp || '---') + 'mmHg');
     }
+    // 浮腫
+    var edemaVal = getFormValue('inp-edema');
+    if (edemaVal !== '') {
+      var edemaLabels = {'0':'なし','1':'軽度(1+)','2':'中等度(2+)','3':'高度(3+)','4':'著明(4+)'};
+      oParts.push('浮腫 ' + (edemaLabels[edemaVal] || edemaVal));
+    }
     lines.push(oParts.join(' '));
 
     var homeParts = buildHomeBPString(avgSbp, avgDbp, minSbp, minDbp, maxSbp, maxDbp);
