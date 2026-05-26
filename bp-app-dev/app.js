@@ -233,10 +233,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.5.0 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.5.0';
+    $('header-info').textContent = 'v3.6.0 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.6.0';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.5.0';
+    $('app-version-footer').textContent = '3.6.0';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -1617,7 +1617,7 @@ BPApp.App = (function () {
   }
 
   function calNavigate(delta) {
-    _calMonth += delta * 2;
+    _calMonth += delta * 3;
     if (_calMonth < 1) { _calMonth += 12; _calYear--; }
     if (_calMonth > 12) { _calMonth -= 12; _calYear++; }
     renderCalendar(_calYear, _calMonth);
@@ -1710,19 +1710,26 @@ BPApp.App = (function () {
     var info = $('cal-header-info');
     if (!title || !body) return;
 
-    var nextMonth = month + 1;
-    var nextYear = year;
-    if (nextMonth > 12) { nextMonth = 1; nextYear++; }
+    function addMonths(y, m, n) {
+      m += n;
+      while (m > 12) { m -= 12; y++; }
+      while (m < 1) { m += 12; y--; }
+      return { year: y, month: m };
+    }
 
-    title.textContent = year + '年' + month + '月 - ' + nextYear + '年' + nextMonth + '月';
+    var m1 = { year: year, month: month };
+    var m2 = addMonths(year, month, 1);
+    var m3 = addMonths(year, month, 2);
+
+    title.textContent = m1.year + '年' + m1.month + '月 - ' + m3.year + '年' + m3.month + '月';
     if (info) {
       var today = new Date();
       info.textContent = '今日: ' + fmtDate(today);
     }
 
     var pad = function (n) { return String(n).padStart(2, '0'); };
-    var startDate = year + '-' + pad(month) + '-01';
-    var endDate = nextYear + '-' + pad(nextMonth) + '-31';
+    var startDate = m1.year + '-' + pad(m1.month) + '-01';
+    var endDate  = m3.year + '-' + pad(m3.month) + '-31';
     try {
       _calAppointments = await getAppointmentsByDateRange(startDate, endDate);
     } catch (e) {
@@ -1766,9 +1773,10 @@ BPApp.App = (function () {
 
     var todayStr = fmtDate(new Date());
 
-    var html = '<div class="cal-two-month">';
-    html += _buildMonthTable(year, month, pad, patientCache, todayStr, daySettingMap);
-    html += _buildMonthTable(nextYear, nextMonth, pad, patientCache, todayStr, daySettingMap);
+    var html = '<div class="cal-three-month">';
+    html += _buildMonthTable(m1.year, m1.month, pad, patientCache, todayStr, daySettingMap);
+    html += _buildMonthTable(m2.year, m2.month, pad, patientCache, todayStr, daySettingMap);
+    html += _buildMonthTable(m3.year, m3.month, pad, patientCache, todayStr, daySettingMap);
     html += '</div>';
     body.innerHTML = html;
 

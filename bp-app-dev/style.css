@@ -306,6 +306,8 @@ input, select { font-family: inherit }
 .cal-badge-limited { color: #f39c12; font-weight: 700; font-size: .72em }
 
 /* ===== Calendar ===== */
+.cal-three-month { display: flex; gap: 12px; justify-content: center; align-items: flex-start }
+.cal-three-month .cal-table { flex: 1; min-width: 0 }
 .cal-two-month { display: flex; gap: 16px; justify-content: center; align-items: flex-start }
 .cal-two-month .cal-table { flex: 1; min-width: 0 }
 .cal-table { width: 100%; border-collapse: collapse; table-layout: fixed }
