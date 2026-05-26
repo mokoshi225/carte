@@ -295,10 +295,6 @@ input, select { font-family: inherit }
 .cal-closed { background: #e8e8e8 !important; text-decoration: line-through; opacity: .7 }
 .cal-businesstrip { background: #fef5e7 !important }
 .cal-limited { box-shadow: inset 2px 2px 0 #f39c12, inset -2px -2px 0 #f39c12 !important }
-.cal-busy-2 { background: #fdedec !important }
-.cal-busy-1 { background: #fef9e7 !important }
-.cal-busy-m1 { background: #eafaf1 !important }
-
 .cal-badge {
   display: inline-block; padding: 1px 6px; border-radius: 3px;
   font-size: .7em; font-weight: 600; line-height: 1.5;
@@ -306,25 +302,16 @@ input, select { font-family: inherit }
 .cal-badge-holiday { background: #f5b7b1; color: #fff }
 .cal-badge-closed { background: #bdc3c7; color: #fff }
 .cal-badge-trip { background: #f0b27a; color: #fff }
-.cal-badge-busy2 { background: #e74c3c; color: #fff }
-.cal-badge-busy1 { background: #f39c12; color: #fff }
-.cal-badge-empty { background: #27ae60; color: #fff }
 .cal-badge-limited { color: #f39c12; font-weight: 700; font-size: .72em }
-
-.cal-pred {
-  display: inline-block; font-size: .65em; font-weight: 600;
-  padding: 1px 5px; border-radius: 2px; margin-top: 1px;
-}
-.cal-pred-empty { background: #d5f5e3; color: #1e8449 }
-.cal-pred-busy { background: #fadbd8; color: #c0392b }
 
 /* ===== Calendar ===== */
 .cal-two-month { display: flex; gap: 16px; justify-content: center; align-items: flex-start }
 .cal-two-month .cal-table { flex: 1; min-width: 0 }
 .cal-table { width: 100%; border-collapse: collapse; table-layout: fixed }
 .cal-month-title { font-size: .95em; font-weight: 700; margin-bottom: 4px; caption-side: top; text-align: center; padding: 6px 0; color: #2c3e50 }
-.cal-offset { display: block; font-size: .7em; color: #bdc3c7; font-weight: 400; line-height: 1.2 }
-.cal-offset-today { color: #27ae60; font-weight: 600 }
+.cal-date-num { font-size: 1.3em; font-weight: 700; line-height: 1.2 }
+.cal-offset { display: block; font-size: .82em; color: #5a6a7a; font-weight: 700; line-height: 1.3 }
+.cal-offset-today { color: #27ae60; font-weight: 800 }
 .cal-offset-past { color: #e74c3c }
 .cal-table th {
   padding: 8px 4px; text-align: center; font-size: .82em;
@@ -343,8 +330,8 @@ input, select { font-family: inherit }
 .cal-table td.cal-has-appt { background: #fef9e7 }
 .cal-table td.cal-today.cal-has-appt { background: #d5f5e3; box-shadow: inset 0 -3px 0 #27ae60 }
 .cal-appt-names {
-  display: block; font-size: .72em; line-height: 1.3; color: #2c3e50;
-  margin-top: 2px; font-weight: 400;
+  display: block; font-size: .65em; line-height: 1.2; color: #999;
+  margin-top: 1px; font-weight: 400;
 }
 
 /* ===== Version History ===== */

@@ -248,6 +248,7 @@
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                 <tbody>
+ 			<tr><td>v3.5.0</td><td>2026-05-26</td><td>カレンダーUI整理: 日付・オフセット強調、患者名控えめ表示、混み具合の色分け削除、28日予測・予約あり凡例削除</td></tr>
  			<tr><td>v3.4.0</td><td>2026-05-25</td><td>EMRマッチング時、複数候補から統合する患者を選択可能に（ラジオボタン）</td></tr>
  			<tr><td>v3.3.1</td><td>2026-05-25</td><td>改善: 予約詳細モーダルをスクロール可能に（max-height+overflow）。モーダル幅拡大(520→720px)。予約一覧テーブルを独立スクロール領域に。閉じるボタンを右上✕に変更。</td></tr>
  			<tr><td>v3.3.0</td><td>2026-05-25</td><td>Excel予約取込機能追加：TSVパース・プレビュー・仮患者登録・EMR読込時自動マッチング提案・手動紐付け</td></tr>
@@ -350,16 +351,10 @@
         <div id="cal-body"></div>
       </div>
       <div id="cal-legend" style="margin-top:8px;font-size:.78em;color:#7f8c8d;display:flex;flex-wrap:wrap;gap:4px 12px">
-        <span>🟢 予約あり</span>
         <span style="background:#fde8e8;padding:1px 4px;border-radius:2px">祝日</span>
         <span style="background:#e8e8e8;padding:1px 4px;border-radius:2px;text-decoration:line-through">休診</span>
         <span style="background:#fef5e7;padding:1px 4px;border-radius:2px">出張</span>
         <span style="border:1px solid #f39c12;padding:1px 4px;border-radius:2px">制限</span>
-        <span style="background:#fdedec;padding:1px 4px;border-radius:2px">激混み</span>
-        <span style="background:#fef9e7;padding:1px 4px;border-radius:2px">混雑</span>
-        <span style="background:#eafaf1;padding:1px 4px;border-radius:2px">空き</span>
-        <span>🔴←28日予測</span>
-        <span>🟢←28日予測</span>
       </div>
       <div class="data-bar" style="margin-top:12px">
         <button id="btn-export-appt-csv">📤 予約CSV出力</button>

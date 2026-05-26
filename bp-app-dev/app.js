@@ -221,10 +221,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.4.0 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.4.0';
+    $('header-info').textContent = 'v3.5.0 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.5.0';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.4.0';
+    $('app-version-footer').textContent = '3.5.0';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -1595,25 +1595,7 @@ BPApp.App = (function () {
     return level >= -1 && level <= 2 ? _busyLevelLabels[level + 1] : '';
   }
 
-  function _predictionMapKey(dsMap, startDate, endDate) {
-    var pred = {};
-    for (var dateStr in dsMap) {
-      if (dateStr < startDate || dateStr > endDate) continue;
-      var ds = dsMap[dateStr];
-      if (!ds.isManual) continue;
-      var triggerBusy = (ds.busyLevel === 2 || ds.busyLevel === -1) || ds.flags.isHoliday;
-      if (!triggerBusy) continue;
-      var d = new Date(dateStr + 'T00:00:00');
-      d.setDate(d.getDate() + 28);
-      var pd = fmtDate(d);
-      if (pd >= startDate && pd <= endDate && (!dsMap[pd] || !dsMap[pd].isManual)) {
-        pred[pd] = { fromDate: dateStr, busyLevel: ds.flags.isHoliday ? -1 : ds.busyLevel };
-      }
-    }
-    return pred;
-  }
-
-  function _buildMonthTable(y, m, pad, patientCache, todayStr, daySettingMap, predMap) {
+  function _buildMonthTable(y, m, pad, patientCache, todayStr, daySettingMap) {
     var firstDay = new Date(y, m - 1, 1).getDay();
     var daysInMonth = new Date(y, m, 0).getDate();
     var todayDate = new Date(todayStr + 'T00:00:00');
@@ -1649,9 +1631,6 @@ BPApp.App = (function () {
             if (ds.flags && ds.flags.isClosed) cls += ' cal-closed';
             if (ds.flags && ds.flags.isBusinessTrip) cls += ' cal-businesstrip';
             if (ds.flags && ds.flags.isLimited) cls += ' cal-limited';
-            if (ds.busyLevel === 2) cls += ' cal-busy-2';
-            else if (ds.busyLevel === 1) cls += ' cal-busy-1';
-            else if (ds.busyLevel === -1) cls += ' cal-busy-m1';
           }
 
           var cellDate = new Date(dateStr + 'T00:00:00');
@@ -1665,42 +1644,22 @@ BPApp.App = (function () {
             offsetLabel = '<span class="cal-offset cal-offset-past">' + offset + '</span>';
           }
 
-          var label = '' + day + '<br>' + offsetLabel;
+          var label = '<span class="cal-date-num">' + day + '</span><br>' + offsetLabel;
 
+          // フラグバッジ（祝日・休診・出張・制限）
           if (ds) {
-            var busyBadge = '';
-            if (ds.flags && ds.flags.isHoliday) {
-              busyBadge = '<span class="cal-badge cal-badge-holiday">祝日</span>';
-            } else if (ds.flags && ds.flags.isClosed) {
-              busyBadge = '<span class="cal-badge cal-badge-closed">休診</span>';
-            } else if (ds.flags && ds.flags.isBusinessTrip) {
-              busyBadge = '<span class="cal-badge cal-badge-trip">出張</span>';
-            } else if (ds.busyLevel === 2) {
-              busyBadge = '<span class="cal-badge cal-badge-busy2">激混み</span>';
-            } else if (ds.busyLevel === 1) {
-              busyBadge = '<span class="cal-badge cal-badge-busy1">混雑</span>';
-            } else if (ds.busyLevel === -1) {
-              busyBadge = '<span class="cal-badge cal-badge-empty">余裕</span>';
-            }
-            if (busyBadge) label += '<br>' + busyBadge;
-            if (ds.flags && ds.flags.isLimited) {
-              label += '<br><span class="cal-badge cal-badge-limited">制限</span>';
-            }
+            var flags = [];
+            if (ds.flags && ds.flags.isHoliday) flags.push('<span class="cal-badge cal-badge-holiday">祝日</span>');
+            if (ds.flags && ds.flags.isClosed) flags.push('<span class="cal-badge cal-badge-closed">休診</span>');
+            if (ds.flags && ds.flags.isBusinessTrip) flags.push('<span class="cal-badge cal-badge-trip">出張</span>');
+            if (ds.flags && ds.flags.isLimited) flags.push('<span class="cal-badge cal-badge-limited">制限</span>');
+            if (flags.length > 0) label += '<br>' + flags.join(' ');
           }
 
-          // 患者名（全表示、truncation廃止）
+          // 患者名（全表示、控えめスタイル）
           if (dayAppts.length > 0) {
             var names = dayAppts.map(function (a) { return patientCache[a.patientId] || a.patientId; });
             label += '<br><span class="cal-appt-names">' + names.join('<br>') + '</span>';
-          }
-
-          // 28日後予測
-          var pred = predMap ? predMap[dateStr] : null;
-          if (pred) {
-            var predLabel = pred.busyLevel === -1
-              ? '<span class="cal-pred cal-pred-empty">🟢←28日予測</span>'
-              : '<span class="cal-pred cal-pred-busy">🔴←28日予測</span>';
-            label += '<br>' + predLabel;
           }
 
           html += '<td class="' + cls + '" data-date="' + dateStr + '">' + label + '</td>';
@@ -1773,12 +1732,11 @@ BPApp.App = (function () {
       }
     }
 
-    var predMap = _predictionMapKey(daySettingMap, startDate, endDate);
     var todayStr = fmtDate(new Date());
 
     var html = '<div class="cal-two-month">';
-    html += _buildMonthTable(year, month, pad, patientCache, todayStr, daySettingMap, predMap);
-    html += _buildMonthTable(nextYear, nextMonth, pad, patientCache, todayStr, daySettingMap, predMap);
+    html += _buildMonthTable(year, month, pad, patientCache, todayStr, daySettingMap);
+    html += _buildMonthTable(nextYear, nextMonth, pad, patientCache, todayStr, daySettingMap);
     html += '</div>';
     body.innerHTML = html;
 
@@ -2640,7 +2598,7 @@ BPApp.App = (function () {
   window.closeCalendar = closeCalendar;
   window.calNavigate = calNavigate;
   window._busyLabel = _busyLabel;
-  window._predictionMapKey = _predictionMapKey;
+
   window._buildMonthTable = _buildMonthTable;
   window.renderCalendar = renderCalendar;
   window.showAppointmentDetail = showAppointmentDetail;
