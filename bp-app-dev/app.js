@@ -233,10 +233,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.6.0 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.6.0';
+    $('header-info').textContent = 'v3.6.1 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.6.1';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.6.0';
+    $('app-version-footer').textContent = '3.6.1';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -2382,7 +2382,7 @@ BPApp.App = (function () {
       var parsed = false;
 
       // Format A: avgSBP/avgDBP [minSBP/minDBP-maxSBP/maxDBP] memo
-      var m = rest.match(/^(\d{1,3})\/(\d{1,3})\s+(\d{1,3})\/(\d{1,3})-(\d{1,3})\/(\d{1,3})(?:\s|　|$)/);
+      var m = rest.match(/^(\d{1,3})\/(\d{1,3})\s+(\d{1,3})\/(\d{1,3})-(\d{1,3})\/(\d{1,3})/);
       if (m) {
         avgSbp = parseInt(m[1], 10);
         avgDbp = parseInt(m[2], 10);
@@ -2396,7 +2396,7 @@ BPApp.App = (function () {
 
       // Format B: avgSBP/avgDBP memo
       if (!parsed) {
-        m = rest.match(/^(\d{1,3})\/(\d{1,3})(?:\s|　|$)/);
+        m = rest.match(/^(\d{1,3})\/(\d{1,3})/);
         if (m) {
           avgSbp = parseInt(m[1], 10);
           avgDbp = parseInt(m[2], 10);
