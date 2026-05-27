@@ -431,6 +431,8 @@ BPApp.Cleanup = (function () {
         minDbp: r.minDbp || 0,
         maxSbp: r.maxSbp || 0,
         maxDbp: r.maxDbp || 0,
+        minPulse: r.minPulse || 0,
+        maxPulse: r.maxPulse || 0,
         createdAt: r.createdAt || new Date().toISOString(),
         updatedAt: new Date().toISOString()
       };

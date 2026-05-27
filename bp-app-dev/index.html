@@ -85,6 +85,10 @@
           <input type="checkbox" id="chk-show-edema" checked>
           <span>浮腫</span>
         </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="chk-show-pulse" checked>
+          <span>脈拍</span>
+        </label>
       </div>
 <div class="form-section" id="section-bp-input">
           <h3>📋 受診時血圧記録</h3>
@@ -119,16 +123,24 @@
            <input type="number" id="inp-min-dbp" class="short" min="30" max="200" placeholder="---">
            <span class="unit">mmHg</span>
          </div>
-         <div class="form-row form-row-compact">
-           <label>家庭SBP最大</label>
-           <input type="number" id="inp-max-sbp" class="short" min="50" max="300" placeholder="---">
-           <span class="unit">mmHg</span>
-           <label>家庭DBP最大</label>
-           <input type="number" id="inp-max-dbp" class="short" min="30" max="200" placeholder="---">
-           <span class="unit">mmHg</span>
-         </div>
-          <div class="form-row">
-            <label for="inp-edema">浮腫</label>
+          <div class="form-row form-row-compact">
+            <label>家庭SBP最大</label>
+            <input type="number" id="inp-max-sbp" class="short" min="50" max="300" placeholder="---">
+            <span class="unit">mmHg</span>
+            <label>家庭DBP最大</label>
+            <input type="number" id="inp-max-dbp" class="short" min="30" max="200" placeholder="---">
+            <span class="unit">mmHg</span>
+          </div>
+          <div class="form-row form-row-compact">
+            <label>脈拍最小</label>
+            <input type="number" id="inp-min-pulse" class="short" min="20" max="300" placeholder="---">
+            <span class="unit">/min</span>
+            <label>脈拍最大</label>
+            <input type="number" id="inp-max-pulse" class="short" min="20" max="300" placeholder="---">
+            <span class="unit">/min</span>
+          </div>
+           <div class="form-row">
+             <label for="inp-edema">浮腫</label>
             <select id="inp-edema" class="short">
               <option value="">--</option>
               <option value="0">なし (0)</option>
@@ -241,9 +253,11 @@
                  <th>SBP平均</th><th>DBP平均</th>
                  <th>SBP最小</th><th>DBP最小</th>
                  <th>SBP最大</th><th>DBP最大</th>
-                 <th>体重</th>
-                 <th>浮腫</th>
-                 <th>操作</th>
+                  <th>体重</th>
+                  <th>浮腫</th>
+                  <th>脈拍最小</th>
+                  <th>脈拍最大</th>
+                  <th>操作</th>
               </tr></thead>
              <tbody id="daily-body"></tbody>
            </table>
@@ -266,9 +280,9 @@
              <table class="summary-table">
                <thead><tr><th>バージョン</th><th>日付</th><th>更新内容</th></tr></thead>
                  <tbody>
-<<<<<<< HEAD
-=======
->>>>>>> f5f167b (v3.6.1 fix: モーダル重複時のz-indexスタッキング修正)
+ 			<tr><td>v3.7.0</td><td>2026-05-27</td><td>受診間脈拍（最小・最大）入力フィールド追加。グラフに脈拍サブグラフ（自動スケールY軸）追加。脈拍表示ON/OFF切替可能。CSV入出力・SOAP出力・ツールチップ対応。</td></tr>
+			<tr><td>v3.6.1</td><td>2026-05-27</td><td>fix: モーダル重複時のz-indexスタッキング修正</td></tr>
+			<tr><td>v3.6.0</td><td>2026-05-26</td><td>予約カレンダーを3ヶ月表示に変更。カレンダー画面で一度に3ヶ月分を表示。</td></tr>
  			<tr><td>v3.5.0</td><td>2026-05-26</td><td>浮腫（edema）入力フィールド追加。グラフに体重サブグラフ（自動スケールY軸）＋浮腫マーカー追加。体重・浮腫の表示ON/OFFを独立チェックボックスで切替可能。CSV入出力・SOAP出力・ツールチップ対応。カレンダーUI整理: 日付・オフセット強調、患者名控えめ表示、混み具合の色分け削除、28日予測・予約あり凡例削除。</td></tr>
  			<tr><td>v3.4.0</td><td>2026-05-25</td><td>EMRマッチング時、複数候補から統合する患者を選択可能に（ラジオボタン）</td></tr>
  			<tr><td>v3.3.1</td><td>2026-05-25</td><td>改善: 予約詳細モーダルをスクロール可能に（max-height+overflow）。モーダル幅拡大(520→720px)。予約一覧テーブルを独立スクロール領域に。閉じるボタンを右上✕に変更。</td></tr>

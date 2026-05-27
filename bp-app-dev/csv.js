@@ -30,7 +30,7 @@ BPApp.CSV = (function () {
   /**
    * CSV文字列をパースしてレコード配列に変換
    * @param {string} text - CSVテキスト
-   * @returns {{patientId, name, date, systolic, diastolic, note, weight, edema}[]}
+   * @returns {{patientId, name, date, systolic, diastolic, note, weight, edema, minPulse, maxPulse}[]}
    */
   function parseCSV(text) {
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
@@ -49,9 +49,11 @@ BPApp.CSV = (function () {
       const note = cols[5] || '';
       const weight = cols[6] ? Number(cols[6]) : 0;
       const edema = cols[7] ? Number(cols[7]) : 0;
+      const minPulse = cols[8] ? Number(cols[8]) : 0;
+      const maxPulse = cols[9] ? Number(cols[9]) : 0;
 
       if (!patientId || !date || isNaN(systolic) || isNaN(diastolic)) continue;
-      records.push({ patientId, name, date, systolic, diastolic, note, weight, edema });
+      records.push({ patientId, name, date, systolic, diastolic, note, weight, edema, minPulse, maxPulse });
     }
     return records;
   }
@@ -62,11 +64,11 @@ BPApp.CSV = (function () {
    * @returns {string} BOM付きUTF-8 CSV
    */
   function recordsToCSV(records) {
-    let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ,体重,浮腫\n';
+    let csv = '\ufeff患者ID,患者氏名,測定日,収縮期,拡張期,メモ,体重,浮腫,脈拍最小,脈拍最大\n';
     records.forEach(r => {
       const name = r.name ? `"${r.name}"` : '';
       const note = r.note ? `"${r.note}"` : '';
-      csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note},${r.weight || 0},${r.edema || 0}\n`;
+      csv += `${r.patientId},${name},${r.date},${r.systolic},${r.diastolic},${note},${r.weight || 0},${r.edema || 0},${r.minPulse || 0},${r.maxPulse || 0}\n`;
     });
     return csv;
   }

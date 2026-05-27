@@ -59,6 +59,14 @@ BPApp.App = (function () {
     });
     var inpWeight = $('inp-weight');
     if (inpWeight) inpWeight.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); var pl = $('inp-min-pulse'); if (pl) pl.focus(); }
+    });
+    var inpMinPulse = $('inp-min-pulse');
+    if (inpMinPulse) inpMinPulse.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); var pl = $('inp-max-pulse'); if (pl) pl.focus(); }
+    });
+    var inpMaxPulse = $('inp-max-pulse');
+    if (inpMaxPulse) inpMaxPulse.addEventListener('keydown', function (e) {
       if (e.key === 'Enter') { e.preventDefault(); var ed = $('inp-edema'); if (ed) ed.focus(); }
     });
     var inpEdema = $('inp-edema');
@@ -92,8 +100,8 @@ BPApp.App = (function () {
       });
     });
 
-    // Event: 体重グラフ / 浮腫トグル
-    ['chk-show-weight', 'chk-show-edema'].forEach(function (id) {
+    // Event: 体重グラフ / 浮腫 / 脈拍トグル
+    ['chk-show-weight', 'chk-show-edema', 'chk-show-pulse'].forEach(function (id) {
       var el = $(id);
       if (el) el.addEventListener('change', function () {
         if (currentPatientId && currentView === 'all') renderView();
@@ -233,10 +241,10 @@ BPApp.App = (function () {
     }
 
     // Version info
-    $('header-info').textContent = 'v3.6.1 | ' + new Date().toLocaleDateString('ja-JP');
-    $('app-version').textContent = '3.6.1';
+    $('header-info').textContent = 'v3.7.0 | ' + new Date().toLocaleDateString('ja-JP');
+    $('app-version').textContent = '3.7.0';
     $('app-build-date').textContent = new Date().toLocaleDateString('ja-JP');
-    $('app-version-footer').textContent = '3.6.1';
+    $('app-version-footer').textContent = '3.7.0';
 
     var emrBtns = ['emr-btn-id', 'emr-btn-patient', 'emr-btn-calendar'];
     for (var i = 0; i < emrBtns.length; i++) {
@@ -450,6 +458,7 @@ BPApp.App = (function () {
       var showVisit = !$('chk-show-visit') || $('chk-show-visit').checked;
       var showWeight = !$('chk-show-weight') || $('chk-show-weight').checked;
       var showEdema = !$('chk-show-edema') || $('chk-show-edema').checked;
+      var showPulse = !$('chk-show-pulse') || $('chk-show-pulse').checked;
       var items = [
         { show: showVisit,   color: '#c0392b', label: '受診SBP' },
         { show: true,        color: '#e67e22', label: '家庭SBP平均' },
@@ -461,6 +470,8 @@ BPApp.App = (function () {
         { show: true,        color: '#8e44ad', label: '家庭DBP最大' },
         { show: showWeight,  color: '#8e44ad', label: '体重' },
         { show: showEdema,   color: '#e84393', label: '浮腫' },
+        { show: showPulse,   color: '#e84393', label: '脈拍最小' },
+        { show: showPulse,   color: '#c0392b', label: '脈拍最大' },
       ];
       legendEl.innerHTML = items.filter(function (i) { return i.show; }).map(function (i) {
         return '<div class="legend-item"><div class="legend-color" style="background:' + i.color + '"></div>' + i.label + '</div>';
@@ -476,7 +487,7 @@ BPApp.App = (function () {
     var body = $('daily-body');
     if (!body) return;
     if (!readings || readings.length === 0) {
-      body.innerHTML = '<tr><td colspan="12" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
+      body.innerHTML = '<tr><td colspan="14" style="text-align:center;color:#95a5a6;padding:20px">データがありません</td></tr>';
       return;
     }
     readings.sort(function (a, b) { return b.date.localeCompare(a.date); });
@@ -487,6 +498,7 @@ BPApp.App = (function () {
       function n(v) { return v > 0 ? v : '-'; }
       function w(v) { return v > 0 ? v : '-'; }
       var edemaLabel = (r.edema > 0) ? (EDEMA_LABELS[r.edema] || r.edema) : '-';
+      function p(v) { return v > 0 ? v : '-'; }
       html += '<tr>' +
         '<td>' + r.date + '</td>' +
         '<td class="bp-val">' + n(r.systolic) + '</td>' +
@@ -499,6 +511,8 @@ BPApp.App = (function () {
         '<td class="bp-val">' + n(r.maxDbp) + '</td>' +
         '<td class="bp-val">' + w(r.weight) + '</td>' +
         '<td class="bp-val">' + edemaLabel + '</td>' +
+        '<td class="bp-val">' + p(r.minPulse) + '</td>' +
+        '<td class="bp-val">' + p(r.maxPulse) + '</td>' +
         '<td style="text-align:right;white-space:nowrap">' +
         '<button class="btn btn-sm btn-secondary" data-edit="' + r.id + '">編集</button> ' +
         '<button class="btn btn-sm btn-danger" data-del="' + r.id + '">削除</button>' +
@@ -545,6 +559,7 @@ BPApp.App = (function () {
     var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
     var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
     var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+    var np = $('inp-min-pulse'), xp = $('inp-max-pulse');
     var wt = $('inp-weight');
     var ed = $('inp-edema');
     var m = $('inp-memo');
@@ -570,10 +585,12 @@ BPApp.App = (function () {
       minSbp: Number(ns ? ns.value : 0) || 0,
       minDbp: Number(nd ? nd.value : 0) || 0,
       maxSbp: Number(xs ? xs.value : 0) || 0,
-        maxDbp: Number(xd ? xd.value : 0) || 0,
-        weight: weight || 0,
-        edema: edema
-      };
+      maxDbp: Number(xd ? xd.value : 0) || 0,
+      minPulse: Number(np ? np.value : 0) || 0,
+      maxPulse: Number(xp ? xp.value : 0) || 0,
+      weight: weight || 0,
+      edema: edema
+    };
 
     try {
       var existing = await getReadingByDate(currentPatientId, date);
@@ -614,10 +631,13 @@ BPApp.App = (function () {
       var clipMinDbp = reading.minDbp || 0;
       var clipMaxSbp = reading.maxSbp || 0;
       var clipMaxDbp = reading.maxDbp || 0;
+      var clipMinPulse = reading.minPulse || 0;
+      var clipMaxPulse = reading.maxPulse || 0;
       var clipEdema = reading.edema > 0 ? '、浮腫 ' + reading.edema + '+' : '';
+      var clipPulseStr = (clipMinPulse || clipMaxPulse) ? '、脈拍' + clipMinPulse + '-' + clipMaxPulse + '/min' : '';
       var clipText = clipDate + '\n' +
         '受診時血圧' + clipSbp + '/' + clipDbp + 'mmHg\n' +
-        '家庭血圧平均' + clipAvgSbp + '/' + clipAvgDbp + 'mmHg、最低' + clipMinSbp + '/' + clipMinDbp + 'mmHg、最高' + clipMaxSbp + '/' + clipMaxDbp + 'mmHg' + clipEdema;
+        '家庭血圧平均' + clipAvgSbp + '/' + clipAvgDbp + 'mmHg、最低' + clipMinSbp + '/' + clipMinDbp + 'mmHg、最高' + clipMaxSbp + '/' + clipMaxDbp + 'mmHg' + clipPulseStr + clipEdema;
       copyToClipboard(clipText);
 
       if (sb) sb.value = '';
@@ -625,6 +645,7 @@ BPApp.App = (function () {
       if (as) as.value = ''; if (ad) ad.value = '';
       if (ns) ns.value = ''; if (nd) nd.value = '';
       if (xs) xs.value = ''; if (xd) xd.value = '';
+      if (np) np.value = ''; if (xp) xp.value = '';
       if (wt) wt.value = '';
       if (ed) ed.value = '';
       if (m) m.value = '';
@@ -653,6 +674,7 @@ BPApp.App = (function () {
       var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
       var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
       var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+      var np = $('inp-min-pulse'), xp = $('inp-max-pulse');
       var sj = $('inp-subjective');
       var wt = $('inp-weight');
       var ed = $('inp-edema');
@@ -665,6 +687,8 @@ BPApp.App = (function () {
       if (nd) nd.value = r.minDbp || '';
       if (xs) xs.value = r.maxSbp || '';
       if (xd) xd.value = r.maxDbp || '';
+      if (np) np.value = r.minPulse || '';
+      if (xp) xp.value = r.maxPulse || '';
       if (wt) wt.value = r.weight || '';
       if (ed) ed.value = (r.edema != null && r.edema !== '') ? String(r.edema) : '';
       if (m) m.value = r.note || '';
@@ -693,7 +717,7 @@ BPApp.App = (function () {
     var patient = await getPatient(currentPatientId);
     if (readings.length === 0) { toast('データがありません'); return; }
     readings.sort(function (a, b) { return a.date.localeCompare(b.date); });
-    var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,体重,浮腫,メモ\n';
+    var csv = '\ufeff患者ID,患者氏名,測定日,受診SBP,受診DBP,家庭SBP平均,家庭DBP平均,家庭SBP最小,家庭DBP最小,家庭SBP最大,家庭DBP最大,脈拍最小,脈拍最大,体重,浮腫,メモ\n';
     for (var i = 0; i < readings.length; i++) {
       var r = readings[i];
       var name = patient ? patient.name.replace(/"/g, '""') : '';
@@ -702,6 +726,7 @@ BPApp.App = (function () {
         (r.avgSbp || 0) + ',' + (r.avgDbp || 0) + ',' +
         (r.minSbp || 0) + ',' + (r.minDbp || 0) + ',' +
         (r.maxSbp || 0) + ',' + (r.maxDbp || 0) + ',' +
+        (r.minPulse || 0) + ',' + (r.maxPulse || 0) + ',' +
         (r.weight || 0) + ',' +
         (r.edema || 0) + ',' +
         '"' + (r.note || '').replace(/"/g, '""') + '"\n';
@@ -747,6 +772,7 @@ BPApp.App = (function () {
                   existing.systolic = rec.systolic; existing.diastolic = rec.diastolic;
                   existing.meanArterial = Math.round((rec.systolic + rec.diastolic * 2) / 3);
                   existing.note = rec.note; existing.weight = rec.weight || 0; existing.edema = rec.edema || 0;
+                  existing.minPulse = rec.minPulse || 0; existing.maxPulse = rec.maxPulse || 0;
                   existing.updatedAt = new Date().toISOString();
                   await putReading(existing);
                 } else {
@@ -757,6 +783,7 @@ BPApp.App = (function () {
                     systolic: rec.systolic, diastolic: rec.diastolic,
                     meanArterial: Math.round((rec.systolic + rec.diastolic * 2) / 3),
                     note: rec.note, weight: rec.weight || 0, edema: rec.edema || 0,
+                    minPulse: rec.minPulse || 0, maxPulse: rec.maxPulse || 0,
                     createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
                   });
                 }
@@ -844,6 +871,7 @@ BPApp.App = (function () {
     var as = $('inp-avg-sbp'), ad = $('inp-avg-dbp');
     var ns = $('inp-min-sbp'), nd = $('inp-min-dbp');
     var xs = $('inp-max-sbp'), xd = $('inp-max-dbp');
+    var np = $('inp-min-pulse'), xp = $('inp-max-pulse');
     var wt = $('inp-weight');
     var ed = $('inp-edema');
     if (!d) { toast('日付が入力されていません'); return; }
@@ -866,9 +894,12 @@ BPApp.App = (function () {
     var homeRange = homeMin + '-' + homeMax;
     var weight = v(wt);
     var edemaStr = (ed && ed.value !== '') ? '浮腫 ' + ed.options[ed.selectedIndex].text : '';
+    var pulseMin = v(np);
+    var pulseMax = v(xp);
+    var pulseStr = (pulseMin !== '-' || pulseMax !== '-') ? '、脈拍' + pulseMin + '-' + pulseMax + '/min' : '';
 
     var line1 = dateStr;
-    var line2 = clinicBP + ',' + homeAvg + ',' + homeRange + ',' + weight;
+    var line2 = clinicBP + ',' + homeAvg + ',' + homeRange + ',' + weight + pulseStr;
     if (edemaStr) line2 += ',' + edemaStr;
 
     var text = line1 + '\n' + line2;
@@ -2058,7 +2089,7 @@ BPApp.App = (function () {
             var seas = 2 * Math.cos((m + 3) * Math.PI / 6);
             return Math.round(base + seas + (noise(m * 7 + 2) - 0.5) * 4);
           },
-          weight: 75, coatSbp: 8, coatDbp: 5, edemaProb: 0.35, edemaMax: 2
+          weight: 75, coatSbp: 8, coatDbp: 5, edemaProb: 0.35, edemaMax: 2, pulseBase: 72
         },
         'DEMO-002': {
           // 軽度高血圧、安定。浮腫は稀
@@ -2072,7 +2103,7 @@ BPApp.App = (function () {
             var seas = 1.5 * Math.cos((m + 3) * Math.PI / 6);
             return Math.round(base + seas + (noise(m * 7 + 11) - 0.5) * 3);
           },
-          weight: 58, coatSbp: 5, coatDbp: 3, edemaProb: 0.08, edemaMax: 1
+          weight: 58, coatSbp: 5, coatDbp: 3, edemaProb: 0.08, edemaMax: 1, pulseBase: 68
         },
         'DEMO-003': {
           // 糖尿病合併、変動大。浮腫が出やすい
@@ -2086,7 +2117,7 @@ BPApp.App = (function () {
             var seas = 2 * Math.cos((m + 3) * Math.PI / 6);
             return Math.round(base + seas + (noise(m * 7 + 21) - 0.5) * 5);
           },
-          weight: 68, coatSbp: 7, coatDbp: 4, edemaProb: 0.45, edemaMax: 3
+          weight: 68, coatSbp: 7, coatDbp: 4, edemaProb: 0.45, edemaMax: 3, pulseBase: 76
         }
       };
 
@@ -2161,6 +2192,11 @@ BPApp.App = (function () {
             var bpRatio = Math.max(0, Math.min(1, (haSbp - 115) / 45)); // 115→0, 160→1
             edema = Math.min(prof.edemaMax, Math.max(1, Math.round(bpRatio * prof.edemaMax + (noise(m * 3 + pi * 100 + 9) - 0.5))));
           }
+          // 脈拍：ベース値 + 季節変動 + ランダムノイズ、日変動として最小・最大を生成
+          var pulseSeason = 3 * Math.cos((m + 6) * Math.PI / 6);
+          var pulseBaseVal = prof.pulseBase + pulseSeason + (noise(m * 3 + pi * 100 + 10) - 0.5) * 6;
+          var minPulseVal = Math.max(40, Math.round(pulseBaseVal - 5 - noise(m * 3 + pi * 100 + 11) * 6));
+          var maxPulseVal = Math.min(200, Math.round(pulseBaseVal + 5 + noise(m * 3 + pi * 100 + 12) * 6));
 
           // 既存の同日データがあれば削除（安全策）
           var existRead = await getReadingByDate(pid, dateStr);
@@ -2182,6 +2218,8 @@ BPApp.App = (function () {
             maxDbp: hiDbp,
             weight: wt,
             edema: edema,
+            minPulse: minPulseVal,
+            maxPulse: maxPulseVal,
             createdAt: new Date().toISOString()
           });
           readingCount++;

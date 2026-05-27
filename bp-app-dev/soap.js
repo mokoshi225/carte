@@ -158,6 +158,12 @@ BPApp.Soap = (function () {
     if (homeParts.length > 0) {
       lines.push('　　家庭血圧 ' + homeParts.join('、'));
     }
+    // 脈拍
+    var minPulseVal = getFormValue('inp-min-pulse');
+    var maxPulseVal = getFormValue('inp-max-pulse');
+    if (minPulseVal || maxPulseVal) {
+      lines.push('　　脈拍 ' + (minPulseVal || '?') + '-' + (maxPulseVal || '?') + '/min');
+    }
 
     var aLines = [];
     try {

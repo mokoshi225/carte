@@ -22,6 +22,7 @@ BPApp.Chart = (function () {
     lineWidth: 1.8,
     // サブグラフ高さ
     bpPlotH: 340,
+    pulseH: 100,
     weightH: 110,
     edemaH: 50,
   };
@@ -307,6 +308,127 @@ BPApp.Chart = (function () {
     return { pts: pts };
   }
 
+  /* ── 脈拍サブグラフ ── */
+
+  function drawPulseSubGraph(ctx, readings, firstDate, lastDate, totalDays, dayToX, pw, left, yOff, h) {
+    var validMin = readings.filter(function(r) { return r.minPulse && r.minPulse > 0; });
+    var validMax = readings.filter(function(r) { return r.maxPulse && r.maxPulse > 0; });
+    if (validMin.length === 0 && validMax.length === 0) return null;
+
+    // 全脈拍値の最小・最大を求める（自動スケール）
+    var pMin = Infinity, pMax = -Infinity;
+    validMin.forEach(function(r) { if (r.minPulse < pMin) pMin = r.minPulse; if (r.minPulse > pMax) pMax = r.minPulse; });
+    validMax.forEach(function(r) { if (r.maxPulse < pMin) pMin = r.maxPulse; if (r.maxPulse > pMax) pMax = r.maxPulse; });
+    if (pMin === Infinity) return null;
+
+    // マージン ±10%
+    var margin = Math.max((pMax - pMin) * 0.1, 5);
+    pMin = Math.max(0, Math.floor(pMin - margin));
+    pMax = Math.ceil(pMax + margin);
+
+    var pulsePlotH = h - 4;
+
+    // セクション背景
+    ctx.fillStyle = '#f8f9fb';
+    ctx.fillRect(left, yOff, pw + 40, h);
+
+    // 領域仕切り線
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(left, yOff);
+    ctx.lineTo(left + pw + 40, yOff);
+    ctx.stroke();
+
+    // グリッド（5本程度）
+    var step = Math.max(1, Math.ceil((pMax - pMin) / 4 / 5) * 5 || 5);
+    for (var v = Math.ceil(pMin / step) * step; v <= pMax; v += step) {
+      var py = yOff + 2 + ((pMax - v) / (pMax - pMin)) * pulsePlotH;
+      ctx.strokeStyle = '#e8ecef';
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(left + 2, py); ctx.lineTo(left + pw + 36, py); ctx.stroke();
+
+      ctx.fillStyle = '#95a5a6';
+      ctx.font = '10px sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(Math.round(v), left + pw + 36, py + 3);
+    }
+
+    // ラベル「脈拍」
+    ctx.save();
+    ctx.translate(left + pw + 38, yOff + h / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#7f8c8d';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('/min', 0, 0);
+    ctx.restore();
+
+    function pulseToY(v) {
+      return yOff + 2 + ((pMax - v) / (pMax - pMin)) * pulsePlotH;
+    }
+
+    function buildPts(items, key) {
+      return items.map(function(r) {
+        var dt = new Date(r.date + 'T00:00:00');
+        var dOff = Math.round((dt - firstDate) / 86400000);
+        return {
+          x: dayToX(dOff),
+          y: pulseToY(r[key]),
+          val: r[key],
+          date: r.date,
+          reading: r
+        };
+      }).sort(function(a,b) { return a.x - b.x; });
+    }
+
+    // minPulse（薄めの線）
+    var ptsMin = buildPts(validMin, 'minPulse');
+    if (ptsMin.length > 0) {
+      var colorMin = '#3498db';
+      ctx.strokeStyle = colorMin;
+      ctx.lineWidth = 1.4;
+      ctx.globalAlpha = 0.6;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (var i = 0; i < ptsMin.length; i++) {
+        if (i === 0) ctx.moveTo(ptsMin[i].x, ptsMin[i].y);
+        else ctx.lineTo(ptsMin[i].x, ptsMin[i].y);
+      }
+      ctx.stroke();
+      ctx.globalAlpha = 1.0;
+
+      ptsMin.forEach(function(p) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = colorMin; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+      });
+    }
+
+    // maxPulse（やや太め）
+    var ptsMax = buildPts(validMax, 'maxPulse');
+    if (ptsMax.length > 0) {
+      var colorMax = '#e74c3c';
+      ctx.strokeStyle = colorMax;
+      ctx.lineWidth = 2.0;
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      for (var i = 0; i < ptsMax.length; i++) {
+        if (i === 0) ctx.moveTo(ptsMax[i].x, ptsMax[i].y);
+        else ctx.lineTo(ptsMax[i].x, ptsMax[i].y);
+      }
+      ctx.stroke();
+
+      ptsMax.forEach(function(p) {
+        ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = colorMax; ctx.fill();
+        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+      });
+    }
+
+    return { pMin: pMin, pMax: pMax, ptsMin: ptsMin, ptsMax: ptsMax };
+  }
+
   /* ── メイン描画 ── */
 
   function drawAllPeriodGraph(canvas, readings, medications) {
@@ -318,6 +440,7 @@ BPApp.Chart = (function () {
     const showVisit = !document.getElementById('chk-show-visit') || document.getElementById('chk-show-visit').checked;
     const showWeight = !document.getElementById('chk-show-weight') || document.getElementById('chk-show-weight').checked;
     const showEdema = !document.getElementById('chk-show-edema') || document.getElementById('chk-show-edema').checked;
+    const showPulse = !document.getElementById('chk-show-pulse') || document.getElementById('chk-show-pulse').checked;
 
     // 表示するBPアイテム
     const activeItems = showVisit
@@ -328,7 +451,8 @@ BPApp.Chart = (function () {
     const valid = readings.filter(function(r) {
       return activeItems.some(function(item) { return r[item.key] && r[item.key] > 0; })
         || (showWeight && r.weight > 0)
-        || (showEdema && r.edema >= 0);
+        || (showEdema && r.edema >= 0)
+        || (showPulse && ((r.minPulse && r.minPulse > 0) || (r.maxPulse && r.maxPulse > 0)));
     });
 
     // 日付範囲
@@ -362,14 +486,17 @@ BPApp.Chart = (function () {
     const PLOT_RIGHT = pad.right;
 
     // レイアウト計算
-    const bpPlotH = showWeight || showEdema ? GRAPH.bpPlotH : 380;
+    const bpPlotH = showWeight || showEdema || showPulse ? GRAPH.bpPlotH : 380;
+    const pulseH = showPulse ? GRAPH.pulseH : 0;
     const weightH = showWeight ? GRAPH.weightH : 0;
     const edemaH = showEdema ? GRAPH.edemaH : 0;
     const medBarH = medList.length > 0 ? medList.length * 20 + 25 : 0;
     const gap = 4;
 
     var bpSectionBottom = pad.top + bpPlotH;
-    var weightSectionTop = bpSectionBottom + gap;
+    var pulseSectionTop = bpSectionBottom + gap;
+    var pulseSectionBottom = pulseSectionTop + pulseH;
+    var weightSectionTop = pulseSectionBottom + (showPulse ? gap : 0);
     var weightSectionBottom = weightSectionTop + weightH;
     var edemaSectionTop = weightSectionBottom + (showWeight ? gap : 0);
     var edemaSectionBottom = edemaSectionTop + edemaH;
@@ -421,7 +548,7 @@ BPApp.Chart = (function () {
     ctx.strokeStyle = '#d5d8dc';
     ctx.lineWidth = 0.8;
     ctx.setLineDash([3, 4]);
-    var allSectionBottom = medBarTop > 0 ? medBarTop : bpSectionBottom;
+    var allSectionBottom = medBarTop > 0 ? medBarTop : (showPulse ? pulseSectionBottom : (showWeight ? weightSectionBottom : (showEdema ? edemaSectionBottom : bpSectionBottom)));
     for (let y = firstDate.getFullYear() + 1; y <= lastDate.getFullYear(); y++) {
       const jan1 = new Date(y, 0, 1);
       if (jan1 >= firstDate && jan1 <= lastDate) {
@@ -503,6 +630,12 @@ BPApp.Chart = (function () {
       seriesData.push({ key: item.key, label: item.label, color: item.color, pts: pts });
     });
 
+    // ─── 脈拍サブグラフ ───
+    var pulseData = null;
+    if (showPulse) {
+      pulseData = drawPulseSubGraph(ctx, valid, firstDate, lastDate, totalDays, dayToX, pw, PLOT_LEFT, pulseSectionTop, pulseH);
+    }
+
     // ─── 体重サブグラフ ───
     var weightData = null;
     if (showWeight) {
@@ -521,6 +654,8 @@ BPApp.Chart = (function () {
       xLabelY = edemaSectionBottom + 12;
     } else if (showWeight) {
       xLabelY = weightSectionBottom + 12;
+    } else if (showPulse) {
+      xLabelY = pulseSectionBottom + 12;
     } else {
       xLabelY = bpSectionBottom + 12;
     }
@@ -556,8 +691,10 @@ BPApp.Chart = (function () {
       medications: medList,
       weightData: weightData,
       edemaData: edemaData,
+      pulseData: pulseData,
       showWeight: showWeight,
-      showEdema: showEdema
+      showEdema: showEdema,
+      showPulse: showPulse
     };
   }
 
@@ -613,6 +750,14 @@ BPApp.Chart = (function () {
         var edemaLabels = {0:'なし',1:'軽度(1+)',2:'中等度(2+)',3:'高度(3+)',4:'著明(4+)'};
         var label = edemaLabels[closest.edema] || closest.edema;
         html += '<br><span style="color:#e84393">●</span> 浮腫: ' + label;
+      }
+      if (g.showPulse) {
+        if (closest.minPulse && closest.minPulse > 0) {
+          html += '<br><span style="color:#3498db">●</span> 脈拍最小: ' + closest.minPulse;
+        }
+        if (closest.maxPulse && closest.maxPulse > 0) {
+          html += '<br><span style="color:#e74c3c">●</span> 脈拍最大: ' + closest.maxPulse;
+        }
       }
 
       const dt = new Date(closest.date + 'T00:00:00');
