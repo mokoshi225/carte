@@ -112,8 +112,20 @@ function toast(msg) {
   toastTimer = setTimeout(function () { t.classList.remove('show'); }, 2500);
 }
 
-/** Modal 表示/非表示 */
-function showModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'flex'; }
+/** Modal 表示/非表示 — 重なり時は後から開いた方を前面に */
+function showModal(id) {
+  var el = $('modal-' + id);
+  if (el) {
+    var maxZ = 999;
+    var all = document.querySelectorAll('.modal-overlay');
+    for (var i = 0; i < all.length; i++) {
+      var z = parseInt(all[i].style.zIndex, 10);
+      if (z > maxZ) maxZ = z;
+    }
+    el.style.zIndex = maxZ + 1;
+    el.style.display = 'flex';
+  }
+}
 function hideModal(id) { var el = $('modal-' + id); if (el) el.style.display = 'none'; }
 
 /** 画面切替 */
